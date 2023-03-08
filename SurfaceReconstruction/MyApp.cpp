@@ -21,10 +21,10 @@ CMyApp::CMyApp(void)
 
 CMyApp::~CMyApp(void)
 {
-    
+
 }
 
-std::vector<Vertex> loadPLYFile(const std::string& filename) {
+Vertices CMyApp::loadPLYFile(const std::string& filename) {
     std::ifstream file(filename);
     if (!file) {
         std::cerr << "Could not open file: " << filename << std::endl;
@@ -50,10 +50,12 @@ std::vector<Vertex> loadPLYFile(const std::string& filename) {
         return {};
     }
 
-    std::vector<Vertex> vertices(numVertices);
+    Vertices vertices;
+    vertices.positions.resize(numVertices);
+    vertices.colors.resize(numVertices);
     for (int i = 0; i < numVertices; ++i) {
-        file >> vertices[i].x >> vertices[i].y >> vertices[i].z;
-        file >> vertices[i].r >> vertices[i].g >> vertices[i].b;
+        file >> vertices.positions[i].x >> vertices.positions[i].y >> vertices.positions[i].z;
+        file >> vertices.colors[i].r >> vertices.colors[i].g >> vertices.colors[i].b;
     }
 
     return vertices;
@@ -82,7 +84,7 @@ bool CMyApp::Init()
     m_matProj = glm::perspective(45.0f, 640 / 480.0f, 1.0f, 1000.0f);
 
     // törlési szín legyen fehér
-    glClearColor(0.1f,0.1f,0.41f, 1);
+    glClearColor(0.1f, 0.1f, 0.41f, 1);
 
     // most nincs hátlapeldobás, szeretnénk látni a hátlapokat is, de csak vonalakra raszterizálva
     //glEnable(GL_CULL_FACE); // kapcsoljuk be a hatrafele nezo lapok eldobasat
@@ -104,13 +106,13 @@ bool CMyApp::Init()
     m_axesProgram.Init({
                 {GL_VERTEX_SHADER,		"axes.vert"},
                 {GL_FRAGMENT_SHADER,	"axes.frag"}
-    });
+        });
 
     // kockát kirajzoló program
     m_passthroughProgram.Init({
         { GL_VERTEX_SHADER,		"passthrough.vert" },
         { GL_FRAGMENT_SHADER,	"passthrough.frag" }
-    },
+        },
     {
         {0, "vs_in_pos"}
     });
@@ -119,7 +121,7 @@ bool CMyApp::Init()
     m_particleProgram.Init({	// shaderek felsorolása
         { GL_VERTEX_SHADER,		"particle.vert" },
         { GL_FRAGMENT_SHADER,	"particle.frag" }
-    },
+        },
     {	// binding-ok felsorolása
         { 0, "vs_in_pos" },
         { 1, "vs_in_vel" },
@@ -128,7 +130,7 @@ bool CMyApp::Init()
     m_program.Init({
         { GL_VERTEX_SHADER, "myVert.vert" },
         { GL_FRAGMENT_SHADER, "myFrag.frag" }
-    },
+        },
     {
         { 0, "vs_in_pos" },					// VAO 0-as csatorna menjen a vs_in_pos-ba
         { 1, "vs_in_normal" },				// VAO 1-es csatorna menjen a vs_in_normal-ba
@@ -140,32 +142,32 @@ bool CMyApp::Init()
 
     // vertexek pozíciói:
     /*
-    Az m_gpuBufferPos konstruktora már létrehozott egy GPU puffer azonosítót és a most következő BufferData hívás ezt 
+    Az m_gpuBufferPos konstruktora már létrehozott egy GPU puffer azonosítót és a most következő BufferData hívás ezt
         1. bind-olni fogja GL_ARRAY_BUFFER target-re (hiszen m_gpuBufferPos típusa ArrayBuffer) és
         2. glBufferData segítségével áttölti a GPU-ra az argumentumban adott tároló értékeit
 
     */
-    m_gpuBufferPos.BufferData( 
+    m_gpuBufferPos.BufferData(
         std::vector<glm::vec3>{
-            // hátsó lap
-            glm::vec3(-1,-1,-1),
-            glm::vec3( 1,-1,-1), 
-            glm::vec3( 1, 1,-1),
-            glm::vec3(-1, 1,-1),
-            // elülső lap
-            glm::vec3(-1,-1, 1),
-            glm::vec3( 1,-1, 1),
-            glm::vec3( 1, 1, 1),
-            glm::vec3(-1, 1, 1),
+        // hátsó lap
+        glm::vec3(-1, -1, -1),
+        glm::vec3(1, -1, -1),
+        glm::vec3(1, 1, -1),
+        glm::vec3(-1, 1, -1),
+        // elülső lap
+        glm::vec3(-1, -1, 1),
+        glm::vec3(1, -1, 1),
+        glm::vec3(1, 1, 1),
+        glm::vec3(-1, 1, 1),
 
-        }
+    }
     );
 
     // és a primitíveket alkotó csúcspontok indexei (az előző tömbökből) - triangle list-el való kirajzolásra felkészülve
     m_gpuBufferIndices.BufferData(
         std::vector<int>{
-            // hátsó lap
-            0, 1, 2,
+        // hátsó lap
+        0, 1, 2,
             2, 3, 0,
             // elülső lap
             4, 6, 5,
@@ -191,26 +193,31 @@ bool CMyApp::Init()
             { CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpuBufferPos },		// 0-ás attribútum "lényegében" glm::vec3-ak sorozata és az adatok az m_gpuBufferPos GPU pufferben vannak
         },
         m_gpuBufferIndices
-    );
-    
+        );
+
     // kamera
     // m_camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
 
     // részecskék inicializálása
-    m_particlePos.reserve(m_particleCount);
-    m_particleVel.reserve(m_particleCount);
+
+    m_vertices = loadPLYFile("../inputs/sphereCalibScan5.ply");
+
+    m_particlePos = m_vertices.positions;
+    //m_particleVel.reserve(m_particleCount);
 
     // véletlenszám generátor inicializálása
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<> rnd(-1,1);
+    std::uniform_real_distribution<> rnd(-1, 1);
 
     // CPU oldali részecsketömbök feltöltése
+    /*
     for (int i = 0; i < m_particleCount; ++i)
     {
-        m_particlePos.push_back( glm::vec3(rnd(gen), rnd(gen), rnd(gen)) );
-        m_particleVel.push_back( glm::vec3( 2*rnd(gen), 2*rnd(gen), 2*rnd(gen) ) );
+        m_particlePos.push_back(glm::vec3(rnd(gen), rnd(gen), rnd(gen)));
+        //m_particleVel.push_back(glm::vec3(2 * rnd(gen), 2 * rnd(gen), 2 * rnd(gen)));
     }
+    */
 
     // GPU-ra áttölteni a részecskék pozícióit
     m_gpuParticleBuffer.BufferData(m_particlePos);	// <=>	m_gpuParticleBuffer = m_particlePos;
@@ -218,7 +225,7 @@ bool CMyApp::Init()
     // és végül a VAO-t inicializálni
     m_gpuParticleVAO.Init({
         {CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpuParticleBuffer}
-    });
+        });
 
     return true;
 }
@@ -233,13 +240,13 @@ void CMyApp::Reset()
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> rnd(-1, 1);
-    m_particlePos.clear();
-    m_particleVel.clear();
-    for (int i = 0; i < m_particleCount; ++i)
+    //m_particlePos.clear();
+    //m_particleVel.clear();
+    /*for (int i = 0; i < m_particleCount; ++i)
     {
         m_particlePos.push_back(glm::vec3(rnd(gen), rnd(gen), rnd(gen)));
-        m_particleVel.push_back(glm::vec3(2 * rnd(gen), 2 * rnd(gen), 2 * rnd(gen)));
-    }
+        //m_particleVel.push_back(glm::vec3(2 * rnd(gen), 2 * rnd(gen), 2 * rnd(gen)));
+    }*/
 }
 
 void CMyApp::Update()
@@ -252,114 +259,9 @@ void CMyApp::Update()
 
     // m_camera.Update(delta_time);
 
-    // calc velocity changes
-    std::vector<glm::vec3> vels;
-    for (int i = 0; i < m_particleCount; ++i)
-    {
-        vels.push_back(glm::vec3(0, 0, 0));
-        
-        // find neighbors
-        std::vector<glm::vec3> nsp;
-        std::vector<glm::vec3> nsv;
-        for (int j = 0; j < m_particleCount; ++j)
-        {
-            if (i != j && glm::distance(m_particlePos[i], m_particlePos[j]) <= n_dist) {
-                nsp.push_back(m_particlePos[j]);
-                nsv.push_back(m_particleVel[j]);
-            }
-        }
-
-        // coherence
-        if (nsp.size() > 0) {
-            glm::vec3 cog = glm::vec3(0, 0, 0);
-            for (int j = 0; j < nsp.size(); ++j)
-            {
-                cog += nsp[j];
-            }
-            cog /= (float)nsp.size();
-            glm::vec3 coherence = (cog - m_particlePos[i]) * a;
-            vels[i] += coherence;
-        }
-
-        // separation
-        for (int j = 0; j < nsp.size(); ++j)
-        {
-            vels[i] += (m_particlePos[i] - nsp[j]) * b;
-        }
-
-        // alignment
-        if (nsv.size() > 0) {
-            glm::vec3 n_avg_vel = glm::vec3(0, 0, 0);
-            for (int j = 0; j < nsv.size(); ++j)
-            {
-                n_avg_vel += nsv[j];
-            }
-            n_avg_vel /= (float)nsv.size();
-            glm::vec3 alignment = n_avg_vel * c;
-            vels[i] += alignment;
-        }
-    }
-
-    // frissítsük a pozíciókat
-    static const float energyRemaining = 1;	// tökéletesen rugalmas ütközés
-    for (int i = 0; i < m_particleCount; ++i)
-    {
-        // apply coherence, separation and alignment
-        for (int j = 0; j < m_particleCount; ++j)
-        {
-            m_particleVel[i] += vels[i];
-        }
-
-        // limit velocity
-        if (glm::length(m_particleVel[i]) > max_speed) {
-            m_particleVel[i] = glm::normalize(m_particleVel[i]) * max_speed;
-        }
-
-        // change pos based on vel
-        m_particlePos[i] += m_particleVel[i] * delta_time;
-        
-        /*if ((m_particlePos[i].x >= 1 && m_particleVel[i].x > 0) || (m_particlePos[i].x <= -1 && m_particleVel[i].x < 0))
-            m_particleVel[i].x *= -energyRemaining;
-        if ( (m_particlePos[i].y >= 1 && m_particleVel[i].y > 0) || (m_particlePos[i].y <= -1 && m_particleVel[i].y < 0))
-            m_particleVel[i].y *= -energyRemaining;
-        if ( (m_particlePos[i].z >= 1 && m_particleVel[i].z > 0) || (m_particlePos[i].z <= -1 && m_particleVel[i].z < 0))
-            m_particleVel[i].z *= -energyRemaining;*/
-
-        if ((m_particlePos[i].x >= 1 && m_particleVel[i].x > 0))
-        {
-            m_particlePos[i].x = 1;
-            m_particleVel[i].x *= -energyRemaining;
-        }
-        if ((m_particlePos[i].x <= -1 && m_particleVel[i].x < 0))
-        {
-            m_particlePos[i].x = -1;
-            m_particleVel[i].x *= -energyRemaining;
-        }
-        if ((m_particlePos[i].y >= 1 && m_particleVel[i].y > 0))
-        {
-            m_particlePos[i].y = 1;
-            m_particleVel[i].y *= -energyRemaining;
-        }
-        if ((m_particlePos[i].y <= -1 && m_particleVel[i].y < 0))
-        {
-            m_particlePos[i].y = -1;
-            m_particleVel[i].y *= -energyRemaining;
-        }
-        if ((m_particlePos[i].z >= 1 && m_particleVel[i].z > 0))
-        {
-            m_particlePos[i].z = 1;
-            m_particleVel[i].z *= -energyRemaining;
-        }
-        if ((m_particlePos[i].z <= -1 && m_particleVel[i].z < 0))
-        {
-            m_particlePos[i].z = -1;
-            m_particleVel[i].z *= -energyRemaining;
-        }
-    }
-
     // frissítsük a puffert
     glBindBuffer(GL_ARRAY_BUFFER, m_gpuParticleBuffer);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::vec3)*m_particlePos.size(), &(m_particlePos[0][0]));
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::vec3) * m_particlePos.size(), &(m_particlePos[0][0]));
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     // használhattuk volna simán a 
     //m_gpuParticleBuffer = m_particlePos; // <=> m_gpuParticleBuffer.BufferData(m_particlePos);
@@ -394,7 +296,7 @@ void CMyApp::Render()
 
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);*/
 
-    // részecskék
+    // pontok
     glEnable(GL_PROGRAM_POINT_SIZE);
     m_gpuParticleVAO.Bind();
     m_particleProgram.Use();
@@ -405,6 +307,7 @@ void CMyApp::Render()
     glDisable(GL_PROGRAM_POINT_SIZE);
 
     // fal
+    /*
     m_program.Use();
 
     // most kikapcsoljuk a hátlapeldobást, hogy lássuk mindkétt oldalát!
@@ -417,7 +320,7 @@ void CMyApp::Render()
     mvp = m_matProj * m_matView * m_matWorld;
     m_program.SetUniform("MVP", mvp);
     m_program.SetUniform("Kd", m_wallColor);
-    
+
 
     m_vao.Bind();
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -427,19 +330,11 @@ void CMyApp::Render()
     glEnable(GL_CULL_FACE);
 
     m_program.Unuse();
+    */
 
-    if (ImGui::Begin("Boids"))
+    if (ImGui::Begin("Points"))
     {
-        ImGui::Text("Change the simulation properties");
-        ImGui::SliderFloat("Coherence", &a, 0, 1.0);
-        ImGui::SliderFloat("Separation", &b, 0, 1.0);
-        ImGui::SliderFloat("Alignment", &c, 0, 1.0);
-        ImGui::SliderFloat("Max speed", &max_speed, 0, 1.0);
-        ImGui::SliderFloat("Neighbor distance", &n_dist, 0, 1.0);
-        if (ImGui::Button("Reset particle pos")) {
-            CMyApp::Reset();
-        }
-        ImGui::SliderFloat4("Fal kd", &(m_wallColor[0]), 0, 1);
+        ImGui::Text("Properties");
     }
     ImGui::End();
 
@@ -455,9 +350,9 @@ void CMyApp::Render()
     /*
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiSetCond_FirstUseEver);
     // csak akkor lépjünk be, hogy ha az ablak nincs csíkká lekicsinyítve...
-    if (ImGui::Begin("Physics control"))	
+    if (ImGui::Begin("Physics control"))
     {
-        
+
 
     }
     ImGui::End(); // ...de még ha le is volt, End()-et hívnunk kell
@@ -466,7 +361,7 @@ void CMyApp::Render()
     /*
 
     0. feladat: ne legyen tökéletesen rugalmas az ütközés, hanem UI-ról állítható legyen a mozgási energia megmaradt aránya!
-    1. feladat: hasson a részecskékre gravitáció! Tedd fel, hogy minden részecske egységnyi tömegű. 
+    1. feladat: hasson a részecskékre gravitáció! Tedd fel, hogy minden részecske egységnyi tömegű.
     2. feladat: a részecskék ütközzenek egymással is!
     3. feladat: rajzold ki minden egyes részecskéhez egy GL_LINES-zal a sebességvektorát!
     4. feladat: az UI segítségével lehessen külön-külön
@@ -489,39 +384,11 @@ void CMyApp::KeyboardDown(SDL_KeyboardEvent& key)
     // m_camera.KeyboardDown(key);
     switch (key.keysym.sym)
     {
-        case(SDLK_w): 
-            std::cout << "---\n|W|\n"; 
-            m_v -= step_size;
-            m_v = glm::mod(m_v, 2.0f);
-            m_at = CMyApp::GetSpherePos(m_u, m_v);
-            m_eye = m_at - m_fw;
-            break;
-        case(SDLK_s): 
-            std::cout << "---\n|S|\n"; 
-            std::cout << "---\n|W|\n";
-            m_v += step_size;
-            m_v = glm::mod(m_v, 2.0f);
-            m_at = CMyApp::GetSpherePos(m_u, m_v);
-            m_eye = m_at - m_fw;
-            break;			break;
-        case(SDLK_d): 
-            std::cout << "---\n|D|\n";
-            std::cout << "---\n|W|\n";
-            m_u += step_size;
-            m_u = glm::mod(m_u, 1.0f);
-            m_at = CMyApp::GetSpherePos(m_u, m_v);
-            m_eye = m_at - m_fw;
-            break;			break;
-        case(SDLK_a): 
-            std::cout << "---\n|A|\n"; 
-            std::cout << "---\n|W|\n";
-            m_u -= step_size;
-            m_u = glm::mod(m_u, 1.0f);
-            m_at = CMyApp::GetSpherePos(m_u, m_v);
-            m_eye = m_at - m_fw;
-            break;			break;
-        default: 
-            break;
+    case(SDLK_w): std::cout << "---\n|W|\n"; m_eye += m_fw; m_at += m_fw; break;
+    case(SDLK_s): std::cout << "---\n|S|\n"; m_eye -= m_fw; m_at -= m_fw; break;
+    case(SDLK_d): std::cout << "---\n|D|\n"; m_eye -= m_left; m_at -= m_left; break;
+    case(SDLK_a): std::cout << "---\n|A|\n"; m_eye += m_left; m_at += m_left; break;
+    default: break;
     }
 }
 
@@ -563,7 +430,7 @@ void CMyApp::MouseWheel(SDL_MouseWheelEvent& wheel)
 // a két paraméterben az új ablakméret szélessége (_w) és magassága (_h) található
 void CMyApp::Resize(int _w, int _h)
 {
-    glViewport(0, 0, _w, _h );
+    glViewport(0, 0, _w, _h);
 
     // m_camera.Resize(_w, _h);
     m_matProj = glm::perspective(glm::radians(60.0f),	// 60 fokos nyílásszög radiánban
