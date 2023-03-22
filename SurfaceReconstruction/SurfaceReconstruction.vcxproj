@@ -193,8 +193,6 @@
     <None Include="myVert.vert" />
     <None Include="particle.frag" />
     <None Include="particle.vert" />
-    <None Include="passthrough.frag" />
-    <None Include="passthrough.vert" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_demo.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_draw.cpp" />

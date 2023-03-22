@@ -6,7 +6,7 @@ out vec4 fs_out_color;
 
 void main()
 {
-	fs_out_color = color;
+    fs_out_color = color;
 }
 
 // 1. feladat: színezd a részecskéket a sebességvektoruk nagysága szerint!
