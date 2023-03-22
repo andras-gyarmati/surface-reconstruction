@@ -91,10 +91,7 @@ bool application::init()
     glEnable(GL_DEPTH_TEST);
     glLineWidth(4.0f);
     glPointSize(15.0f);
-    m_axes_program.Init({
-        {GL_VERTEX_SHADER, "axes.vert"},
-        {GL_FRAGMENT_SHADER, "axes.frag"}
-    });
+    m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_vel"}});
     m_vertices = load_xyz_file("../inputs/garazs_kijarat/test_fn644.xyz");
     reset();
@@ -109,15 +106,12 @@ void application::clean()
 
 void application::reset()
 {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> rnd(-1, 1);
 }
 
 void application::update()
 {
     static Uint32 last_time = SDL_GetTicks();
-    const float delta_time = (SDL_GetTicks() - last_time) / 1000.0f;
+    const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
     m_camera.Update(delta_time);
     m_gpu_particle_buffer.BufferData(m_vertices.positions);
     last_time = SDL_GetTicks();
@@ -126,16 +120,18 @@ void application::update()
 void application::render()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glm::mat4 mvp = m_camera.GetViewProj();
+    mvp *= glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
 
     m_axes_program.Use();
-    m_axes_program.SetUniform("mvp", m_camera.GetViewProj());
+    m_axes_program.SetUniform("mvp", mvp);
 
     glDrawArrays(GL_LINES, 0, 6);
 
     glEnable(GL_PROGRAM_POINT_SIZE);
     m_gpu_particle_vao.Bind();
     m_particle_program.Use();
-    m_particle_program.SetUniform("mvp", m_camera.GetViewProj());
+    m_particle_program.SetUniform("mvp", mvp);
 
     glDrawArrays(GL_POINTS, 0, m_vertices.positions.size());
 
