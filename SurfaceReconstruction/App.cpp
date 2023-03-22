@@ -8,6 +8,11 @@
 #include "imgui/imgui.h"
 #include "Includes/ObjParser_OGL3.h"
 
+application::application(void)
+{
+    m_camera.SetView(glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+}
+
 vertices application::load_ply_file(const std::string& filename) const
 {
     std::ifstream file(filename);
@@ -80,7 +85,7 @@ vertices application::load_xyz_file(const std::string& filename)
 
 bool application::init()
 {
-    m_mat_proj = glm::perspective(45.0f, 640 / 480.0f, 1.0f, 1000.0f);
+    m_camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
     glClearColor(0.1f, 0.1f, 0.41f, 1);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
@@ -111,24 +116,26 @@ void application::reset()
 
 void application::update()
 {
-    m_mat_view = lookAt(m_eye, m_at, m_up);
+    static Uint32 last_time = SDL_GetTicks();
+    const float delta_time = (SDL_GetTicks() - last_time) / 1000.0f;
+    m_camera.Update(delta_time);
     m_gpu_particle_buffer.BufferData(m_vertices.positions);
+    last_time = SDL_GetTicks();
 }
 
 void application::render()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glm::mat4 mvp = m_mat_proj * m_mat_view * m_mat_world;
 
     m_axes_program.Use();
-    m_axes_program.SetUniform("mvp", mvp);
+    m_axes_program.SetUniform("mvp", m_camera.GetViewProj());
 
     glDrawArrays(GL_LINES, 0, 6);
 
     glEnable(GL_PROGRAM_POINT_SIZE);
     m_gpu_particle_vao.Bind();
     m_particle_program.Use();
-    m_particle_program.SetUniform("mvp", mvp);
+    m_particle_program.SetUniform("mvp", m_camera.GetViewProj());
 
     glDrawArrays(GL_POINTS, 0, m_vertices.positions.size());
 
@@ -152,55 +159,25 @@ glm::vec3 application::to_descartes(const float fi, const float theta)
 
 void application::keyboard_down(const SDL_KeyboardEvent& key)
 {
-    switch (key.keysym.sym)
-    {
-    case SDLK_w: std::cout << "---\n|W|\n";
-        m_eye += m_fw * m_speed;
-        m_at += m_fw * m_speed;
-        break;
-    case SDLK_s: std::cout << "---\n|S|\n";
-        m_eye -= m_fw * m_speed;
-        m_at -= m_fw * m_speed;
-        break;
-    case SDLK_d: std::cout << "---\n|D|\n";
-        m_eye -= m_left * m_speed;
-        m_at -= m_left * m_speed;
-        break;
-    case SDLK_a: std::cout << "---\n|A|\n";
-        m_eye += m_left * m_speed;
-        m_at += m_left * m_speed;
-        break;
-    default: break;
-    }
+    m_camera.KeyboardDown(key);
 }
 
-void application::keyboard_up(SDL_KeyboardEvent& key)
+void application::keyboard_up(const SDL_KeyboardEvent& key)
 {
+    m_camera.KeyboardUp(key);
 }
 
 void application::mouse_move(const SDL_MouseMotionEvent& mouse)
 {
-    if (m_is_left_pressed)
-    {
-        m_fi += static_cast<float>(mouse.xrel) / 100.0f;
-        m_theta += static_cast<float>(mouse.yrel) / 100.0f;
-        m_theta = glm::clamp(m_theta, 0.1f, 3.1f);
-        m_fw = to_descartes(m_fi, m_theta);
-        m_eye = m_at - m_fw;
-        m_left = cross(m_up, m_fw);
-    }
+    m_camera.MouseMove(mouse);
 }
 
 void application::mouse_down(const SDL_MouseButtonEvent& mouse)
 {
-    if (mouse.button == SDL_BUTTON_LEFT)
-        m_is_left_pressed = true;
 }
 
 void application::mouse_up(const SDL_MouseButtonEvent& mouse)
 {
-    if (mouse.button == SDL_BUTTON_LEFT)
-        m_is_left_pressed = false;
 }
 
 void application::mouse_wheel(SDL_MouseWheelEvent& wheel)
@@ -210,5 +187,5 @@ void application::mouse_wheel(SDL_MouseWheelEvent& wheel)
 void application::resize(int _w, int _h)
 {
     glViewport(0, 0, _w, _h);
-    m_mat_proj = glm::perspective(glm::radians(60.0f), static_cast<float>(_w) / static_cast<float>(_h), 0.01f, 1000.0f);
+    m_camera.Resize(_w, _h);
 }

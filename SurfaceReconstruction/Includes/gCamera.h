@@ -50,9 +50,9 @@ public:
 
 	void Resize(int _w, int _h);
 
-	void KeyboardDown(SDL_KeyboardEvent& key);
-	void KeyboardUp(SDL_KeyboardEvent& key);
-	void MouseMove(SDL_MouseMotionEvent& mouse);
+	void KeyboardDown(const SDL_KeyboardEvent& key);
+	void KeyboardUp(const SDL_KeyboardEvent& key);
+	void MouseMove(const SDL_MouseMotionEvent& mouse);
 
 private:
 	/// <summary>

@@ -34,7 +34,7 @@ struct vertices
 class application
 {
 public:
-    application(void) = default;
+    application(void);
     ~application(void) = default;
 
     bool init();
@@ -45,7 +45,7 @@ public:
     void render();
 
     void keyboard_down(const SDL_KeyboardEvent&);
-    void keyboard_up(SDL_KeyboardEvent&);
+    void keyboard_up(const SDL_KeyboardEvent&);
     void mouse_move(const SDL_MouseMotionEvent&);
     void mouse_down(const SDL_MouseButtonEvent&);
     void mouse_up(const SDL_MouseButtonEvent&);
@@ -62,30 +62,10 @@ protected:
     ProgramObject m_particle_program;
     ProgramObject m_program;
 
-    // gCamera m_camera;
-
-    glm::mat4 m_mat_world = glm::mat4(1.0f);
-    glm::mat4 m_mat_view = glm::mat4(1.0f);
-    glm::mat4 m_mat_proj = glm::mat4(1.0f);
+    gCamera m_camera;
 
     vertices m_vertices;
 
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
-
-    float m_fi = M_PI * 1.5;
-    float m_theta = M_PI / 2.0;
-
-    float m_u = 0.5f;
-    float m_v = 0.5f;
-    float step_size = 0.01f;
-
-    float m_speed = 0.2;
-    glm::vec3 m_eye = glm::vec3(0, 0, 1);
-    glm::vec3 m_fw = to_descartes(m_fi, m_theta);
-    glm::vec3 m_at = m_eye + m_fw;
-    glm::vec3 m_up = glm::vec3(0, 1, 0);
-    glm::vec3 m_left = cross(m_up, m_fw);
-
-    bool m_is_left_pressed = false;
 };

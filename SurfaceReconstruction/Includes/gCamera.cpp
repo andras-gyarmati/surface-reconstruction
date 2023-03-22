@@ -82,7 +82,7 @@ void gCamera::Resize(int _w, int _h)
     SetProj(glm::radians(60.0f), _w / (float)_h, 0.01f, 1000.0f);
 }
 
-void gCamera::KeyboardDown(SDL_KeyboardEvent& key)
+void gCamera::KeyboardDown(const SDL_KeyboardEvent& key)
 {
     switch (key.keysym.sym)
     {
@@ -109,7 +109,7 @@ void gCamera::KeyboardDown(SDL_KeyboardEvent& key)
     }
 }
 
-void gCamera::KeyboardUp(SDL_KeyboardEvent& key)
+void gCamera::KeyboardUp(const SDL_KeyboardEvent& key)
 {
     float current_speed = m_speed;
     switch (key.keysym.sym)
@@ -133,7 +133,7 @@ void gCamera::KeyboardUp(SDL_KeyboardEvent& key)
     }
 }
 
-void gCamera::MouseMove(SDL_MouseMotionEvent& mouse)
+void gCamera::MouseMove(const SDL_MouseMotionEvent& mouse)
 {
     if (mouse.state & SDL_BUTTON_LMASK)
     {
