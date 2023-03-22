@@ -15,7 +15,7 @@
 
 #include "Includes/GLDebugMessageCallback.h"
 
-#include "MyApp.h"
+#include "App.h"
 
 int main(int argc, char* args[])
 {

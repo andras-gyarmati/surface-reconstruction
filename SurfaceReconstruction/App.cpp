@@ -1,4 +1,4 @@
-#include "MyApp.h"
+#include "App.h"
 #include <math.h>
 #include <vector>
 #include <array>
@@ -13,8 +13,7 @@ Application::Application(void)
     // m_camera.SetView(glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 }
 
-Application::~Application(void)
-= default;
+Application::~Application(void) = default;
 
 Vertices Application::load_ply_file(const std::string& filename) const
 {

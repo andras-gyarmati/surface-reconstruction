@@ -163,7 +163,7 @@
     <ClInclude Include="Includes\ShaderObject.h" />
     <ClInclude Include="Includes\TextureObject.h" />
     <ClInclude Include="Includes\VertexArrayObject.h" />
-    <ClInclude Include="MyApp.h" />
+    <ClInclude Include="App.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imconfig.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imgui.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imgui_impl_sdl_gl3.h" />
@@ -182,7 +182,7 @@
     <ClCompile Include="Includes\ShaderObject.cpp" />
     <ClCompile Include="Includes\VertexArrayObject.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MyApp.cpp" />
+    <ClCompile Include="App.cpp" />
     <None Include="axes.frag" />
     <None Include="axes.vert" />
     <None Include="Includes\BufferObject.inl" />
