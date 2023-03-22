@@ -157,6 +157,7 @@
     <ClInclude Include="Includes\GLconversions.hpp" />
     <ClInclude Include="Includes\GLDebugMessageCallback.h" />
     <ClInclude Include="Includes\GLUtils.hpp" />
+    <ClInclude Include="Includes\json.hpp" />
     <ClInclude Include="Includes\Mesh_OGL3.h" />
     <ClInclude Include="Includes\ObjParser_OGL3.h" />
     <ClInclude Include="Includes\ProgramObject.h" />

@@ -31,10 +31,28 @@ struct vertices
     std::vector<glm::vec3> colors;
 };
 
+struct internal_params
+{
+    double fu, fv, u0, v0;
+};
+
+struct device
+{
+    glm::mat3x3 R;
+    std::vector<float> t;
+};
+
+struct camera_params
+{
+    internal_params internal_params{};
+    std::vector<device> devices;
+};
+
 class application
 {
 public:
     application(void);
+    camera_params load_camera_params(const std::string& filename) const;
     ~application(void) = default;
 
     bool init();
@@ -68,4 +86,5 @@ protected:
 
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
+    camera_params m_camera_params;
 };

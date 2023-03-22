@@ -7,10 +7,59 @@
 #include <random>
 #include "imgui/imgui.h"
 #include "Includes/ObjParser_OGL3.h"
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <string>
 
 application::application(void)
 {
     m_camera.SetView(glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+}
+
+camera_params application::load_camera_params(const std::string& filename) const
+{
+    camera_params camera_params;
+
+    std::ifstream file(filename);
+    if (!file)
+    {
+        std::cerr << "Could not open file: " << filename << std::endl;
+        return camera_params;
+    }
+
+    file >> camera_params.internal_params.fu
+        >> camera_params.internal_params.u0
+        >> camera_params.internal_params.fv
+        >> camera_params.internal_params.v0;
+
+    int num_devices;
+    file >> num_devices;
+
+    for (int i = 0; i < num_devices; ++i)
+    {
+        device dev;
+
+        glm::mat3x3& R = dev.R;
+        for (int j = 0; j < 3; ++j)
+        {
+            for (int k = 0; k < 3; ++k)
+            {
+                file >> R[j][k];
+            }
+        }
+
+        for (int j = 0; j < 3; ++j)
+        {
+            float t_val;
+            file >> t_val;
+            dev.t.push_back(t_val);
+        }
+
+        camera_params.devices.push_back(dev);
+    }
+
+    return camera_params;
 }
 
 vertices application::load_ply_file(const std::string& filename) const
@@ -93,6 +142,7 @@ bool application::init()
     glPointSize(15.0f);
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_vel"}});
+    m_camera_params = load_camera_params("../inputs/CameraParameters_minimal.txt");
     m_vertices = load_xyz_file("../inputs/garazs_kijarat/test_fn644.xyz");
     reset();
     m_gpu_particle_buffer.BufferData(m_vertices.positions);

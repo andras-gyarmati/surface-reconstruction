@@ -1,0 +1,75 @@
+{
+    "internal_params": {
+        "fu": 625,
+        "u0": 480,
+        "fv": 625,
+        "v0": 300
+    },
+    "devices": [
+        {
+            "name": "Dev0",
+            "R": [
+                [0.9230, -0.0066, -0.3847],
+                [0.3848,  0.0203,  0.9228],
+                [0.0018, -0.9998,  0.0213]
+            ],
+            "t": [-0.0397,  0.1842, -0.0944]
+        },
+        {
+            "name": "Dev1",
+            "R": [
+                [0.9999,  0.0086, -0.0094],
+                [0.0095, -0.0110,  0.9999],
+                [0.0085, -0.9999, -0.0111]
+            ],
+            "t": [-0.0463,  0.0752,  0.0932]
+        },
+        {
+            "name": "Dev2",
+            "R": [
+                [0.9543,  0.0319,  0.2971],
+                [-0.2969, -0.0113,  0.9548],
+                [0.0338, -0.9994, -0.0014]
+            ],
+            "t": [0.1000,  0.1962, -0.0663]
+        }
+    ]
+}
+
+
+camera_params load_camera_params(const std::string& filename) {
+    camera_params camera_params;
+
+    std::ifstream file(filename);
+    if (!file) {
+        std::cerr << "Could not open file: " << filename << std::endl;
+        return camera_params;
+    }
+
+    nlohmann::json json_data;
+    file >> json_data;
+
+    camera_params.internal_params.fu = json_data["internal_params"]["fu"];
+    camera_params.internal_params.u0 = json_data["internal_params"]["u0"];
+    camera_params.internal_params.fv = json_data["internal_params"]["fv"];
+    camera_params.internal_params.v0 = json_data["internal_params"]["v0"];
+
+    for (const auto& device_json : json_data["devices"]) {
+        device dev;
+
+        glm::mat3x3& R = dev.R;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                R[i][j] = device_json["R"][i][j];
+            }
+        }
+
+        for (const auto& t_val : device_json["t"]) {
+            dev.t.push_back(t_val);
+        }
+
+        camera_params.devices.push_back(dev);
+    }
+
+    return camera_params;
+}
