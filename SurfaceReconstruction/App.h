@@ -25,17 +25,17 @@
 
 #include <vector>
 
-struct Vertices
+struct vertices
 {
     std::vector<glm::vec3> positions;
     std::vector<glm::vec3> colors;
 };
 
-class Application
+class application
 {
 public:
-    Application(void);
-    ~Application(void);
+    application(void) = default;
+    ~application(void) = default;
 
     bool init();
     void clean();
@@ -52,8 +52,8 @@ public:
     void mouse_wheel(SDL_MouseWheelEvent&);
     void resize(int, int);
 
-    Vertices load_ply_file(const std::string& filename) const;
-    static Vertices load_xyz_file(const std::string& filename);
+    vertices load_ply_file(const std::string& filename) const;
+    static vertices load_xyz_file(const std::string& filename);
 
 protected:
     static glm::vec3 to_descartes(float fi, float theta);
@@ -68,7 +68,7 @@ protected:
     glm::mat4 m_mat_view = glm::mat4(1.0f);
     glm::mat4 m_mat_proj = glm::mat4(1.0f);
 
-    Vertices m_vertices;
+    vertices m_vertices;
 
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
@@ -85,7 +85,7 @@ protected:
     glm::vec3 m_fw = to_descartes(m_fi, m_theta);
     glm::vec3 m_at = m_eye + m_fw;
     glm::vec3 m_up = glm::vec3(0, 1, 0);
-    glm::vec3 m_left = glm::cross(m_up, m_fw);
+    glm::vec3 m_left = cross(m_up, m_fw);
 
     bool m_is_left_pressed = false;
 };

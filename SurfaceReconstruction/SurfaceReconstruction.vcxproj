@@ -189,8 +189,6 @@
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />
     <None Include="Includes\VertexArrayObject.inl" />
-    <None Include="myFrag.frag" />
-    <None Include="myVert.vert" />
     <None Include="particle.frag" />
     <None Include="particle.vert" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui.cpp" />

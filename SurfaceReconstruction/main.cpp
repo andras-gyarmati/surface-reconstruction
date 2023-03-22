@@ -149,7 +149,7 @@ int main(int argc, char* args[])
         SDL_Event ev;
 
         // alkalmazas példánya
-        Application app;
+        application app;
         if (!app.init())
         {
             SDL_GL_DeleteContext(context);
