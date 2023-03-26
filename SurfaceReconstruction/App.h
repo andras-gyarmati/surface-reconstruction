@@ -39,7 +39,7 @@ struct internal_params
 struct device
 {
     std::string name;
-    glm::mat3x3 R;
+    glm::mat3x3 r;
     std::vector<float> t;
 };
 
@@ -78,6 +78,12 @@ protected:
     ProgramObject m_axes_program;
     ProgramObject m_particle_program;
     ProgramObject m_program;
+
+    GLuint m_loc_mvp = 0;
+    GLuint m_loc_world = 0;
+    GLuint m_loc_tex = 0;
+
+    Texture2D m_camera_texture;
 
     gCamera m_camera;
 

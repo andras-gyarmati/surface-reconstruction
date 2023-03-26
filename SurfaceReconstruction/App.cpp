@@ -42,7 +42,7 @@ camera_params application::load_camera_params(const std::string& filename)
 
         file >> dev.name;
 
-        glm::mat3x3& R = dev.R;
+        glm::mat3x3& R = dev.r;
         for (int j = 0; j < 3; ++j)
         {
             for (int k = 0; k < 3; ++k)
@@ -137,18 +137,29 @@ vertices application::load_xyz_file(const std::string& filename)
 bool application::init()
 {
     m_camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
+
     glClearColor(0.1f, 0.1f, 0.41f, 1);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glLineWidth(4.0f);
     glPointSize(15.0f);
+
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
-    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_vel"}});
-    m_camera_params = load_camera_params("../inputs/CameraParameters_minimal.txt");
-    m_vertices = load_xyz_file("../inputs/garazs_kijarat/test_fn644.xyz");
+
+    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_vel"}, {2, "vs_in_tex"}});
+    m_loc_mvp = glGetUniformLocation(m_particle_program, "mvp");
+    m_loc_world = glGetUniformLocation(m_particle_program, "world");
+    m_loc_tex = glGetUniformLocation(m_particle_program, "texImage");
+    m_camera_texture.FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
+
+    m_camera_params = load_camera_params("inputs/CameraParameters_minimal.txt");
+    m_vertices = load_xyz_file("inputs/garazs_kijarat/test_fn644.xyz");
+
     reset();
+
     m_gpu_particle_buffer.BufferData(m_vertices.positions);
     m_gpu_particle_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_particle_buffer}});
+
     return true;
 }
 
@@ -184,6 +195,7 @@ void application::render()
     m_gpu_particle_vao.Bind();
     m_particle_program.Use();
     m_particle_program.SetUniform("mvp", mvp);
+    m_program.SetTexture("texImage", 0, m_camera_texture);
 
     glDrawArrays(GL_POINTS, 0, m_vertices.positions.size());
 

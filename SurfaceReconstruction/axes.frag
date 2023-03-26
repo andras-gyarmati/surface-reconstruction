@@ -1,10 +1,10 @@
-#version 130
+#version 330 core
 
 in vec4 vs_out_color;
 
-out vec4 fs_out_color;
+out vec4 fs_out_col;
 
 void main()
 {
-    fs_out_color = vs_out_color;
+    fs_out_col = vs_out_color;
 }

@@ -1,13 +1,18 @@
-#version 130
+#version 330 core
+
+in vec2 vs_out_tex;
+
+out vec4 fs_out_col;
 
 uniform vec4 color = vec4(1);
-
-out vec4 fs_out_color;
+uniform sampler2D texImage;
 
 void main()
 {
-    fs_out_color = color;
+    if (vs_out_tex.x >= 0 && vs_out_tex.x <= 960 && vs_out_tex.y >= 0 && vs_out_tex.x <= 600) {
+        fs_out_col = texture(texImage, vs_out_tex);
+    }
+    else {
+        fs_out_col = color;
+    }
 }
-
-// 1. feladat: színezd a részecskéket a sebességvektoruk nagysága szerint!
-// 2. feladat: kódold el a színben a sebességvektor X, Y és Z tengely szerinti nagyságát!
