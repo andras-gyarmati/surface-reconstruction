@@ -33,14 +33,14 @@ struct vertices
 
 struct internal_params
 {
-    double fu, fv, u0, v0;
+    float fu, fv, u0, v0;
 };
 
 struct device
 {
     std::string name;
-    glm::mat3x3 r;
-    std::vector<float> t;
+    glm::mat3 r;
+    glm::vec3 t;
 };
 
 struct camera_params

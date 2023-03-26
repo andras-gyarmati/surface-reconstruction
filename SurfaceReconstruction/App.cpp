@@ -14,7 +14,7 @@
 
 application::application(void)
 {
-    m_camera.SetView(glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+    m_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(5, 0, 5), glm::vec3(0, 1, 0));
 }
 
 camera_params application::load_camera_params(const std::string& filename)
@@ -42,7 +42,7 @@ camera_params application::load_camera_params(const std::string& filename)
 
         file >> dev.name;
 
-        glm::mat3x3& R = dev.r;
+        glm::mat3& R = dev.r;
         for (int j = 0; j < 3; ++j)
         {
             for (int k = 0; k < 3; ++k)
@@ -55,7 +55,7 @@ camera_params application::load_camera_params(const std::string& filename)
         {
             float t_val;
             file >> t_val;
-            dev.t.push_back(t_val);
+            dev.t[j] = t_val;
         }
 
         camera_params.devices.push_back(dev);
@@ -186,6 +186,9 @@ void application::render()
     glm::mat4 mvp = m_camera.GetViewProj();
     mvp *= glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
 
+    glm::mat4 world = m_camera.GetProj();
+    world *= glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
+
     m_axes_program.Use();
     m_axes_program.SetUniform("mvp", mvp);
 
@@ -195,6 +198,14 @@ void application::render()
     m_gpu_particle_vao.Bind();
     m_particle_program.Use();
     m_particle_program.SetUniform("mvp", mvp);
+    m_particle_program.SetUniform("world", world);
+    m_particle_program.SetUniform("cam_r_0", glm::vec3(m_camera_params.devices[0].r[0][0], m_camera_params.devices[0].r[0][1], m_camera_params.devices[0].r[0][2]));
+    m_particle_program.SetUniform("cam_r_1", glm::vec3(m_camera_params.devices[0].r[1][0], m_camera_params.devices[0].r[1][1], m_camera_params.devices[0].r[1][2]));
+    m_particle_program.SetUniform("cam_r_2", glm::vec3(m_camera_params.devices[0].r[2][0], m_camera_params.devices[0].r[2][1], m_camera_params.devices[0].r[2][2]));
+    m_particle_program.SetUniform("cam_t", m_camera_params.devices[0].t);
+    m_particle_program.SetUniform("cam_k_0", glm::vec3(m_camera_params.internal_params.fu, 0.0f, m_camera_params.internal_params.u0));
+    m_particle_program.SetUniform("cam_k_1", glm::vec3(0.0f, m_camera_params.internal_params.fv, m_camera_params.internal_params.v0));
+    m_particle_program.SetUniform("cam_k_2", glm::vec3(0.0f, 0.0f, 1.0f));
     m_program.SetTexture("texImage", 0, m_camera_texture);
 
     glDrawArrays(GL_POINTS, 0, m_vertices.positions.size());
