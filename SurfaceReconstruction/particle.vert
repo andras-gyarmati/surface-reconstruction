@@ -36,5 +36,5 @@ void main()
 
     // todo: calc vs_out_tex based on camera params
     //    vs_out_tex = vs_in_tex;
-    vs_out_tex = (cam_r * vs_out_pos + cam_t).xy;
+    vs_out_tex = ((cam_r * vs_out_pos + cam_t) * cam_k).xy;
 }
