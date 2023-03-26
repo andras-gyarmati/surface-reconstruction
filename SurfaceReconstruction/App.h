@@ -38,6 +38,7 @@ struct internal_params
 
 struct device
 {
+    std::string name;
     glm::mat3x3 R;
     std::vector<float> t;
 };
@@ -52,7 +53,6 @@ class application
 {
 public:
     application(void);
-    camera_params load_camera_params(const std::string& filename) const;
     ~application(void) = default;
 
     bool init();
@@ -67,15 +67,14 @@ public:
     void mouse_move(const SDL_MouseMotionEvent&);
     void mouse_down(const SDL_MouseButtonEvent&);
     void mouse_up(const SDL_MouseButtonEvent&);
-    void mouse_wheel(SDL_MouseWheelEvent&);
+    void mouse_wheel(const SDL_MouseWheelEvent&);
     void resize(int, int);
 
-    vertices load_ply_file(const std::string& filename) const;
+    static vertices load_ply_file(const std::string& filename);
     static vertices load_xyz_file(const std::string& filename);
+    static camera_params load_camera_params(const std::string& filename);
 
 protected:
-    static glm::vec3 to_descartes(float fi, float theta);
-
     ProgramObject m_axes_program;
     ProgramObject m_particle_program;
     ProgramObject m_program;

@@ -17,7 +17,7 @@ application::application(void)
     m_camera.SetView(glm::vec3(5, 5, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 }
 
-camera_params application::load_camera_params(const std::string& filename) const
+camera_params application::load_camera_params(const std::string& filename)
 {
     camera_params camera_params;
 
@@ -39,6 +39,8 @@ camera_params application::load_camera_params(const std::string& filename) const
     for (int i = 0; i < num_devices; ++i)
     {
         device dev;
+
+        file >> dev.name;
 
         glm::mat3x3& R = dev.R;
         for (int j = 0; j < 3; ++j)
@@ -62,7 +64,7 @@ camera_params application::load_camera_params(const std::string& filename) const
     return camera_params;
 }
 
-vertices application::load_ply_file(const std::string& filename) const
+vertices application::load_ply_file(const std::string& filename)
 {
     std::ifstream file(filename);
     if (!file)
@@ -194,15 +196,6 @@ void application::render()
     ImGui::End();
 }
 
-glm::vec3 application::to_descartes(const float fi, const float theta)
-{
-    return {
-        sinf(theta) * cosf(fi),
-        cosf(theta),
-        sinf(theta) * sinf(fi)
-    };
-}
-
 void application::keyboard_down(const SDL_KeyboardEvent& key)
 {
     m_camera.KeyboardDown(key);
@@ -226,7 +219,7 @@ void application::mouse_up(const SDL_MouseButtonEvent& mouse)
 {
 }
 
-void application::mouse_wheel(SDL_MouseWheelEvent& wheel)
+void application::mouse_wheel(const SDL_MouseWheelEvent& wheel)
 {
 }
 
