@@ -52,5 +52,10 @@ void main()
 
     // todo: calc vs_out_tex based on camera params
     // vs_out_tex = ((cam_r * vs_out_pos + cam_t) * cam_k).xy;
-    vs_out_tex = ((cam_r * vs_out_pos + cam_t) * cam_k).xy;
+    // todo: if z is negative we skip it
+    // todo: refactor cam_k inverse
+    vec3 p_c = cam_r * vs_out_pos + cam_t;
+    float x = (p_c.x/p_c.z - cam_k[0][2]) / cam_k[0][0];
+    float y = (p_c.y/p_c.z - cam_k[1][2]) / cam_k[1][1];
+    vs_out_tex = vec2(x, y);
 }

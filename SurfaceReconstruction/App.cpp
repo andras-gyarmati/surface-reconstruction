@@ -151,6 +151,7 @@ bool application::init()
     m_loc_mvp = glGetUniformLocation(m_particle_program, "mvp");
     m_loc_world = glGetUniformLocation(m_particle_program, "world");
     m_loc_tex = glGetUniformLocation(m_particle_program, "texImage");
+    // todo: use debug texture
     m_camera_texture.FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
 
     m_camera_params = load_camera_params("inputs/CameraParameters_minimal.txt");
@@ -184,6 +185,8 @@ void application::update()
 
 void application::render()
 {
+    // todo: add some basic triangulation
+
     const glm::mat4 rot_neg_90_x = glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // glm::mat4 mvp = m_camera.GetViewProj();
