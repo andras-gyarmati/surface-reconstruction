@@ -74,23 +74,14 @@ public:
     static vertices load_xyz_file(const std::string& filename);
     static camera_params load_camera_params(const std::string& filename);
 
-    static glm::vec3 to_descartes(const float fi, const float theta)
-    {
-        return {
-            sinf(theta) * cosf(fi),
-            cosf(theta),
-            sinf(theta) * sinf(fi)
-        };
-    }
+    static glm::vec3 to_descartes(float fi, float theta);
+
+    static glm::vec3 get_sphere_pos(float u, float v);
 
 protected:
     ProgramObject m_axes_program;
     ProgramObject m_particle_program;
     ProgramObject m_program;
-
-    GLuint m_loc_mvp = 0;
-    GLuint m_loc_world = 0;
-    GLuint m_loc_tex = 0;
 
     Texture2D m_camera_texture;
 
@@ -99,8 +90,8 @@ protected:
     glm::mat4 m_mat_world = glm::mat4(1.0f);
     glm::mat4 m_mat_view = glm::mat4(1.0f);
     glm::mat4 m_mat_proj = glm::mat4(1.0f);
-    float m_fi = M_PI * 1.5;
-    float m_theta = M_PI / 2.0;
+    float m_fi = static_cast<float>(M_PI) * 1.5f;
+    float m_theta = static_cast<float>(M_PI) / 2.0f;
     float m_u = 0.5f;
     float m_v = 0.5f;
     float step_size = 0.01f;
@@ -113,8 +104,12 @@ protected:
 
     bool m_is_left_pressed = false;
 
-    vertices m_vertices;
 
+    std::vector<glm::vec3> m_debug_sphere;
+    VertexArrayObject m_gpu_debug_sphere_vao;
+    ArrayBuffer m_gpu_debug_sphere_buffer;
+
+    vertices m_vertices;
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
     camera_params m_camera_params;

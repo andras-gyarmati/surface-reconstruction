@@ -13,6 +13,6 @@ void main()
         fs_out_col = texture(texImage, vs_out_tex);
     }
     else {
-        fs_out_col = color;
+        // fs_out_col = color;
     }
 }
