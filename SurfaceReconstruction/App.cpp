@@ -276,7 +276,7 @@ void application::draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject&
         0.0f, cam_params.internal_params.fv, cam_params.internal_params.v0,
         0.0f, 0.0f, 1.0f
     };
-    cam_k = glm::inverse(cam_k);
+    //cam_k = glm::inverse(cam_k);
     program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
     program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
     program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
@@ -303,14 +303,14 @@ void application::render()
     m_axes_program.SetUniform("mvp", mvp);
     glDrawArrays(GL_LINES, 0, 6);
 
-    // draw_points(mvp, world, m_gpu_particle_vao, m_particle_program, m_vertices.positions.size(), m_camera_params, m_camera_texture);
-    // draw_points(mvp, world, m_gpu_debug_sphere_vao, m_particle_program, m_debug_sphere.size(), m_camera_params, m_camera_texture);
+    draw_points(mvp, world, m_gpu_particle_vao, m_particle_program, m_vertices.positions.size(), m_camera_params, m_camera_texture);
+    draw_points(mvp, world, m_gpu_debug_sphere_vao, m_particle_program, m_debug_sphere.size(), m_camera_params, m_camera_texture);
 
-    m_mesh_program.Use();
+    /*m_mesh_program.Use();
     m_mesh_program.SetUniform("mvp", mvp);
     glBindVertexArray(triangle_mesh.vao);
     glDrawElements(GL_TRIANGLES, triangle_mesh.vertex_count, GL_UNSIGNED_SHORT, 0);
-    glBindVertexArray(0);
+    glBindVertexArray(0);*/
 
     if (ImGui::Begin("Points"))
     {

@@ -38,7 +38,7 @@ void main()
     p_c = p_c / p_c.z;
 
     if (p_c.z >= 0) {
-        vs_out_tex = p_c.xy;
+        vs_out_tex = vec2(p_c.x / 960.0f, p_c.y / 600.0f);
     } else {
         vs_out_tex = vec2(-1, -1);
     }
