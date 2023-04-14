@@ -1,4 +1,4 @@
-#include "App.h"
+﻿#include "App.h"
 #include <math.h>
 #include <vector>
 #include <array>
@@ -86,6 +86,52 @@ glm::vec3 application::get_sphere_pos(const float u, const float v)
     };
 }
 
+lidar_mesh application::create_mesh(const std::vector<glm::vec3>& vertices)
+{
+    lidar_mesh mesh;
+    constexpr int N = 936 - 1;
+    constexpr int M = 16 - 1;
+    GLushort indices[3 * 2 * (N) * (M)];
+    for (int i = 0; i < N; ++i)
+    {
+        for (int j = 0; j < M; ++j)
+        {
+            indices[6 * i + j * 3 * 2 * (N) + 0] = (i + 0) + (j + 0) * (N + 1);
+            indices[6 * i + j * 3 * 2 * (N) + 1] = (i + 1) + (j + 0) * (N + 1);
+            indices[6 * i + j * 3 * 2 * (N) + 2] = (i + 0) + (j + 1) * (N + 1);
+            indices[6 * i + j * 3 * 2 * (N) + 3] = (i + 1) + (j + 0) * (N + 1);
+            indices[6 * i + j * 3 * 2 * (N) + 4] = (i + 1) + (j + 1) * (N + 1);
+            indices[6 * i + j * 3 * 2 * (N) + 5] = (i + 0) + (j + 1) * (N + 1);
+        }
+    }
+
+    // Create a vertex array object (VAO) to store the VBOs.
+    glGenVertexArrays(1, &mesh.vao);
+    glBindVertexArray(mesh.vao);
+
+    // Create a vertex buffer object (VBO) to store the vertex data.
+    glGenBuffers(1, &mesh.vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vbo);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
+
+    // Create an element buffer object (EBO) to store the index data.
+    glGenBuffers(1, &mesh.ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // Specify the vertex attributes for the shader program.
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Unbind the VAO.
+    glBindVertexArray(0);
+
+    // Store the number of vertices for later rendering.
+    mesh.vertex_count = 3 * 2 * (N) * (M);
+
+    return mesh;
+}
+
 vertices application::load_ply_file(const std::string& filename)
 {
     std::ifstream file(filename);
@@ -162,15 +208,15 @@ bool application::init()
     m_camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
 
     glClearColor(0.1f, 0.1f, 0.41f, 1);
-    glEnable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glLineWidth(4.0f);
     glPointSize(15.0f);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
+    m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}});
 
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_vel"}, {2, "vs_in_tex"}});
-    // todo: use debug texture
     m_camera_texture.FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
     // m_camera_texture.FromFile("inputs/debug.png");
 
@@ -181,6 +227,8 @@ bool application::init()
 
     m_gpu_particle_buffer.BufferData(m_vertices.positions);
     m_gpu_particle_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_particle_buffer}});
+
+    triangle_mesh = create_mesh(m_vertices.positions);
 
     constexpr int n = 960;
     constexpr int m = 960;
@@ -212,69 +260,57 @@ void application::update()
     last_time = SDL_GetTicks();
 }
 
+void application::draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject& vao, ProgramObject& program, const size_t size, camera_params cam_params, Texture2D& texture)
+{
+    glEnable(GL_PROGRAM_POINT_SIZE);
+    vao.Bind();
+    program.Use();
+    program.SetUniform("mvp", mvp);
+    program.SetUniform("world", world);
+    program.SetUniform("cam_r_0", glm::vec3(cam_params.devices[0].r[0][0], cam_params.devices[0].r[0][1], cam_params.devices[0].r[0][2]));
+    program.SetUniform("cam_r_1", glm::vec3(cam_params.devices[0].r[1][0], cam_params.devices[0].r[1][1], cam_params.devices[0].r[1][2]));
+    program.SetUniform("cam_r_2", glm::vec3(cam_params.devices[0].r[2][0], cam_params.devices[0].r[2][1], cam_params.devices[0].r[2][2]));
+    program.SetUniform("cam_t", cam_params.devices[0].t);
+    glm::mat3 cam_k = {
+        cam_params.internal_params.fu, 0.0f, cam_params.internal_params.u0,
+        0.0f, cam_params.internal_params.fv, cam_params.internal_params.v0,
+        0.0f, 0.0f, 1.0f
+    };
+    cam_k = glm::inverse(cam_k);
+    program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
+    program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
+    program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
+    program.SetTexture("texImage", 0, texture);
+    glDrawArrays(GL_POINTS, 0, size);
+    glDisable(GL_PROGRAM_POINT_SIZE);
+}
+
 void application::render()
 {
     // todo: add some basic triangulation
 
-    const glm::mat4 rot_neg_90_x = glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
+    const glm::mat4 rot_x_neg_90 = glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // glm::mat4 mvp = m_camera.GetViewProj();
     glm::mat4 mvp = m_mat_proj * m_mat_view * m_mat_world;
-    mvp *= rot_neg_90_x;
+    mvp *= rot_x_neg_90;
 
     // glm::mat4 world = m_camera.GetProj();
     glm::mat4 world = m_mat_world;
-    world *= rot_neg_90_x;
+    world *= rot_x_neg_90;
 
     m_axes_program.Use();
     m_axes_program.SetUniform("mvp", mvp);
     glDrawArrays(GL_LINES, 0, 6);
 
-    /*
-    glEnable(GL_PROGRAM_POINT_SIZE);
-    m_gpu_particle_vao.Bind();
-    m_particle_program.Use();
-    m_particle_program.SetUniform("mvp", mvp);
-    m_particle_program.SetUniform("world", world);
-    m_particle_program.SetUniform("cam_r_0", glm::vec3(m_camera_params.devices[0].r[0][0], m_camera_params.devices[0].r[0][1], m_camera_params.devices[0].r[0][2]));
-    m_particle_program.SetUniform("cam_r_1", glm::vec3(m_camera_params.devices[0].r[1][0], m_camera_params.devices[0].r[1][1], m_camera_params.devices[0].r[1][2]));
-    m_particle_program.SetUniform("cam_r_2", glm::vec3(m_camera_params.devices[0].r[2][0], m_camera_params.devices[0].r[2][1], m_camera_params.devices[0].r[2][2]));
-    m_particle_program.SetUniform("cam_t", m_camera_params.devices[0].t);
-    glm::mat3 cam_k = {
-        m_camera_params.internal_params.fu, 0.0f, m_camera_params.internal_params.u0,
-        0.0f, m_camera_params.internal_params.fv, m_camera_params.internal_params.v0,
-        0.0f, 0.0f, 1.0f
-    };
-    cam_k = glm::inverse(cam_k);
-    m_particle_program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
-    m_particle_program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
-    m_particle_program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
-    m_program.SetTexture("texImage", 0, m_camera_texture);
-    glDrawArrays(GL_POINTS, 0, m_vertices.positions.size());
-    glDisable(GL_PROGRAM_POINT_SIZE);
-    */
+    // draw_points(mvp, world, m_gpu_particle_vao, m_particle_program, m_vertices.positions.size(), m_camera_params, m_camera_texture);
+    // draw_points(mvp, world, m_gpu_debug_sphere_vao, m_particle_program, m_debug_sphere.size(), m_camera_params, m_camera_texture);
 
-    glEnable(GL_PROGRAM_POINT_SIZE);
-    m_gpu_debug_sphere_vao.Bind();
-    m_particle_program.Use();
-    m_particle_program.SetUniform("mvp", mvp);
-    m_particle_program.SetUniform("world", world);
-    m_particle_program.SetUniform("cam_r_0", glm::vec3(m_camera_params.devices[0].r[0][0], m_camera_params.devices[0].r[0][1], m_camera_params.devices[0].r[0][2]));
-    m_particle_program.SetUniform("cam_r_1", glm::vec3(m_camera_params.devices[0].r[1][0], m_camera_params.devices[0].r[1][1], m_camera_params.devices[0].r[1][2]));
-    m_particle_program.SetUniform("cam_r_2", glm::vec3(m_camera_params.devices[0].r[2][0], m_camera_params.devices[0].r[2][1], m_camera_params.devices[0].r[2][2]));
-    m_particle_program.SetUniform("cam_t", m_camera_params.devices[0].t);
-    glm::mat3 cam_k = {
-        m_camera_params.internal_params.fu, 0.0f, m_camera_params.internal_params.u0,
-        0.0f, m_camera_params.internal_params.fv, m_camera_params.internal_params.v0,
-        0.0f, 0.0f, 1.0f
-    };
-    cam_k = glm::inverse(cam_k);
-    m_particle_program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
-    m_particle_program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
-    m_particle_program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
-    m_program.SetTexture("texImage", 0, m_camera_texture);
-    glDrawArrays(GL_POINTS, 0, m_debug_sphere.size());
-    glDisable(GL_PROGRAM_POINT_SIZE);
+    m_mesh_program.Use();
+    m_mesh_program.SetUniform("mvp", mvp);
+    glBindVertexArray(triangle_mesh.vao);
+    glDrawElements(GL_TRIANGLES, triangle_mesh.vertex_count, GL_UNSIGNED_SHORT, 0);
+    glBindVertexArray(0);
 
     if (ImGui::Begin("Points"))
     {

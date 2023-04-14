@@ -49,6 +49,14 @@ struct camera_params
     std::vector<device> devices;
 };
 
+struct lidar_mesh
+{
+    GLuint vao;
+    GLuint vbo;
+    GLuint ebo;
+    GLsizei vertex_count;
+};
+
 class application
 {
 public:
@@ -78,10 +86,14 @@ public:
 
     static glm::vec3 get_sphere_pos(float u, float v);
 
+    static lidar_mesh create_mesh(const std::vector<glm::vec3>& vertices);
+
+    static void draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject& vao, ProgramObject& program, const size_t size, camera_params cam_params, Texture2D& texture);
+
 protected:
     ProgramObject m_axes_program;
     ProgramObject m_particle_program;
-    ProgramObject m_program;
+    ProgramObject m_mesh_program;
 
     Texture2D m_camera_texture;
 
@@ -113,4 +125,6 @@ protected:
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
     camera_params m_camera_params;
+
+    lidar_mesh triangle_mesh;
 };
