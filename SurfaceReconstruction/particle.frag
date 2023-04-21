@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 
 in vec2 vs_out_tex;
 
@@ -9,6 +9,8 @@ uniform sampler2D texImage;
 
 void main()
 {
+    fs_out_col = color;
+    return;
     if (vs_out_tex.x >= 0 && vs_out_tex.x <= 960 && vs_out_tex.y >= 0 && vs_out_tex.x <= 600) {
         fs_out_col = texture(texImage, vs_out_tex);
     }

@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 
 in vec3 vs_in_pos;
 in vec2 vs_in_tex;
@@ -29,7 +29,7 @@ void main()
     cam_k_1[0], cam_k_1[1], cam_k_1[2],
     cam_k_2[0], cam_k_2[1], cam_k_2[2]);
 
-    gl_PointSize = 5;
+    gl_PointSize = 2;
     gl_Position = mvp * vec4(vs_in_pos, 1);
 
     vs_out_pos  = (world * vec4(vs_in_pos, 1)).xyz;

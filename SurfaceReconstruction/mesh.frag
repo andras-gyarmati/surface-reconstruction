@@ -1,4 +1,4 @@
-#version 130
+#version 460 core
 
 in vec3 vs_out_col;
 in vec3 vs_out_pos;

@@ -11,6 +11,10 @@
 #include <sstream>
 #include <fstream>
 #include <string>
+#include <glm/glm.hpp>
+#include <limits>
+#include <algorithm>
+#include <unordered_set>
 
 application::application(void)
 {
@@ -132,6 +136,264 @@ lidar_mesh application::create_mesh(const std::vector<glm::vec3>& vertices)
     return mesh;
 }
 
+Tetrahedron application::create_super_tetrahedron(const std::vector<glm::vec3>& point_cloud) {
+    // Compute the AABB of the point cloud.
+    glm::vec3 min_point = point_cloud[0];
+    glm::vec3 max_point = point_cloud[0];
+
+    for (const auto& point : point_cloud) {
+        min_point = glm::min(min_point, point);
+        max_point = glm::max(max_point, point);
+    }
+
+    // Compute the center and size of the AABB.
+    glm::vec3 center = (min_point + max_point) * 0.5f;
+    glm::vec3 size_vec = max_point - min_point;
+    float size = std::max(std::max(size_vec.x, size_vec.y), size_vec.z);
+
+    // Compute the size of the super tetrahedron.
+    float super_tetrahedron_size = size * 3.0f;
+
+    // Create the vertices of the super tetrahedron.
+    glm::vec3 v1 = center + glm::vec3(0, 0, -super_tetrahedron_size);
+    glm::vec3 v2 = center + glm::vec3(0, super_tetrahedron_size * glm::sqrt(2), super_tetrahedron_size);
+    glm::vec3 v3 = center + glm::vec3(-super_tetrahedron_size * glm::sqrt(3) / 3, -super_tetrahedron_size * glm::sqrt(2) / 3, super_tetrahedron_size);
+    glm::vec3 v4 = center + glm::vec3(super_tetrahedron_size * glm::sqrt(3) / 3, -super_tetrahedron_size * glm::sqrt(2) / 3, super_tetrahedron_size);
+
+    // Create and return the super tetrahedron.
+    return Tetrahedron(v1, v2, v3, v4);
+}
+
+bool application::is_point_inside_circumsphere(const glm::vec3& point, const Tetrahedron& tetrahedron)
+{
+    // Calculate the relative position vectors for each vertex of the tetrahedron
+    glm::vec3 v0 = tetrahedron.vertices[0] - point;
+    glm::vec3 v1 = tetrahedron.vertices[1] - point;
+    glm::vec3 v2 = tetrahedron.vertices[2] - point;
+    glm::vec3 v3 = tetrahedron.vertices[3] - point;
+
+    // Compute the squared lengths of the vectors
+    float v0_sq = glm::dot(v0, v0);
+    float v1_sq = glm::dot(v1, v1);
+    float v2_sq = glm::dot(v2, v2);
+    float v3_sq = glm::dot(v3, v3);
+
+    // Compute the determinant of the matrix formed by the position vectors and squared lengths
+    glm::mat4 matrix(
+        v0.x, v0.y, v0.z, v0_sq,
+        v1.x, v1.y, v1.z, v1_sq,
+        v2.x, v2.y, v2.z, v2_sq,
+        v3.x, v3.y, v3.z, v3_sq
+    );
+
+    // debug: Print the matrix values
+    // std::cout << "Matrix values: " << std::endl;
+    // for (int i = 0; i < 4; ++i) {
+    //     for (int j = 0; j < 4; ++j) {
+    //         std::cout << matrix[i][j] << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
+    // end debug
+
+    float determinant = glm::determinant(matrix);
+
+    // The point is inside the circumsphere if the determinant is positive
+    constexpr float EPSILON = 1e-6f;  // Adjust this value
+    return determinant > EPSILON;
+}
+
+glm::uvec3 sort_uvec3(const glm::uvec3& vec)
+{
+    glm::uvec3 sorted_vec = vec;
+    if (sorted_vec[0] > sorted_vec[1]) std::swap(sorted_vec[0], sorted_vec[1]);
+    if (sorted_vec[0] > sorted_vec[2]) std::swap(sorted_vec[0], sorted_vec[2]);
+    if (sorted_vec[1] > sorted_vec[2]) std::swap(sorted_vec[1], sorted_vec[2]);
+    return sorted_vec;
+}
+
+std::vector<Face> application::remove_duplicate_faces(const std::vector<Face>& boundary_faces) {
+    std::vector<Face> unique_faces;
+    for (const Face& face : boundary_faces) {
+        // Sort the vertices in ascending order
+        std::array<glm::vec3, 3> sorted_vertices = face.vertices;
+        std::sort(sorted_vertices.begin(), sorted_vertices.end(), [](const glm::vec3& a, const glm::vec3& b) {
+            return a.x < b.x || (a.x == b.x && a.y < b.y) || (a.x == b.x && a.y == b.y && a.z < b.z);
+        });
+
+        bool is_duplicate = false;
+        for (const Face& unique_face : unique_faces) {
+            std::array<glm::vec3, 3> unique_sorted_vertices = unique_face.vertices;
+            std::sort(unique_sorted_vertices.begin(), unique_sorted_vertices.end(), [](const glm::vec3& a, const glm::vec3& b) {
+                return a.x < b.x || (a.x == b.x && a.y < b.y) || (a.x == b.x && a.y == b.y && a.z < b.z);
+            });
+
+            if (sorted_vertices == unique_sorted_vertices) {
+                is_duplicate = true;
+                break;
+            }
+        }
+
+        if (!is_duplicate) {
+            unique_faces.push_back(face);
+        }
+    }
+
+    return unique_faces;
+}
+
+Tetrahedron application::create_tetrahedron(const glm::vec3& point, const Face& face)
+{
+    Tetrahedron tetrahedron(point, face.vertices[0], face.vertices[1], face.vertices[2]);
+
+    // Compute the circumcenter and circumradius
+    glm::mat4 A(
+        point.x - face.vertices[0].x, point.y - face.vertices[0].y, point.z - face.vertices[0].z, 0,
+        point.x - face.vertices[1].x, point.y - face.vertices[1].y, point.z - face.vertices[1].z, 0,
+        point.x - face.vertices[2].x, point.y - face.vertices[2].y, point.z - face.vertices[2].z, 0,
+        1, 1, 1, 1
+    );
+
+    float detA = glm::determinant(A);
+    float s = 1.0f / (2.0f * detA);
+
+    glm::mat4 B(
+        point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[0].x * face.vertices[0].x - face.vertices[0].y * face.vertices[0].y - face.vertices[0].z * face.vertices[0].z, point.y - face.vertices[0].y, point.z - face.vertices[0].z, 1,
+        point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[1].x * face.vertices[1].x - face.vertices[1].y * face.vertices[1].y - face.vertices[1].z * face.vertices[1].z, point.y - face.vertices[1].y, point.z - face.vertices[1].z, 1,
+        point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[2].x * face.vertices[2].x - face.vertices[2].y * face.vertices[2].y - face.vertices[2].z * face.vertices[2].z, point.y - face.vertices[2].y, point.z - face.vertices[2].z, 1,
+        1, 1, 1, 1
+    );
+
+    glm::mat4 C(
+        point.x - face.vertices[0].x, point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[0].x * face.vertices[0].x - face.vertices[0].y * face.vertices[0].y - face.vertices[0].z * face.vertices[0].z, point.z - face.vertices[0].z, 1,
+        point.x - face.vertices[1].x, point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[1].x * face.vertices[1].x - face.vertices[1].y * face.vertices[1].y - face.vertices[1].z * face.vertices[1].z, point.z - face.vertices[1].z, 1,
+        point.x - face.vertices[2].x, point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[2].x * face.vertices[2].x - face.vertices[2].y * face.vertices[2].y - face.vertices[2].z * face.vertices[2].z, point.z - face.vertices[2].z, 1,
+        1, 1, 1, 1
+    );
+
+    glm::mat4 D(
+        point.x - face.vertices[0].x, point.y - face.vertices[0].y, point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[0].x * face.vertices[0].x - face.vertices[0].y * face.vertices[0].y - face.vertices[0].z * face.vertices[0].z, 1,
+        point.x - face.vertices[1].x, point.y - face.vertices[1].y, point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[1].x * face.vertices[1].x - face.vertices[1].y * face.vertices[1].y - face.vertices[1].z * face.vertices[1].z, 1,
+        point.x - face.vertices[2].x, point.y - face.vertices[2].y, point.x * point.x + point.y * point.y + point.z * point.z - face.vertices[2].x * face.vertices[2].x - face.vertices[2].y * face.vertices[2].y - face.vertices[2].z * face.vertices[2].z, 1,
+        1, 1, 1, 1
+    );
+
+    float detB = glm::determinant(B);
+    float detC = glm::determinant(C);
+    float detD = glm::determinant(D);
+
+    tetrahedron.circumcenter = glm::vec3(detB * s, detC * s, detD * s);
+    tetrahedron.circumradius = glm::length(point - tetrahedron.circumcenter);
+
+    return tetrahedron;
+}
+
+std::vector<Tetrahedron> application::remove_super_tetrahedron_related_tetrahedra(const std::vector<Tetrahedron>& tetrahedra, const Tetrahedron& super_tetrahedron) {
+    std::vector<Tetrahedron> filtered_tetrahedra;
+
+    for (const Tetrahedron& tetrahedron : tetrahedra) {
+        bool is_related_to_super_tetrahedron = false;
+
+        for (const glm::vec3& super_vertex : super_tetrahedron.vertices) {
+            for (const glm::vec3& vertex : tetrahedron.vertices) {
+                if (vertex == super_vertex) {
+                    is_related_to_super_tetrahedron = true;
+                    break;
+                }
+            }
+            if (is_related_to_super_tetrahedron) break;
+        }
+
+        if (!is_related_to_super_tetrahedron) {
+            filtered_tetrahedra.push_back(tetrahedron);
+        }
+    }
+
+    return filtered_tetrahedra;
+}
+
+std::vector<Face> application::extract_mesh_from_tetrahedra(const std::vector<Tetrahedron>& tetrahedra) {
+    std::vector<Face> mesh_faces;
+
+    for (const Tetrahedron& tetrahedron : tetrahedra) {
+        mesh_faces.push_back(Face(tetrahedron.vertices[0], tetrahedron.vertices[1], tetrahedron.vertices[2]));
+        mesh_faces.push_back(Face(tetrahedron.vertices[0], tetrahedron.vertices[1], tetrahedron.vertices[3]));
+        mesh_faces.push_back(Face(tetrahedron.vertices[0], tetrahedron.vertices[2], tetrahedron.vertices[3]));
+        mesh_faces.push_back(Face(tetrahedron.vertices[1], tetrahedron.vertices[2], tetrahedron.vertices[3]));
+    }
+
+    return mesh_faces;
+}
+
+std::vector<Face> get_tetrahedron_faces(const Tetrahedron& tetrahedron) {
+    std::vector<Face> faces(4);
+    faces[0] = Face(tetrahedron.vertices[0], tetrahedron.vertices[1], tetrahedron.vertices[2]);
+    faces[1] = Face(tetrahedron.vertices[0], tetrahedron.vertices[1], tetrahedron.vertices[3]);
+    faces[2] = Face(tetrahedron.vertices[0], tetrahedron.vertices[2], tetrahedron.vertices[3]);
+    faces[3] = Face(tetrahedron.vertices[1], tetrahedron.vertices[2], tetrahedron.vertices[3]);
+    return faces;
+}
+
+std::vector<Face> application::delaunay_triangulation_3d(const std::vector<glm::vec3>& point_cloud)
+{
+    // Step 1
+    Tetrahedron super_tetrahedron = create_super_tetrahedron(point_cloud);
+
+    // Step 2
+    std::vector<Tetrahedron> tetrahedra;
+
+    // Step 3
+    tetrahedra.push_back(super_tetrahedron);
+
+    // Step 4
+    for (const glm::vec3& point : point_cloud)
+    {
+        // Step 4.1
+        std::vector<Tetrahedron> tetrahedra_to_remove;
+
+        // Step 4.2
+        std::vector<Face> boundary_faces;
+
+        // Step 4.3
+        for (const Tetrahedron& tetrahedron : tetrahedra)
+        {
+            if (application::is_point_inside_circumsphere(point, tetrahedron))
+            {
+                // Step 4.4
+                tetrahedra_to_remove.push_back(tetrahedron);
+
+                // Step 4.5
+                std::vector<Face> tetrahedron_faces = get_tetrahedron_faces(tetrahedron);
+                std::vector<Face> faces_to_check(tetrahedron_faces.begin(), tetrahedron_faces.end());
+            }
+        }
+
+        // Step 4.6
+        std::vector<Face> unique_boundary_faces = remove_duplicate_faces(boundary_faces);
+
+        // Step 4.7
+        for (const Tetrahedron& tetrahedron : tetrahedra_to_remove)
+        {
+            tetrahedra.erase(std::remove(tetrahedra.begin(), tetrahedra.end(), tetrahedron), tetrahedra.end());
+        }
+
+        // Step 4.8
+        for (const Face& face : unique_boundary_faces)
+        {
+            Tetrahedron new_tetrahedron = create_tetrahedron(point, face);
+            tetrahedra.push_back(new_tetrahedron);
+        }
+    }
+
+    // Step 5
+    tetrahedra = application::remove_super_tetrahedron_related_tetrahedra(tetrahedra, super_tetrahedron);
+
+    // Step 6
+    std::vector<Face> triangulation = extract_mesh_from_tetrahedra(tetrahedra);
+
+    return triangulation;
+}
+
 vertices application::load_ply_file(const std::string& filename)
 {
     std::ifstream file(filename);
@@ -211,7 +473,7 @@ bool application::init()
     glDisable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
     glLineWidth(4.0f);
-    glPointSize(15.0f);
+    glPointSize(5.0f);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}});
@@ -228,10 +490,29 @@ bool application::init()
     m_gpu_particle_buffer.BufferData(m_vertices.positions);
     m_gpu_particle_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_particle_buffer}});
 
-    triangle_mesh = create_mesh(m_vertices.positions);
+    // m_lidar_mesh = create_mesh(m_vertices.positions);
 
-    constexpr int n = 960;
-    constexpr int m = 960;
+    std::vector<Face> faces = delaunay_triangulation_3d(m_vertices.positions);
+    m_triangle_mesh = create_mesh_from_faces(faces);
+
+    glGenVertexArrays(1, &mesh_vao);
+    glGenBuffers(1, &mesh_vbo);
+    glGenBuffers(1, &mesh_ebo);
+
+    glBindVertexArray(mesh_vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, mesh_vbo);
+    glBufferData(GL_ARRAY_BUFFER, m_triangle_mesh.vertices.size() * sizeof(glm::vec3), m_triangle_mesh.vertices.data(), GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_triangle_mesh.indices.size() * sizeof(GLuint), m_triangle_mesh.indices.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(0);
+
+    constexpr int n = 9;
+    constexpr int m = 9;
     m_debug_sphere.resize((m + 1) * (n + 1));
     for (int i = 0; i <= n; ++i)
         for (int j = 0; j <= m; ++j)
@@ -244,6 +525,9 @@ bool application::init()
 
 void application::clean()
 {
+    glDeleteVertexArrays(1, &mesh_vao);
+    glDeleteBuffers(1, &mesh_vbo);
+    glDeleteBuffers(1, &mesh_ebo);
 }
 
 void application::reset()
@@ -285,10 +569,24 @@ void application::draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject&
     glDisable(GL_PROGRAM_POINT_SIZE);
 }
 
+triangle_mesh application::create_mesh_from_faces(const std::vector<Face>& faces)
+{
+    triangle_mesh mesh;
+    for (const auto& face : faces) {
+        mesh.vertices.push_back(face.vertices[0]);
+        mesh.vertices.push_back(face.vertices[1]);
+        mesh.vertices.push_back(face.vertices[2]);
+
+        GLuint currentIndex = static_cast<GLuint>(mesh.vertices.size()) - 3;
+        mesh.indices.push_back(currentIndex);
+        mesh.indices.push_back(currentIndex + 1);
+        mesh.indices.push_back(currentIndex + 2);
+    }
+    return mesh;
+}
+
 void application::render()
 {
-    // todo: add some basic triangulation
-
     const glm::mat4 rot_x_neg_90 = glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // glm::mat4 mvp = m_camera.GetViewProj();
@@ -303,8 +601,14 @@ void application::render()
     m_axes_program.SetUniform("mvp", mvp);
     glDrawArrays(GL_LINES, 0, 6);
 
-    draw_points(mvp, world, m_gpu_particle_vao, m_particle_program, m_vertices.positions.size(), m_camera_params, m_camera_texture);
+    //draw_points(mvp, world, m_gpu_particle_vao, m_particle_program, m_vertices.positions.size(), m_camera_params, m_camera_texture);
     draw_points(mvp, world, m_gpu_debug_sphere_vao, m_particle_program, m_debug_sphere.size(), m_camera_params, m_camera_texture);
+
+    m_mesh_program.Use();
+    m_mesh_program.SetUniform("mvp", mvp);
+    glBindVertexArray(mesh_vao);
+    glDrawElements(GL_TRIANGLES, m_triangle_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
+    glBindVertexArray(0);
 
     /*m_mesh_program.Use();
     m_mesh_program.SetUniform("mvp", mvp);

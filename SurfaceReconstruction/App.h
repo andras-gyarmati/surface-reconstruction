@@ -57,6 +57,61 @@ struct lidar_mesh
     GLsizei vertex_count;
 };
 
+struct triangle_mesh {
+    std::vector<glm::vec3> vertices;
+    std::vector<GLuint> indices;
+};
+
+struct Face {
+    std::array<glm::vec3, 3> vertices;
+
+    Face() : vertices{glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f)} {}
+
+    Face(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3) {
+        vertices[0] = v1;
+        vertices[1] = v2;
+        vertices[2] = v3;
+    }
+};
+
+struct Tetrahedron {
+    glm::vec3 vertices[4];
+    glm::vec3 circumcenter;
+    float circumradius;
+
+    Tetrahedron(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, const glm::vec3& v4) {
+        vertices[0] = v1;
+        vertices[1] = v2;
+        vertices[2] = v3;
+        vertices[3] = v4;
+    }
+
+    bool contains_vertex(const glm::vec3& vertex) const {
+        for (int i = 0; i < 4; ++i) {
+            if (vertices[i] == vertex) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool operator==(const Tetrahedron& other) const {
+        for (int i = 0; i < 4; ++i) {
+            bool found = false;
+            for (int j = 0; j < 4; ++j) {
+                if (vertices[i] == other.vertices[j]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
 class application
 {
 public:
@@ -88,7 +143,17 @@ public:
 
     static lidar_mesh create_mesh(const std::vector<glm::vec3>& vertices);
 
+    static Tetrahedron create_super_tetrahedron(const std::vector<glm::vec3>& point_cloud);
+    static bool is_point_inside_circumsphere(const glm::vec3& point, const Tetrahedron& tetrahedron);
+    static std::vector<Face> remove_duplicate_faces(const std::vector<Face>& boundary_faces);
+    static Tetrahedron create_tetrahedron(const glm::vec3& point, const Face& face);
+    static std::vector<Tetrahedron> remove_super_tetrahedron_related_tetrahedra(const std::vector<Tetrahedron>& tetrahedra, const Tetrahedron& super_tetrahedron);
+    static std::vector<Face> extract_mesh_from_tetrahedra(const std::vector<Tetrahedron>& tetrahedra);
+    static std::vector<Face> delaunay_triangulation_3d(const std::vector<glm::vec3>& point_cloud);
+
     static void draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject& vao, ProgramObject& program, const size_t size, camera_params cam_params, Texture2D& texture);
+
+    static triangle_mesh create_mesh_from_faces(const std::vector<Face>& faces);
 
 protected:
     ProgramObject m_axes_program;
@@ -116,7 +181,6 @@ protected:
 
     bool m_is_left_pressed = false;
 
-
     std::vector<glm::vec3> m_debug_sphere;
     VertexArrayObject m_gpu_debug_sphere_vao;
     ArrayBuffer m_gpu_debug_sphere_buffer;
@@ -126,5 +190,8 @@ protected:
     ArrayBuffer m_gpu_particle_buffer;
     camera_params m_camera_params;
 
-    lidar_mesh triangle_mesh;
+    lidar_mesh m_lidar_mesh;
+    triangle_mesh m_triangle_mesh;
+
+    GLuint mesh_vao, mesh_vbo, mesh_ebo;
 };

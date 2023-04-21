@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 
 vec4 positions[6] = vec4[6](
     // 1. szakasz
