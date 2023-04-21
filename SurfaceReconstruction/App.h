@@ -151,6 +151,8 @@ public:
     static std::vector<Face> extract_mesh_from_tetrahedra(const std::vector<Tetrahedron>& tetrahedra);
     static std::vector<Face> delaunay_triangulation_3d(const std::vector<glm::vec3>& point_cloud);
 
+    static std::vector<glm::vec3> normalize_point_cloud(const std::vector<glm::vec3>& point_cloud);
+
     static void draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject& vao, ProgramObject& program, const size_t size, camera_params cam_params, Texture2D& texture);
 
     static triangle_mesh create_mesh_from_faces(const std::vector<Face>& faces);

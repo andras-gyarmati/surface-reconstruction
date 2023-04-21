@@ -187,16 +187,17 @@ bool application::is_point_inside_circumsphere(const glm::vec3& point, const Tet
     );
 
     // debug: Print the matrix values
-    // std::cout << "Matrix values: " << std::endl;
-    // for (int i = 0; i < 4; ++i) {
-    //     for (int j = 0; j < 4; ++j) {
-    //         std::cout << matrix[i][j] << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
+    std::cout << "Matrix values: " << std::endl;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            std::cout << matrix[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
     // end debug
 
     float determinant = glm::determinant(matrix);
+    std::cout << "Determinant: " << determinant << std::endl;
 
     // The point is inside the circumsphere if the determinant is positive
     constexpr float EPSILON = 1e-6f;  // Adjust this value
@@ -337,7 +338,7 @@ std::vector<Face> get_tetrahedron_faces(const Tetrahedron& tetrahedron) {
 std::vector<Face> application::delaunay_triangulation_3d(const std::vector<glm::vec3>& point_cloud)
 {
     // Step 1
-    Tetrahedron super_tetrahedron = create_super_tetrahedron(point_cloud);
+    const Tetrahedron super_tetrahedron = create_super_tetrahedron(point_cloud);
 
     // Step 2
     std::vector<Tetrahedron> tetrahedra;
@@ -392,6 +393,39 @@ std::vector<Face> application::delaunay_triangulation_3d(const std::vector<glm::
     std::vector<Face> triangulation = extract_mesh_from_tetrahedra(tetrahedra);
 
     return triangulation;
+}
+
+std::vector<glm::vec3> application::normalize_point_cloud(const std::vector<glm::vec3>& point_cloud)
+{
+    // Calculate the centroid (mean) of the point cloud
+    glm::vec3 centroid(0, 0, 0);
+    for (const auto& point : point_cloud) {
+        centroid += point;
+    }
+    centroid /= static_cast<float>(point_cloud.size());
+
+    // Translate the point cloud to the origin by subtracting the centroid
+    std::vector<glm::vec3> translated_point_cloud;
+    translated_point_cloud.reserve(point_cloud.size());
+    for (const auto& point : point_cloud) {
+        translated_point_cloud.push_back(point - centroid);
+    }
+
+    // Calculate the scale factor to fit the point cloud within a reasonable bounding box
+    float max_distance = 0;
+    for (const auto& point : translated_point_cloud) {
+        max_distance = std::max(max_distance, glm::length(point));
+    }
+    float scale_factor = 1 / max_distance;
+
+    // Scale the point cloud by the scale factor
+    std::vector<glm::vec3> normalized_point_cloud;
+    normalized_point_cloud.reserve(translated_point_cloud.size());
+    for (const auto& point : translated_point_cloud) {
+        normalized_point_cloud.push_back(point * scale_factor);
+    }
+
+    return normalized_point_cloud;
 }
 
 vertices application::load_ply_file(const std::string& filename)
@@ -493,6 +527,7 @@ bool application::init()
     // m_lidar_mesh = create_mesh(m_vertices.positions);
 
     std::vector<Face> faces = delaunay_triangulation_3d(m_vertices.positions);
+    //std::vector<Face> faces = delaunay_triangulation_3d(normalize_point_cloud(m_vertices.positions));
     m_triangle_mesh = create_mesh_from_faces(faces);
 
     glGenVertexArrays(1, &mesh_vao);
