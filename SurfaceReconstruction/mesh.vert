@@ -1,4 +1,4 @@
-﻿#version 460 core
+﻿#version 330
 
 in vec3 vs_in_pos;
 

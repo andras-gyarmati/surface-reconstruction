@@ -1,4 +1,4 @@
-#version 460 core
+#version 330
 
 in vec4 vs_out_color;
 

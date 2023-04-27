@@ -24,9 +24,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MyApp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="T:\OGLPack\include\imgui\imconfig.h">
       <Filter>imgui</Filter>
     </ClInclude>
@@ -81,11 +78,14 @@
     <ClInclude Include="Includes\GLDebugMessageCallback.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Includes\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="App.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="MyApp.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui.cpp">
       <Filter>imgui</Filter>
@@ -123,6 +123,9 @@
     <ClCompile Include="Includes\GLDebugMessageCallback.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="App.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="axes.vert">
@@ -137,12 +140,6 @@
     <None Include="particle.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="passthrough.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="passthrough.frag">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Includes\BufferObject.inl">
       <Filter>GL utilities</Filter>
     </None>
@@ -155,10 +152,10 @@
     <None Include="Includes\VertexArrayObject.inl">
       <Filter>GL utilities</Filter>
     </None>
-    <None Include="myFrag.frag">
+    <None Include="mesh.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="myVert.vert">
+    <None Include="mesh.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

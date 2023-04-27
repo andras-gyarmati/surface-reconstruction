@@ -57,54 +57,69 @@ struct lidar_mesh
     GLsizei vertex_count;
 };
 
-struct triangle_mesh {
+struct triangle_mesh
+{
     std::vector<glm::vec3> vertices;
     std::vector<GLuint> indices;
 };
 
-struct Face {
+struct Face
+{
     std::array<glm::vec3, 3> vertices;
 
-    Face() : vertices{glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f)} {}
+    Face() : vertices{glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.0f)}
+    {
+    }
 
-    Face(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3) {
+    Face(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3)
+    {
         vertices[0] = v1;
         vertices[1] = v2;
         vertices[2] = v3;
     }
 };
 
-struct Tetrahedron {
+struct Tetrahedron
+{
     glm::vec3 vertices[4];
     glm::vec3 circumcenter;
     float circumradius;
 
-    Tetrahedron(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, const glm::vec3& v4) {
+    Tetrahedron(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, const glm::vec3& v4)
+    {
         vertices[0] = v1;
         vertices[1] = v2;
         vertices[2] = v3;
         vertices[3] = v4;
     }
 
-    bool contains_vertex(const glm::vec3& vertex) const {
-        for (int i = 0; i < 4; ++i) {
-            if (vertices[i] == vertex) {
+    bool contains_vertex(const glm::vec3& vertex) const
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            if (vertices[i] == vertex)
+            {
                 return true;
             }
         }
         return false;
     }
 
-    bool operator==(const Tetrahedron& other) const {
-        for (int i = 0; i < 4; ++i) {
+    bool operator==(const Tetrahedron& other) const
+    {
+        for (int i = 0; i < 4; ++i)
+        {
             bool found = false;
-            for (int j = 0; j < 4; ++j) {
-                if (vertices[i] == other.vertices[j]) {
+            for (int j = 0; j < 4; ++j)
+            {
+                if (vertices[i] == other.vertices[j])
+                {
                     found = true;
                     break;
                 }
             }
-            if (!found) {
+            if (!found)
+            {
                 return false;
             }
         }
@@ -192,8 +207,12 @@ protected:
     ArrayBuffer m_gpu_particle_buffer;
     camera_params m_camera_params;
 
-    lidar_mesh m_lidar_mesh;
+    // lidar_mesh m_lidar_mesh;
     triangle_mesh m_triangle_mesh;
 
-    GLuint mesh_vao, mesh_vbo, mesh_ebo;
+    // GLuint mesh_vao, mesh_vbo, mesh_ebo;
+
+    VertexArrayObject m_vao;
+    IndexBuffer m_gpu_buffer_indices;
+    ArrayBuffer m_gpu_buffer_pos;
 };

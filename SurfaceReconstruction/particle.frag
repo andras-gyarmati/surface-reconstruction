@@ -1,5 +1,6 @@
-#version 460 core
+#version 330
 
+in vec3 vs_out_pos;
 in vec2 vs_out_tex;
 
 out vec4 fs_out_col;

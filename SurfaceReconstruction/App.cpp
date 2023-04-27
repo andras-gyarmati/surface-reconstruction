@@ -209,11 +209,14 @@ void circumsphere(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3 v2, 
     const float volume = determinant / 6.f;
     const float i_twelve_volume = 1.f / (volume * 12.f);
 
-    center->x = v0.x + i_twelve_volume * ((row2.y * row3.z - row3.y * row2.z) * sq_length1 - (row1.y * row3.z - row3.y * row1.z) * sq_length2 + (row1.y * row2.z - row2.y * row1.z) *
+    center->x = v0.x + i_twelve_volume * ((row2.y * row3.z - row3.y * row2.z) * sq_length1 - (row1.y * row3.z - row3.y * row1.z) * sq_length2 + (row1.y * row2.z - row2.y * row1.z)
+        *
         sq_length3);
-    center->y = v0.y + i_twelve_volume * (-(row2.x * row3.z - row3.x * row2.z) * sq_length1 + (row1.x * row3.z - row3.x * row1.z) * sq_length2 - (row1.x * row2.z - row2.x * row1.z) *
+    center->y = v0.y + i_twelve_volume * (-(row2.x * row3.z - row3.x * row2.z) * sq_length1 + (row1.x * row3.z - row3.x * row1.z) * sq_length2 - (row1.x * row2.z - row2.x * row1.z)
+        *
         sq_length3);
-    center->z = v0.z + i_twelve_volume * ((row2.x * row3.y - row3.x * row2.y) * sq_length1 - (row1.x * row3.y - row3.x * row1.y) * sq_length2 + (row1.x * row2.y - row2.x * row1.y) *
+    center->z = v0.z + i_twelve_volume * ((row2.x * row3.y - row3.x * row2.y) * sq_length1 - (row1.x * row3.y - row3.x * row1.y) * sq_length2 + (row1.x * row2.y - row2.x * row1.y)
+        *
         sq_length3);
 
     //Once we know the center, the radius is clearly the distance to any vertex
@@ -419,13 +422,16 @@ std::vector<Face> get_tetrahedron_faces(const Tetrahedron& tetrahedron)
     return faces;
 }
 
-std::vector<glm::vec3> filter_duplicate_points(const std::vector<glm::vec3>& point_cloud) {
-    std::set<glm::vec3, bool(*)(const glm::vec3&, const glm::vec3&)> unique_points([](const glm::vec3& a, const glm::vec3& b) {
+std::vector<glm::vec3> filter_duplicate_points(const std::vector<glm::vec3>& point_cloud)
+{
+    std::set<glm::vec3, bool(*)(const glm::vec3&, const glm::vec3&)> unique_points([](const glm::vec3& a, const glm::vec3& b)
+    {
         const float epsilon = 1e-6f;
         return glm::all(glm::lessThan(glm::abs(a - b), glm::vec3(epsilon))) ? false : a.x < b.x || (a.x == b.x && (a.y < b.y || (a.y == b.y && a.z < b.z)));
     });
 
-    for (const auto& point : point_cloud) {
+    for (const auto& point : point_cloud)
+    {
         unique_points.insert(point);
     }
 
@@ -596,9 +602,9 @@ bool application::init()
     glPointSize(5.0f);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
-    m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}});
+    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_tex"}});
+    m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}}, {{0, "vs_in_pos"}});
 
-    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_vel"}, {2, "vs_in_tex"}});
     m_camera_texture.FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
     // m_camera_texture.FromFile("inputs/debug.png");
 
@@ -607,8 +613,8 @@ bool application::init()
 
     reset();
 
-    constexpr int n = 9;
-    constexpr int m = 9;
+    constexpr int n = 4;
+    constexpr int m = 4;
     m_debug_sphere.resize((m + 1) * (n + 1));
     for (int i = 0; i <= n; ++i)
         for (int j = 0; j <= m; ++j)
@@ -625,30 +631,34 @@ bool application::init()
     //std::vector<Face> faces = delaunay_triangulation_3d(normalize_point_cloud(m_vertices.positions));
     m_triangle_mesh = create_mesh_from_faces(faces);
 
-    glGenVertexArrays(1, &mesh_vao);
-    glGenBuffers(1, &mesh_vbo);
-    glGenBuffers(1, &mesh_ebo);
+    // glGenVertexArrays(1, &mesh_vao);
+    // glGenBuffers(1, &mesh_vbo);
+    // glGenBuffers(1, &mesh_ebo);
+    //
+    // glBindVertexArray(mesh_vao);
+    //
+    // glBindBuffer(GL_ARRAY_BUFFER, mesh_vbo);
+    // glBufferData(GL_ARRAY_BUFFER, m_triangle_mesh.vertices.size() * sizeof(glm::vec3), m_triangle_mesh.vertices.data(), GL_STATIC_DRAW);
+    // glEnableVertexAttribArray(0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+    //
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_ebo);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_triangle_mesh.indices.size() * sizeof(GLuint), m_triangle_mesh.indices.data(), GL_STATIC_DRAW);
+    //
+    // glBindVertexArray(0);
 
-    glBindVertexArray(mesh_vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, mesh_vbo);
-    glBufferData(GL_ARRAY_BUFFER, m_triangle_mesh.vertices.size() * sizeof(glm::vec3), m_triangle_mesh.vertices.data(), GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_triangle_mesh.indices.size() * sizeof(GLuint), m_triangle_mesh.indices.data(), GL_STATIC_DRAW);
-
-    glBindVertexArray(0);
+    m_gpu_buffer_pos.BufferData(m_triangle_mesh.vertices);
+    m_gpu_buffer_indices.BufferData(m_triangle_mesh.indices);
+    m_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_buffer_pos},}, m_gpu_buffer_indices);
 
     return true;
 }
 
 void application::clean()
 {
-    glDeleteVertexArrays(1, &mesh_vao);
-    glDeleteBuffers(1, &mesh_vbo);
-    glDeleteBuffers(1, &mesh_ebo);
+    // glDeleteVertexArrays(1, &mesh_vao);
+    // glDeleteBuffers(1, &mesh_vbo);
+    // glDeleteBuffers(1, &mesh_ebo);
 }
 
 void application::reset()
@@ -719,18 +729,25 @@ void application::render()
     glm::mat4 world = m_mat_world;
     world *= rot_x_neg_90;
 
-    m_axes_program.Use();
-    m_axes_program.SetUniform("mvp", mvp);
-    glDrawArrays(GL_LINES, 0, 6);
+    //m_axes_program.Use();
+    //m_axes_program.SetUniform("mvp", mvp);
+    //glDrawArrays(GL_LINES, 0, 6);
 
     //draw_points(mvp, world, m_gpu_particle_vao, m_particle_program, m_vertices.positions.size(), m_camera_params, m_camera_texture);
-    draw_points(mvp, world, m_gpu_debug_sphere_vao, m_particle_program, m_debug_sphere.size(), m_camera_params, m_camera_texture);
+    //draw_points(mvp, world, m_gpu_debug_sphere_vao, m_particle_program, m_debug_sphere.size(), m_camera_params, m_camera_texture);
+
+    // m_mesh_program.Use();
+    // m_mesh_program.SetUniform("mvp", mvp);
+    // glBindVertexArray(mesh_vao);
+    // glDrawElements(GL_TRIANGLES, m_triangle_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
+    // glBindVertexArray(0);
+
+    m_vao.Bind();
 
     m_mesh_program.Use();
     m_mesh_program.SetUniform("mvp", mvp);
-    glBindVertexArray(mesh_vao);
+
     glDrawElements(GL_TRIANGLES, m_triangle_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
-    glBindVertexArray(0);
 
     /*m_mesh_program.Use();
     m_mesh_program.SetUniform("mvp", mvp);
@@ -738,11 +755,11 @@ void application::render()
     glDrawElements(GL_TRIANGLES, triangle_mesh.vertex_count, GL_UNSIGNED_SHORT, 0);
     glBindVertexArray(0);*/
 
-    if (ImGui::Begin("Points"))
-    {
-        ImGui::Text("Properties");
-    }
-    ImGui::End();
+    // if (ImGui::Begin("Points"))
+    // {
+    //     ImGui::Text("Properties");
+    // }
+    // ImGui::End();
 }
 
 void application::keyboard_down(const SDL_KeyboardEvent& key)
