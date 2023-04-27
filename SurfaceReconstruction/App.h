@@ -173,13 +173,13 @@ public:
     static triangle_mesh create_mesh_from_faces(const std::vector<Face>& faces);
 
 protected:
-    ProgramObject m_axes_program;
-    ProgramObject m_particle_program;
+    // ProgramObject m_axes_program;
+    // ProgramObject m_particle_program;
     ProgramObject m_mesh_program;
 
     Texture2D m_camera_texture;
 
-    gCamera m_camera;
+    // gCamera m_camera;
 
     glm::mat4 m_mat_world = glm::mat4(1.0f);
     glm::mat4 m_mat_view = glm::mat4(1.0f);
@@ -208,6 +208,7 @@ protected:
     camera_params m_camera_params;
 
     // lidar_mesh m_lidar_mesh;
+
     triangle_mesh m_triangle_mesh;
 
     // GLuint mesh_vao, mesh_vbo, mesh_ebo;

@@ -19,7 +19,7 @@
 
 application::application(void)
 {
-    m_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(5, 0, 5), glm::vec3(0, 1, 0));
+    // m_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(5, 0, 5), glm::vec3(0, 1, 0));
 }
 
 camera_params application::load_camera_params(const std::string& filename)
@@ -593,7 +593,7 @@ vertices application::load_xyz_file(const std::string& filename)
 bool application::init()
 {
     m_mat_proj = glm::perspective(60.0f, 640.0f / 480.0f, 1.0f, 1000.0f);
-    m_camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
+    // m_camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
 
     glClearColor(0.1f, 0.1f, 0.41f, 1);
     glDisable(GL_CULL_FACE);
@@ -601,8 +601,8 @@ bool application::init()
     glLineWidth(4.0f);
     glPointSize(5.0f);
 
-    m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
-    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_tex"}});
+    //m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
+    //m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_tex"}});
     m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}}, {{0, "vs_in_pos"}});
 
     m_camera_texture.FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
@@ -670,7 +670,7 @@ void application::update()
     m_mat_view = glm::lookAt(m_eye, m_at, m_up);
     static Uint32 last_time = SDL_GetTicks();
     const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
-    m_camera.Update(delta_time);
+    // m_camera.Update(delta_time);
     // m_gpu_particle_buffer.BufferData(m_vertices.positions);
     last_time = SDL_GetTicks();
 }
@@ -695,7 +695,7 @@ void application::draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject&
     program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
     program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
     program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
-    program.SetTexture("texImage", 0, texture);
+    program.SetTexture("tex_image", 0, texture);
     glDrawArrays(GL_POINTS, 0, size);
     glDisable(GL_PROGRAM_POINT_SIZE);
 }
@@ -743,11 +743,11 @@ void application::render()
     // glBindVertexArray(0);
 
     m_vao.Bind();
-
     m_mesh_program.Use();
     m_mesh_program.SetUniform("mvp", mvp);
-
     glDrawElements(GL_TRIANGLES, m_triangle_mesh.indices.size(), GL_UNSIGNED_INT, nullptr);
+    m_mesh_program.Unuse();
+    m_vao.Unbind();
 
     /*m_mesh_program.Use();
     m_mesh_program.SetUniform("mvp", mvp);
@@ -764,7 +764,7 @@ void application::render()
 
 void application::keyboard_down(const SDL_KeyboardEvent& key)
 {
-    m_camera.KeyboardDown(key);
+    // m_camera.KeyboardDown(key);
     switch (key.keysym.sym)
     {
     case SDLK_w: std::cout << "---\n|W|\n";
@@ -789,12 +789,12 @@ void application::keyboard_down(const SDL_KeyboardEvent& key)
 
 void application::keyboard_up(const SDL_KeyboardEvent& key)
 {
-    m_camera.KeyboardUp(key);
+    // m_camera.KeyboardUp(key);
 }
 
 void application::mouse_move(const SDL_MouseMotionEvent& mouse)
 {
-    m_camera.MouseMove(mouse);
+    // m_camera.MouseMove(mouse);
     if (m_is_left_pressed)
     {
         m_fi += static_cast<float>(mouse.xrel) / 100.0f;
@@ -826,5 +826,5 @@ void application::resize(int _w, int _h)
 {
     glViewport(0, 0, _w, _h);
     m_mat_proj = glm::perspective(glm::radians(60.0f), static_cast<float>(_w) / static_cast<float>(_h), 0.01f, 1000.0f);
-    m_camera.Resize(_w, _h);
+    // m_camera.Resize(_w, _h);
 }
