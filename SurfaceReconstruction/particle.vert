@@ -16,6 +16,7 @@ uniform vec3 cam_t;
 uniform vec3 cam_k_0;
 uniform vec3 cam_k_1;
 uniform vec3 cam_k_2;
+uniform float point_size;
 
 void main()
 {
@@ -29,7 +30,7 @@ void main()
     cam_k_1[0], cam_k_1[1], cam_k_1[2],
     cam_k_2[0], cam_k_2[1], cam_k_2[2]);
 
-    gl_PointSize = 5;
+    gl_PointSize = point_size;
     gl_Position = mvp * vec4(vs_in_pos, 1);
 
     vs_out_pos = (world * vec4(vs_in_pos, 1)).xyz;

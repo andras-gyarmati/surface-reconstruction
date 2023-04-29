@@ -75,7 +75,7 @@ public:
     static camera_params load_camera_params(const std::string& filename);
     static glm::vec3 to_descartes(float fi, float theta);
     static glm::vec3 get_sphere_pos(float u, float v);
-    static void draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject& vao, ProgramObject& program, const size_t size, camera_params cam_params, Texture2D& texture);
+    void draw_points(glm::mat4 mvp, VertexArrayObject& vao, const size_t size);
 
 protected:
     ProgramObject m_axes_program;
@@ -84,6 +84,7 @@ protected:
     Texture2D m_camera_texture;
     gCamera m_virtual_camera;
 
+    bool m_show_debug_sphere = false;
     std::vector<glm::vec3> m_debug_sphere;
     VertexArrayObject m_gpu_debug_sphere_vao;
     ArrayBuffer m_gpu_debug_sphere_buffer;
@@ -92,4 +93,6 @@ protected:
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
     camera_params m_camera_params;
+
+    float m_point_size = 1.f;
 };

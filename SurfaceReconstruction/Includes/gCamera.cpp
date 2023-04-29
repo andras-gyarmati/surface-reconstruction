@@ -61,14 +61,28 @@ void gCamera::Update(float _deltaTime)
 
 void gCamera::UpdateUV(float du, float dv)
 {
+    // Update m_u and m_v
     m_u += du;
     m_v = glm::clamp<float>(m_v + dv, 0.1f, 3.1f);
 
-    m_at = m_eye + m_dist * glm::vec3(cosf(m_u) * sinf(m_v),
-                                      cosf(m_v),
-                                      sinf(m_u) * sinf(m_v));
+    // Calculate the rotation axis for vertical movement
+    glm::vec3 rotation_axis = cross(m_fw, m_up);
 
-    m_fw = normalize(m_at - m_eye);
+    // Create horizontal and vertical rotation matrices
+    glm::mat4 horizontal_rotation = glm::rotate(glm::mat4(1.0f), -du, m_up);
+    glm::mat4 vertical_rotation = glm::rotate(glm::mat4(1.0f), -dv, rotation_axis);
+
+    // Combine the horizontal and vertical rotations
+    glm::mat4 combined_rotation = horizontal_rotation * vertical_rotation;
+
+    // Apply the rotation to the current forward direction
+    glm::vec3 new_fw = glm::vec3(combined_rotation * glm::vec4(m_fw, 0.0f));
+
+    // Update m_at and m_fw
+    m_at = m_eye + m_dist * new_fw;
+    m_fw = normalize(new_fw);
+
+    // Recalculate m_st
     m_st = normalize(cross(m_fw, m_up));
 }
 

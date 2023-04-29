@@ -49,6 +49,11 @@ public:
         return m_matViewProj;
     }
 
+    float GetSpeed()
+    {
+        return m_speed;
+    }
+
     void Resize(int _w, int _h);
 
     void KeyboardDown(const SDL_KeyboardEvent& key);

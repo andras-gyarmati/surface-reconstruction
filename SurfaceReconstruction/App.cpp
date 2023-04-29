@@ -19,7 +19,7 @@
 
 application::application(void)
 {
-    m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(5, 0, 5), glm::vec3(0, 1, 0));
+    m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
 }
 
 camera_params application::load_camera_params(const std::string& filename)
@@ -212,53 +212,67 @@ void application::update()
     last_time = SDL_GetTicks();
 }
 
-void application::draw_points(glm::mat4 mvp, glm::mat4 world, VertexArrayObject& vao, ProgramObject& program, const size_t size, camera_params cam_params, Texture2D& texture)
+void application::draw_points(glm::mat4 mvp, VertexArrayObject& vao, const size_t size)
 {
     glEnable(GL_PROGRAM_POINT_SIZE);
     vao.Bind();
-    program.Use();
-    program.SetUniform("mvp", mvp);
-    program.SetUniform("world", world);
-    program.SetUniform("cam_r_0", glm::vec3(cam_params.devices[0].r[0][0], cam_params.devices[0].r[0][1], cam_params.devices[0].r[0][2]));
-    program.SetUniform("cam_r_1", glm::vec3(cam_params.devices[0].r[1][0], cam_params.devices[0].r[1][1], cam_params.devices[0].r[1][2]));
-    program.SetUniform("cam_r_2", glm::vec3(cam_params.devices[0].r[2][0], cam_params.devices[0].r[2][1], cam_params.devices[0].r[2][2]));
-    program.SetUniform("cam_t", cam_params.devices[0].t);
+    m_particle_program.Use();
+    m_particle_program.SetUniform("mvp", mvp);
+    m_particle_program.SetUniform("world", glm::mat4(1));
+    m_particle_program.SetUniform("cam_r_0", glm::vec3(m_camera_params.devices[0].r[0][0], m_camera_params.devices[0].r[0][1], m_camera_params.devices[0].r[0][2]));
+    m_particle_program.SetUniform("cam_r_1", glm::vec3(m_camera_params.devices[0].r[1][0], m_camera_params.devices[0].r[1][1], m_camera_params.devices[0].r[1][2]));
+    m_particle_program.SetUniform("cam_r_2", glm::vec3(m_camera_params.devices[0].r[2][0], m_camera_params.devices[0].r[2][1], m_camera_params.devices[0].r[2][2]));
+    m_particle_program.SetUniform("cam_t", m_camera_params.devices[0].t);
     glm::mat3 cam_k = {
-        cam_params.internal_params.fu, 0.0f, cam_params.internal_params.u0,
-        0.0f, cam_params.internal_params.fv, cam_params.internal_params.v0,
+        m_camera_params.internal_params.fu, 0.0f, m_camera_params.internal_params.u0,
+        0.0f, m_camera_params.internal_params.fv, m_camera_params.internal_params.v0,
         0.0f, 0.0f, 1.0f
     };
     //cam_k = glm::inverse(cam_k);
-    program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
-    program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
-    program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
-    program.SetTexture("tex_image", 0, texture);
+    m_particle_program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
+    m_particle_program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
+    m_particle_program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
+    m_particle_program.SetUniform("point_size", m_point_size);
+    m_particle_program.SetTexture("tex_image", 0, m_camera_texture);
     glDrawArrays(GL_POINTS, 0, size);
     glDisable(GL_PROGRAM_POINT_SIZE);
 }
 
 void application::render()
 {
-    const glm::mat4 rot_x_neg_90 = glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
+    // const glm::mat4 rot_x_neg_90 = glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glm::mat4 mvp = m_virtual_camera.GetViewProj();
-    mvp *= rot_x_neg_90;
-
-    glm::mat4 world = glm::mat4(1);
-    world *= rot_x_neg_90;
+    // mvp *= rot_x_neg_90;
 
     m_axes_program.Use();
     m_axes_program.SetUniform("mvp", mvp);
     glDrawArrays(GL_LINES, 0, 6);
 
-    draw_points(mvp, world, m_gpu_particle_vao, m_particle_program, m_vertices.positions.size(), m_camera_params, m_camera_texture);
-    draw_points(mvp, world, m_gpu_debug_sphere_vao, m_particle_program, m_debug_sphere.size(), m_camera_params, m_camera_texture);
+    draw_points(mvp, m_gpu_particle_vao, m_vertices.positions.size());
+    if (m_show_debug_sphere) draw_points(mvp, m_gpu_debug_sphere_vao, m_debug_sphere.size());
 
+
+    glm::vec3 eye = m_virtual_camera.GetEye();
+    glm::vec3 at = m_virtual_camera.GetAt();
+    glm::vec3 up = m_virtual_camera.GetUp();
+    float cam_speed = m_virtual_camera.GetSpeed();
     if (ImGui::Begin("Points"))
     {
         ImGui::Text("Properties");
+        ImGui::Checkbox("Show debug sphere", &m_show_debug_sphere);
+        ImGui::SliderFloat("Point size", &m_point_size, 1.0f, 10.0f);
+        ImGui::SliderFloat("Cam speed", &cam_speed, 0.1f, 20.0f);
+        ImGui::SliderFloat3("eye", &eye[0], -10.0f, 10.0f);
+        ImGui::SliderFloat3("at", &at[0], -10.0f, 10.0f);
+        ImGui::SliderFloat3("up", &up[0], -10.0f, 10.0f);
+        if (ImGui::Button("up=x")) { up = glm::vec3(1, 0, 0); }
+        if (ImGui::Button("up=y")) { up = glm::vec3(0, 1, 0); }
+        if (ImGui::Button("up=z")) { up = glm::vec3(0, 0, 1); }
     }
     ImGui::End();
+    m_virtual_camera.SetView(eye, at, up);
+    m_virtual_camera.SetSpeed(cam_speed);
 }
 
 void application::keyboard_down(const SDL_KeyboardEvent& key)
