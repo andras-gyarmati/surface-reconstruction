@@ -82,24 +82,7 @@ protected:
     ProgramObject m_particle_program;
 
     Texture2D m_camera_texture;
-    gCamera m_camera;
-
-    glm::mat4 m_mat_world = glm::mat4(1.0f);
-    glm::mat4 m_mat_view = glm::mat4(1.0f);
-    glm::mat4 m_mat_proj = glm::mat4(1.0f);
-    float m_fi = static_cast<float>(M_PI) * 1.5f;
-    float m_theta = static_cast<float>(M_PI) / 2.0f;
-    float m_u = 0.5f;
-    float m_v = 0.5f;
-    float step_size = 0.01f;
-    float m_speed = 0.2f;
-    glm::vec3 m_eye = glm::vec3(0, 0, 1);
-    glm::vec3 m_fw = to_descartes(m_fi, m_theta);
-    glm::vec3 m_at = m_eye + m_fw;
-    glm::vec3 m_up = glm::vec3(0, 1, 0);
-    glm::vec3 m_left = cross(m_up, m_fw);
-
-    bool m_is_left_pressed = false;
+    gCamera m_virtual_camera;
 
     std::vector<glm::vec3> m_debug_sphere;
     VertexArrayObject m_gpu_debug_sphere_vao;
