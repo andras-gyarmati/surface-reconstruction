@@ -32,20 +32,20 @@ void main()
     gl_PointSize = 5;
     gl_Position = mvp * vec4(vs_in_pos, 1);
 
-    vs_out_pos  = (world * vec4(vs_in_pos, 1)).xyz;
+    vs_out_pos = (world * vec4(vs_in_pos, 1)).xyz;
 
-    vec3 p_c = ((cam_r * vs_out_pos + cam_t) * cam_k);
-    p_c = p_c / p_c.z;
-
-    if (p_c.z >= 0) {
+    vec3 p_tmp = ((cam_r) * (vs_in_pos - cam_t));
+    float dist = p_tmp.z;
+    p_tmp /= p_tmp.z;
+    vec2 p_c;
+    p_c.x = cam_k_0[0] * p_tmp.x + cam_k_0[2];
+    p_c.y = cam_k_1[1] * -p_tmp.y + cam_k_1[2];
+    if (dist > 0 && p_c.x >= 0 && p_c.x <= 960 && p_c.y >= 0 && p_c.y <= 600)
+    {
         vs_out_tex = vec2(p_c.x / 960.0f, p_c.y / 600.0f);
-    } else {
+    }
+    else
+    {
         vs_out_tex = vec2(-1, -1);
     }
-
-//    if (vs_out_pos.z >= 0) {
-//        vs_out_tex = vs_out_pos.xy;
-//    } else {
-//        vs_out_tex = vec2(-1, -1);
-//    }
 }
