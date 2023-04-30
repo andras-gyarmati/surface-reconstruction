@@ -43,6 +43,14 @@ struct device {
 struct camera_params {
     internal_params internal_params{};
     std::vector<device> devices;
+
+    glm::mat3 get_cam_k() {
+        return {
+            internal_params.fu, 0.0f, internal_params.u0,
+            0.0f, internal_params.fv, internal_params.v0,
+            0.0f, 0.0f, 1.0f
+        };
+    }
 };
 
 class application {

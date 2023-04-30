@@ -17,6 +17,8 @@
 #include <set>
 #include <unordered_set>
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include "app_utils.h"
 
 application::application(void) {
@@ -194,18 +196,9 @@ void application::draw_points(VertexArrayObject& vao, const size_t size) {
     m_particle_program.Use();
     m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     m_particle_program.SetUniform("world", glm::mat4(1));
-    m_particle_program.SetUniform("cam_r_0", glm::vec3(m_camera_params.devices[0].r[0][0], m_camera_params.devices[0].r[0][1], m_camera_params.devices[0].r[0][2]));
-    m_particle_program.SetUniform("cam_r_1", glm::vec3(m_camera_params.devices[0].r[1][0], m_camera_params.devices[0].r[1][1], m_camera_params.devices[0].r[1][2]));
-    m_particle_program.SetUniform("cam_r_2", glm::vec3(m_camera_params.devices[0].r[2][0], m_camera_params.devices[0].r[2][1], m_camera_params.devices[0].r[2][2]));
+    m_particle_program.SetUniform("cam_r", m_camera_params.devices[0].r);
     m_particle_program.SetUniform("cam_t", m_camera_params.devices[0].t);
-    glm::mat3 cam_k = {
-        m_camera_params.internal_params.fu, 0.0f, m_camera_params.internal_params.u0,
-        0.0f, m_camera_params.internal_params.fv, m_camera_params.internal_params.v0,
-        0.0f, 0.0f, 1.0f
-    };
-    m_particle_program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
-    m_particle_program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
-    m_particle_program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
+    m_particle_program.SetUniform("cam_k", m_camera_params.get_cam_k());
     m_particle_program.SetUniform("point_size", m_point_size);
     m_particle_program.SetTexture("tex_image", 0, m_camera_texture);
     glDrawArrays(GL_POINTS, 0, size);
