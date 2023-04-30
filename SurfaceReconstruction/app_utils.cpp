@@ -1,6 +1,6 @@
 ﻿#include "app_utils.h"
 
-void toggle_fullscreen(SDL_Window *win) {
+void toggle_fullscreen(SDL_Window* win) {
     const Uint32 window_flags = SDL_GetWindowFlags(win);
     if (window_flags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
         SDL_SetWindowFullscreen(win, 0);

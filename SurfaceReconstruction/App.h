@@ -25,37 +25,33 @@
 
 #include <vector>
 
-struct vertex
-{
+struct vertex {
     glm::vec3 position;
     glm::vec3 color;
 };
 
-struct internal_params
-{
+struct internal_params {
     float fu, fv, u0, v0;
 };
 
-struct device
-{
+struct device {
     std::string name;
     glm::mat3 r;
     glm::vec3 t;
 };
 
-struct camera_params
-{
+struct camera_params {
     internal_params internal_params{};
     std::vector<device> devices;
 };
 
-class application
-{
+class application {
 public:
     application(void);
     ~application(void) = default;
 
-    bool init(SDL_Window* window);    void clean();
+    bool init(SDL_Window* window);
+    void clean();
     auto reset() -> void;
 
     void update();
