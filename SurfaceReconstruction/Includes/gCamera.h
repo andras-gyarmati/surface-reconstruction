@@ -14,7 +14,7 @@ public:
     /// Gets the view matrix.
     /// </summary>
     /// <returns>The 4x4 view matrix</returns>
-    glm::mat4 GetViewMatrix();
+    glm::mat4 GetViewMatrix() const;
 
     void Update(float _deltaTime);
 
@@ -79,7 +79,7 @@ private:
 
     glm::mat4 m_matViewProj;
 
-    bool m_slow;
+    bool m_fast;
 
     /// <summary>
     /// The camera position.

@@ -17,18 +17,17 @@
 #include <set>
 #include <unordered_set>
 
-application::application(void)
-{
+#include "app_utils.h"
+
+application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
 }
 
-camera_params application::load_camera_params(const std::string& filename)
-{
+camera_params application::load_camera_params(const std::string& filename) {
     camera_params camera_params;
 
     std::ifstream file(filename);
-    if (!file)
-    {
+    if (!file) {
         std::cerr << "Could not open file: " << filename << std::endl;
         return camera_params;
     }
@@ -41,23 +40,19 @@ camera_params application::load_camera_params(const std::string& filename)
     int num_devices;
     file >> num_devices;
 
-    for (int i = 0; i < num_devices; ++i)
-    {
+    for (int i = 0; i < num_devices; ++i) {
         device dev;
 
         file >> dev.name;
 
         glm::mat3& r = dev.r;
-        for (int j = 0; j < 3; ++j)
-        {
-            for (int k = 0; k < 3; ++k)
-            {
+        for (int j = 0; j < 3; ++j) {
+            for (int k = 0; k < 3; ++k) {
                 file >> r[j][k];
             }
         }
 
-        for (int j = 0; j < 3; ++j)
-        {
+        for (int j = 0; j < 3; ++j) {
             float t_val;
             file >> t_val;
             dev.t[j] = t_val;
@@ -69,8 +64,7 @@ camera_params application::load_camera_params(const std::string& filename)
     return camera_params;
 }
 
-glm::vec3 application::to_descartes(const float fi, const float theta)
-{
+glm::vec3 application::to_descartes(const float fi, const float theta) {
     return {
         sinf(theta) * cosf(fi),
         cosf(theta),
@@ -78,8 +72,7 @@ glm::vec3 application::to_descartes(const float fi, const float theta)
     };
 }
 
-glm::vec3 application::get_sphere_pos(const float u, const float v)
-{
+glm::vec3 application::get_sphere_pos(const float u, const float v) {
     const float th = u * 2.0f * static_cast<float>(M_PI);
     const float fi = v * 2.0f * static_cast<float>(M_PI);
     constexpr float r = 2.0f;
@@ -91,26 +84,23 @@ glm::vec3 application::get_sphere_pos(const float u, const float v)
     };
 }
 
-std::vector<vertex> application::read_vertices_from_file(std::ifstream* file, const int num_vertices)
-{
+std::vector<vertex> application::read_vertices_from_file(std::ifstream* file, const int num_vertices) {
     std::vector<vertex> vertices;
     vertices.resize(num_vertices);
 
-    for (int i = 0; i < num_vertices; ++i)
-    {
+    for (int i = 0; i < num_vertices; ++i) {
         *file >> vertices[i].position.x >> vertices[i].position.y >> vertices[i].position.z;
         *file >> vertices[i].color.r >> vertices[i].color.g >> vertices[i].color.b;
+        vertices[i].color = vertices[i].color * 2.f;
     }
     file->close();
 
     return vertices;
 }
 
-std::vector<vertex> application::load_ply_file(const std::string& filename)
-{
+std::vector<vertex> application::load_ply_file(const std::string& filename) {
     std::ifstream file(filename);
-    if (!file)
-    {
+    if (!file) {
         std::cerr << "Could not open file: " << filename << std::endl;
         return {};
     }
@@ -118,22 +108,18 @@ std::vector<vertex> application::load_ply_file(const std::string& filename)
     std::string line;
     int num_vertices = 0;
     bool header_finished = false;
-    while (std::getline(file, line))
-    {
-        if (line == "end_header")
-        {
+    while (std::getline(file, line)) {
+        if (line == "end_header") {
             header_finished = true;
             break;
         }
 
-        if (line.find("element vertex") == 0)
-        {
+        if (line.find("element vertex") == 0) {
             std::sscanf(line.c_str(), "element vertex %d", &num_vertices);
         }
     }
 
-    if (!header_finished)
-    {
+    if (!header_finished) {
         std::cerr << "Error: Could not find end_header in PLY file" << std::endl;
         return {};
     }
@@ -141,11 +127,9 @@ std::vector<vertex> application::load_ply_file(const std::string& filename)
     return read_vertices_from_file(&file, num_vertices);
 }
 
-std::vector<vertex> application::load_xyz_file(const std::string& filename)
-{
+std::vector<vertex> application::load_xyz_file(const std::string& filename) {
     std::ifstream file(filename);
-    if (!file)
-    {
+    if (!file) {
         std::cerr << "Could not open file: " << filename << std::endl;
         return {};
     }
@@ -157,9 +141,9 @@ std::vector<vertex> application::load_xyz_file(const std::string& filename)
     return read_vertices_from_file(&file, num_vertices);
 }
 
-bool application::init()
-{
-    m_virtual_camera.SetProj(glm::radians(60.0f), 640.0f / 480.0f, 0.01f, 1000.0f);
+bool application::init(SDL_Window* window) {
+    m_window = window;
+    m_virtual_camera.SetProj(glm::radians(60.0f), 1280.0f / 720.0f, 0.01f, 1000.0f);
 
     glClearColor(0.1f, 0.1f, 0.41f, 1);
     glDisable(GL_CULL_FACE);
@@ -193,24 +177,18 @@ bool application::init()
     return true;
 }
 
-void application::clean()
-{
-}
+void application::clean() {}
 
-void application::reset()
-{
-}
+void application::reset() {}
 
-void application::update()
-{
+void application::update() {
     static Uint32 last_time = SDL_GetTicks();
     const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
 }
 
-void application::draw_points(VertexArrayObject& vao, const size_t size)
-{
+void application::draw_points(VertexArrayObject& vao, const size_t size) {
     glEnable(GL_PROGRAM_POINT_SIZE);
     vao.Bind();
     m_particle_program.Use();
@@ -234,8 +212,7 @@ void application::draw_points(VertexArrayObject& vao, const size_t size)
     glDisable(GL_PROGRAM_POINT_SIZE);
 }
 
-void application::render()
-{
+void application::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_axes_program.Use();
@@ -245,13 +222,14 @@ void application::render()
     draw_points(m_gpu_particle_vao, m_vertices.size());
     if (m_show_debug_sphere) draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
 
-
     glm::vec3 eye = m_virtual_camera.GetEye();
     glm::vec3 at = m_virtual_camera.GetAt();
     glm::vec3 up = m_virtual_camera.GetUp();
     float cam_speed = m_virtual_camera.GetSpeed();
-    if (ImGui::Begin("Points"))
-    {
+    if (ImGui::Begin("Points")) {
+        if (ImGui::Button("Toggle Fullscreen")) {
+            toggle_fullscreen(m_window);
+        }
         ImGui::Text("Properties");
         ImGui::Checkbox("Show debug sphere", &m_show_debug_sphere);
         ImGui::SliderFloat("Point size", &m_point_size, 1.0f, 10.0f);
@@ -259,44 +237,40 @@ void application::render()
         ImGui::SliderFloat3("eye", &eye[0], -10.0f, 10.0f);
         ImGui::SliderFloat3("at", &at[0], -10.0f, 10.0f);
         ImGui::SliderFloat3("up", &up[0], -10.0f, 10.0f);
-        if (ImGui::Button("up=x")) { up = glm::vec3(1, 0, 0); }
-        if (ImGui::Button("up=y")) { up = glm::vec3(0, 1, 0); }
-        if (ImGui::Button("up=z")) { up = glm::vec3(0, 0, 1); }
+        if (ImGui::Button("up=x")) {
+            up = glm::vec3(1, 0, 0);
+        }
+        if (ImGui::Button("up=y")) {
+            up = glm::vec3(0, 1, 0);
+        }
+        if (ImGui::Button("up=z")) {
+            up = glm::vec3(0, 0, 1);
+        }
     }
     ImGui::End();
     m_virtual_camera.SetView(eye, at, up);
     m_virtual_camera.SetSpeed(cam_speed);
 }
 
-void application::keyboard_down(const SDL_KeyboardEvent& key)
-{
+void application::keyboard_down(const SDL_KeyboardEvent& key) {
     m_virtual_camera.KeyboardDown(key);
 }
 
-void application::keyboard_up(const SDL_KeyboardEvent& key)
-{
+void application::keyboard_up(const SDL_KeyboardEvent& key) {
     m_virtual_camera.KeyboardUp(key);
 }
 
-void application::mouse_move(const SDL_MouseMotionEvent& mouse)
-{
+void application::mouse_move(const SDL_MouseMotionEvent& mouse) {
     m_virtual_camera.MouseMove(mouse);
 }
 
-void application::mouse_down(const SDL_MouseButtonEvent& mouse)
-{
-}
+void application::mouse_down(const SDL_MouseButtonEvent& mouse) {}
 
-void application::mouse_up(const SDL_MouseButtonEvent& mouse)
-{
-}
+void application::mouse_up(const SDL_MouseButtonEvent& mouse) {}
 
-void application::mouse_wheel(const SDL_MouseWheelEvent& wheel)
-{
-}
+void application::mouse_wheel(const SDL_MouseWheelEvent& wheel) {}
 
-void application::resize(int _w, int _h)
-{
+void application::resize(int _w, int _h) {
     glViewport(0, 0, _w, _h);
     m_virtual_camera.Resize(_w, _h);
 }

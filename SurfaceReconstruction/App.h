@@ -55,8 +55,7 @@ public:
     application(void);
     ~application(void) = default;
 
-    bool init();
-    void clean();
+    bool init(SDL_Window* window);    void clean();
     auto reset() -> void;
 
     void update();
@@ -96,4 +95,5 @@ protected:
     camera_params m_camera_params;
 
     float m_point_size = 4.f;
+    SDL_Window* m_window;
 };

@@ -17,11 +17,9 @@
 
 #include "App.h"
 
-int main(int argc, char* args[])
-{
+int main(int argc, char* args[]) {
     // állítsuk be, hogy kilépés előtt hívja meg a rendszer az exitProgram() függvényt - Kérdés: mi lenne enélkül?
-    atexit([]()
-    {
+    atexit([]() {
         SDL_Quit();
 
         std::cout << "Press any key to exit..." << std::endl;
@@ -33,8 +31,7 @@ int main(int argc, char* args[])
     //
 
     // a grafikus alrendszert kapcsoljuk csak be, ha gond van, akkor jelezzük és lépjün ki
-    if (SDL_Init(SDL_INIT_VIDEO) == -1)
-    {
+    if (SDL_Init(SDL_INIT_VIDEO) == -1) {
         // irjuk ki a hibat es terminaljon a program
         std::cout << "[SDL init] Error while initializing SDL: " << SDL_GetError() << std::endl;
         return 1;
@@ -67,18 +64,19 @@ int main(int argc, char* args[])
     //SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,  2);
 
     // hozzuk létre az ablakunkat
-    SDL_Window* win = 0;
-    win = SDL_CreateWindow("Hello SDL&OpenGL!", // az ablak fejléce
-                           40, // az ablak bal-felső sarkának kezdeti X koordinátája
+    SDL_Window* win = nullptr;
+    const char* title = "LiDAR Point Cloud Visualizer";
+    win = SDL_CreateWindow(title, // az ablak fejléce
+                           10, // az ablak bal-felső sarkának kezdeti X koordinátája
                            40, // az ablak bal-felső sarkának kezdeti Y koordinátája
-                           640*2, // ablak szélessége
-                           480*2, // és magassága
+                           1280, // ablak szélessége
+                           720, // és magassága
                            SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE); // megjelenítési tulajdonságok
 
+    // win = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP);
 
     // ha nem sikerült létrehozni az ablakot, akkor írjuk ki a hibát, amit kaptunk és lépjünk ki
-    if (win == 0)
-    {
+    if (win == nullptr) {
         std::cout << "[Window creation] Error while initializing SDL: " << SDL_GetError() << std::endl;
         return 1;
     }
@@ -87,9 +85,8 @@ int main(int argc, char* args[])
     // 3. lépés: hozzunk létre az OpenGL context-et - ezen keresztül fogunk rajzolni
     //
 
-    SDL_GLContext context = SDL_GL_CreateContext(win);
-    if (context == 0)
-    {
+    const SDL_GLContext context = SDL_GL_CreateContext(win);
+    if (context == 0) {
         std::cout << "[OGL context creation] Error while initializing SDL" << SDL_GetError() << std::endl;
         return 1;
     }
@@ -98,9 +95,8 @@ int main(int argc, char* args[])
     SDL_GL_SetSwapInterval(1);
 
     // indítsuk el a GLEW-t
-    GLenum error = glewInit();
-    if (error != GLEW_OK)
-    {
+    const GLenum error = glewInit();
+    if (error != GLEW_OK) {
         std::cout << "[GLEW] Error while init!" << std::endl;
         return 1;
     }
@@ -111,8 +107,7 @@ int main(int argc, char* args[])
     glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]);
     std::cout << "Running OpenGL " << glVersion[0] << "." << glVersion[1] << std::endl;
 
-    if (glVersion[0] == -1 && glVersion[1] == -1)
-    {
+    if (glVersion[0] == -1 && glVersion[1] == -1) {
         SDL_GL_DeleteContext(context);
         SDL_DestroyWindow(win);
 
@@ -128,8 +123,7 @@ int main(int argc, char* args[])
     // engedélyezzük és állítsuk be a debug callback függvényt ha debug context-ben vagyunk
     GLint context_flags;
     glGetIntegerv(GL_CONTEXT_FLAGS, &context_flags);
-    if (context_flags & GL_CONTEXT_FLAG_DEBUG_BIT)
-    {
+    if (context_flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
@@ -150,8 +144,7 @@ int main(int argc, char* args[])
 
         // alkalmazas példánya
         application app;
-        if (!app.init())
-        {
+        if (!app.init(win)) {
             SDL_GL_DeleteContext(context);
             SDL_DestroyWindow(win);
             std::cout << "[app.Init] Error while app init!" << std::endl;
@@ -161,22 +154,20 @@ int main(int argc, char* args[])
         SDL_GetWindowSize(win, &w, &h);
         app.resize(w, h);
 
-        while (!quit)
-        {
+        while (!quit) {
             // amíg van feldolgozandó üzenet dolgozzuk fel mindet:
-            while (SDL_PollEvent(&ev))
-            {
+            while (SDL_PollEvent(&ev)) {
                 ImGui_ImplSdlGL3_ProcessEvent(&ev);
-                bool is_mouse_captured = ImGui::GetIO().WantCaptureMouse; //kell-e az imgui-nak az egér
-                bool is_keyboard_captured = ImGui::GetIO().WantCaptureKeyboard; //kell-e az imgui-nak a billentyűzet
-                switch (ev.type)
-                {
+                const bool is_mouse_captured = ImGui::GetIO().WantCaptureMouse; //kell-e az imgui-nak az egér
+                const bool is_keyboard_captured = ImGui::GetIO().WantCaptureKeyboard; //kell-e az imgui-nak a billentyűzet
+                switch (ev.type) {
                 case SDL_QUIT:
                     quit = true;
                     break;
                 case SDL_KEYDOWN:
-                    if (ev.key.keysym.sym == SDLK_ESCAPE)
+                    if (ev.key.keysym.sym == SDLK_ESCAPE) {
                         quit = true;
+                    }
                     if (!is_keyboard_captured)
                         app.keyboard_down(ev.key);
                     break;
@@ -201,11 +192,11 @@ int main(int argc, char* args[])
                         app.mouse_move(ev.motion);
                     break;
                 case SDL_WINDOWEVENT:
-                    if (ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-                    {
+                    if (ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
                         app.resize(ev.window.data1, ev.window.data2);
                     }
                     break;
+                default: break;
                 }
             }
             ImGui_ImplSdlGL3_NewFrame(win); //Ezután lehet imgui parancsokat hívni, egészen az ImGui::Render()-ig
