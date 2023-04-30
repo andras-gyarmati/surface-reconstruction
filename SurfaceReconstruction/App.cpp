@@ -25,8 +25,8 @@ application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
 }
 
-camera_params application::load_camera_params(const std::string& filename) {
-    camera_params camera_params;
+physical_camera_params application::load_physical_camera_params(const std::string& filename) {
+    physical_camera_params camera_params;
 
     std::ifstream file(filename);
     if (!file) {
@@ -154,9 +154,11 @@ bool application::init(SDL_Window* window) {
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
 
-    m_camera_texture.FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
+    m_virtual_camera_textures[0].FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
+    m_virtual_camera_textures[1].FromFile("inputs/garazs_kijarat/Dev1_Image_w960_h600_fn644.jpg");
+    m_virtual_camera_textures[2].FromFile("inputs/garazs_kijarat/Dev2_Image_w960_h600_fn644.jpg");
 
-    m_camera_params = load_camera_params("inputs/CameraParameters_minimal.txt");
+    m_physical_camera_params = load_physical_camera_params("inputs/CameraParameters_minimal.txt");
     m_vertices = load_xyz_file("inputs/garazs_kijarat/test_fn644.xyz");
 
     reset();
@@ -196,11 +198,22 @@ void application::draw_points(VertexArrayObject& vao, const size_t size) {
     m_particle_program.Use();
     m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     m_particle_program.SetUniform("world", glm::mat4(1));
-    m_particle_program.SetUniform("cam_r", m_camera_params.devices[0].r);
-    m_particle_program.SetUniform("cam_t", m_camera_params.devices[0].t);
-    m_particle_program.SetUniform("cam_k", m_camera_params.get_cam_k());
     m_particle_program.SetUniform("point_size", m_point_size);
-    m_particle_program.SetTexture("tex_image", 0, m_camera_texture);
+
+    m_particle_program.SetUniform("cam_k", m_physical_camera_params.get_cam_k());
+
+    m_particle_program.SetUniform("cam_r[0]", m_physical_camera_params.devices[0].r);
+    m_particle_program.SetUniform("cam_r[1]", m_physical_camera_params.devices[1].r);
+    m_particle_program.SetUniform("cam_r[2]", m_physical_camera_params.devices[2].r);
+
+    m_particle_program.SetUniform("cam_t[0]", m_physical_camera_params.devices[0].t);
+    m_particle_program.SetUniform("cam_t[1]", m_physical_camera_params.devices[1].t);
+    m_particle_program.SetUniform("cam_t[2]", m_physical_camera_params.devices[2].t);
+
+    m_particle_program.SetTexture("tex_image[0]", 0, m_virtual_camera_textures[0]);
+    m_particle_program.SetTexture("tex_image[1]", 1, m_virtual_camera_textures[1]);
+    m_particle_program.SetTexture("tex_image[2]", 2, m_virtual_camera_textures[2]);
+
     glDrawArrays(GL_POINTS, 0, size);
     glDisable(GL_PROGRAM_POINT_SIZE);
 }
@@ -230,13 +243,9 @@ void application::render() {
         ImGui::SliderFloat3("eye", &eye[0], -10.0f, 10.0f);
         ImGui::SliderFloat3("at", &at[0], -10.0f, 10.0f);
         ImGui::SliderFloat3("up", &up[0], -10.0f, 10.0f);
-        if (ImGui::Button("up=x")) {
-            up = glm::vec3(1, 0, 0);
-        }
-        if (ImGui::Button("up=y")) {
-            up = glm::vec3(0, 1, 0);
-        }
-        if (ImGui::Button("up=z")) {
+        if (ImGui::Button("reset camera")) {
+            eye = glm::vec3(0, 0, 0);
+            at = glm::vec3(0, 1, 0);
             up = glm::vec3(0, 0, 1);
         }
     }

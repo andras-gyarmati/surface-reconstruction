@@ -2,17 +2,25 @@
 
 in vec3 vs_out_pos;
 in vec3 vs_out_col;
-in vec2 vs_out_tex;
+in vec2 vs_out_tex[3];
 
 out vec4 fs_out_col;
 
 uniform vec4 color = vec4(1);
-uniform sampler2D tex_image;
+uniform sampler2D tex_image[3];
 
 void main()
 {
-    if (vs_out_tex == vec2(-1, -1))
+    if (any(equal(vs_out_tex[0], vec2(-1, -1))) &&
+    any(equal(vs_out_tex[1], vec2(-1, -1))) &&
+    any(equal(vs_out_tex[2], vec2(-1, -1))))
+    {
         fs_out_col = vec4(vs_out_col, 1);
+    }
     else
-        fs_out_col = texture(tex_image, vs_out_tex);
+    {
+        fs_out_col = texture(tex_image[0], vs_out_tex[0]) * 0.333 +
+        texture(tex_image[1], vs_out_tex[1]) * 0.333 +
+        texture(tex_image[2], vs_out_tex[2]) * 0.333;
+    }
 }

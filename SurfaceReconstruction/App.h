@@ -30,7 +30,7 @@ struct vertex {
     glm::vec3 color;
 };
 
-struct internal_params {
+struct physical_camera_internal_params {
     float fu, fv, u0, v0;
 };
 
@@ -40,8 +40,8 @@ struct device {
     glm::vec3 t;
 };
 
-struct camera_params {
-    internal_params internal_params{};
+struct physical_camera_params {
+    physical_camera_internal_params internal_params{};
     std::vector<device> devices;
 
     glm::mat3 get_cam_k() {
@@ -76,7 +76,7 @@ public:
     static std::vector<vertex> load_ply_file(const std::string& filename);
     static std::vector<vertex> read_vertices_from_file(std::ifstream* file, int num_vertices);
     static std::vector<vertex> load_xyz_file(const std::string& filename);
-    static camera_params load_camera_params(const std::string& filename);
+    static physical_camera_params load_physical_camera_params(const std::string& filename);
     static glm::vec3 to_descartes(float fi, float theta);
     static glm::vec3 get_sphere_pos(float u, float v);
     void draw_points(VertexArrayObject& vao, const size_t size);
@@ -85,7 +85,7 @@ protected:
     ProgramObject m_axes_program;
     ProgramObject m_particle_program;
 
-    Texture2D m_camera_texture;
+    Texture2D m_virtual_camera_textures[3];
     gCamera m_virtual_camera;
 
     bool m_show_debug_sphere = false;
@@ -96,7 +96,7 @@ protected:
     std::vector<vertex> m_vertices;
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
-    camera_params m_camera_params;
+    physical_camera_params m_physical_camera_params;
 
     float m_point_size = 4.f;
     SDL_Window* m_window;
