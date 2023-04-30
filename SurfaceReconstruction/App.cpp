@@ -91,7 +91,22 @@ glm::vec3 application::get_sphere_pos(const float u, const float v)
     };
 }
 
-vertices application::load_ply_file(const std::string& filename)
+std::vector<vertex> application::read_vertices_from_file(std::ifstream* file, const int num_vertices)
+{
+    std::vector<vertex> vertices;
+    vertices.resize(num_vertices);
+
+    for (int i = 0; i < num_vertices; ++i)
+    {
+        *file >> vertices[i].position.x >> vertices[i].position.y >> vertices[i].position.z;
+        *file >> vertices[i].color.r >> vertices[i].color.g >> vertices[i].color.b;
+    }
+    file->close();
+
+    return vertices;
+}
+
+std::vector<vertex> application::load_ply_file(const std::string& filename)
 {
     std::ifstream file(filename);
     if (!file)
@@ -123,19 +138,10 @@ vertices application::load_ply_file(const std::string& filename)
         return {};
     }
 
-    vertices vertices;
-    vertices.positions.resize(num_vertices);
-    vertices.colors.resize(num_vertices);
-    for (int i = 0; i < num_vertices; ++i)
-    {
-        file >> vertices.positions[i].x >> vertices.positions[i].y >> vertices.positions[i].z;
-        file >> vertices.colors[i].r >> vertices.colors[i].g >> vertices.colors[i].b;
-    }
-
-    return vertices;
+    return read_vertices_from_file(&file, num_vertices);
 }
 
-vertices application::load_xyz_file(const std::string& filename)
+std::vector<vertex> application::load_xyz_file(const std::string& filename)
 {
     std::ifstream file(filename);
     if (!file)
@@ -148,17 +154,7 @@ vertices application::load_xyz_file(const std::string& filename)
 
     file.seekg(0, std::ios::beg);
 
-    vertices vertices;
-    vertices.positions.resize(num_vertices);
-    vertices.colors.resize(num_vertices);
-
-    for (int i = 0; i < num_vertices; ++i)
-    {
-        file >> vertices.positions[i].x >> vertices.positions[i].y >> vertices.positions[i].z; // todo
-        file >> vertices.colors[i].r >> vertices.colors[i].g >> vertices.colors[i].b;
-    }
-
-    return vertices;
+    return read_vertices_from_file(&file, num_vertices);
 }
 
 bool application::init()
@@ -170,10 +166,9 @@ bool application::init()
     glEnable(GL_DEPTH_TEST);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
-    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_tex"}});
+    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
 
     m_camera_texture.FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
-    // m_camera_texture.FromFile("inputs/debug.png");
 
     m_camera_params = load_camera_params("inputs/CameraParameters_minimal.txt");
     m_vertices = load_xyz_file("inputs/garazs_kijarat/test_fn644.xyz");
@@ -189,8 +184,11 @@ bool application::init()
     m_gpu_debug_sphere_buffer.BufferData(m_debug_sphere);
     m_gpu_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_debug_sphere_buffer}});
 
-    m_gpu_particle_buffer.BufferData(m_vertices.positions);
-    m_gpu_particle_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_particle_buffer}});
+    m_gpu_particle_buffer.BufferData(m_vertices);
+    m_gpu_particle_vao.Init({
+        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, position)}, m_gpu_particle_buffer},
+        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, color)}, m_gpu_particle_buffer}
+    });
 
     return true;
 }
@@ -208,16 +206,15 @@ void application::update()
     static Uint32 last_time = SDL_GetTicks();
     const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
-    m_gpu_particle_buffer.BufferData(m_vertices.positions);
     last_time = SDL_GetTicks();
 }
 
-void application::draw_points(glm::mat4 mvp, VertexArrayObject& vao, const size_t size)
+void application::draw_points(VertexArrayObject& vao, const size_t size)
 {
     glEnable(GL_PROGRAM_POINT_SIZE);
     vao.Bind();
     m_particle_program.Use();
-    m_particle_program.SetUniform("mvp", mvp);
+    m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     m_particle_program.SetUniform("world", glm::mat4(1));
     m_particle_program.SetUniform("cam_r_0", glm::vec3(m_camera_params.devices[0].r[0][0], m_camera_params.devices[0].r[0][1], m_camera_params.devices[0].r[0][2]));
     m_particle_program.SetUniform("cam_r_1", glm::vec3(m_camera_params.devices[0].r[1][0], m_camera_params.devices[0].r[1][1], m_camera_params.devices[0].r[1][2]));
@@ -228,7 +225,6 @@ void application::draw_points(glm::mat4 mvp, VertexArrayObject& vao, const size_
         0.0f, m_camera_params.internal_params.fv, m_camera_params.internal_params.v0,
         0.0f, 0.0f, 1.0f
     };
-    //cam_k = glm::inverse(cam_k);
     m_particle_program.SetUniform("cam_k_0", glm::vec3(cam_k[0]));
     m_particle_program.SetUniform("cam_k_1", glm::vec3(cam_k[1]));
     m_particle_program.SetUniform("cam_k_2", glm::vec3(cam_k[2]));
@@ -240,17 +236,14 @@ void application::draw_points(glm::mat4 mvp, VertexArrayObject& vao, const size_
 
 void application::render()
 {
-    // const glm::mat4 rot_x_neg_90 = glm::rotate<float>(static_cast<float>(-(M_PI / 2)), glm::vec3(1, 0, 0));
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glm::mat4 mvp = m_virtual_camera.GetViewProj();
-    // mvp *= rot_x_neg_90;
 
     m_axes_program.Use();
-    m_axes_program.SetUniform("mvp", mvp);
+    m_axes_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     glDrawArrays(GL_LINES, 0, 6);
 
-    draw_points(mvp, m_gpu_particle_vao, m_vertices.positions.size());
-    if (m_show_debug_sphere) draw_points(mvp, m_gpu_debug_sphere_vao, m_debug_sphere.size());
+    draw_points(m_gpu_particle_vao, m_vertices.size());
+    if (m_show_debug_sphere) draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
 
 
     glm::vec3 eye = m_virtual_camera.GetEye();

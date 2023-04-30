@@ -1,9 +1,11 @@
 #version 330
 
 in vec3 vs_in_pos;
+in vec3 vs_in_col;
 in vec2 vs_in_tex;
 
 out vec3 vs_out_pos;
+out vec3 vs_out_col;
 out vec2 vs_out_tex;
 
 uniform mat4 mvp;
@@ -20,6 +22,8 @@ uniform float point_size;
 
 void main()
 {
+    vs_out_col = vs_in_col;
+
     mat3 cam_r = mat3(
     cam_r_0[0], cam_r_0[1], cam_r_0[2],
     cam_r_1[0], cam_r_1[1], cam_r_1[2],

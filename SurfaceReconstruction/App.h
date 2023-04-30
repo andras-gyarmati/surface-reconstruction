@@ -25,10 +25,10 @@
 
 #include <vector>
 
-struct vertices
+struct vertex
 {
-    std::vector<glm::vec3> positions;
-    std::vector<glm::vec3> colors;
+    glm::vec3 position;
+    glm::vec3 color;
 };
 
 struct internal_params
@@ -70,12 +70,13 @@ public:
     void mouse_wheel(const SDL_MouseWheelEvent&);
     void resize(int, int);
 
-    static vertices load_ply_file(const std::string& filename);
-    static vertices load_xyz_file(const std::string& filename);
+    static std::vector<vertex> load_ply_file(const std::string& filename);
+    static std::vector<vertex> read_vertices_from_file(std::ifstream* file, int num_vertices);
+    static std::vector<vertex> load_xyz_file(const std::string& filename);
     static camera_params load_camera_params(const std::string& filename);
     static glm::vec3 to_descartes(float fi, float theta);
     static glm::vec3 get_sphere_pos(float u, float v);
-    void draw_points(glm::mat4 mvp, VertexArrayObject& vao, const size_t size);
+    void draw_points(VertexArrayObject& vao, const size_t size);
 
 protected:
     ProgramObject m_axes_program;
@@ -89,10 +90,10 @@ protected:
     VertexArrayObject m_gpu_debug_sphere_vao;
     ArrayBuffer m_gpu_debug_sphere_buffer;
 
-    vertices m_vertices;
+    std::vector<vertex> m_vertices;
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
     camera_params m_camera_params;
 
-    float m_point_size = 1.f;
+    float m_point_size = 4.f;
 };
