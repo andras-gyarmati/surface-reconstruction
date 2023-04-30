@@ -6,7 +6,7 @@
 /// <summary>
 /// Initializes a new instance of the <see cref="gCamera"/> class.
 /// </summary>
-gCamera::gCamera(void) : m_speed(4.0f), m_fast(false), m_eye(0.0f, 20.0f, 20.0f), m_up(0.0f, 1.0f, 0.0f), m_at(0.0f), m_goFw(0), m_goRight(0) {
+gCamera::gCamera(void) : m_speed(4.0f), m_fast(false), m_eye(0.0f, 20.0f, 20.0f), m_up(0.0f, 1.0f, 0.0f), m_at(0.0f), m_goFw(0), m_goRight(0), m_goUp(0) {
     SetView(glm::vec3(0, 20, 20), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
     m_dist = length(m_at - m_eye);
@@ -14,7 +14,7 @@ gCamera::gCamera(void) : m_speed(4.0f), m_fast(false), m_eye(0.0f, 20.0f, 20.0f)
     SetProj(glm::radians(60.0f), 640 / 480.0f, 0.01f, 1000.0f);
 }
 
-gCamera::gCamera(glm::vec3 _eye, glm::vec3 _at, glm::vec3 _up) : m_speed(4.0f), m_goFw(0), m_goRight(0), m_dist(10), m_fast(false) {
+gCamera::gCamera(glm::vec3 _eye, glm::vec3 _at, glm::vec3 _up) : m_speed(4.0f), m_goFw(0), m_goRight(0), m_dist(10), m_goUp(0), m_fast(false) {
     SetView(_eye, _at, _up);
 }
 
@@ -44,8 +44,8 @@ glm::mat4 gCamera::GetViewMatrix() const {
 }
 
 void gCamera::Update(float _deltaTime) {
-    m_eye += (m_goFw * m_fw + m_goRight * m_st) * m_speed * _deltaTime;
-    m_at += (m_goFw * m_fw + m_goRight * m_st) * m_speed * _deltaTime;
+    m_eye += (m_goFw * m_fw + m_goRight * m_st + m_goUp * m_up) * m_speed * _deltaTime;
+    m_at += (m_goFw * m_fw + m_goRight * m_st + m_goUp * m_up) * m_speed * _deltaTime;
 
     m_viewMatrix = lookAt(m_eye, m_at, m_up);
     m_matViewProj = m_matProj * m_viewMatrix;
@@ -106,6 +106,12 @@ void gCamera::KeyboardDown(const SDL_KeyboardEvent& key) {
     case SDLK_d:
         m_goRight = 1;
         break;
+    case SDLK_q:
+        m_goUp = -1;
+        break;
+    case SDLK_e:
+        m_goUp = 1;
+        break;
     }
 }
 
@@ -126,6 +132,10 @@ void gCamera::KeyboardUp(const SDL_KeyboardEvent& key) {
     case SDLK_a:
     case SDLK_d:
         m_goRight = 0;
+        break;
+    case SDLK_q:
+    case SDLK_e:
+        m_goUp = 0;
         break;
     }
 }
