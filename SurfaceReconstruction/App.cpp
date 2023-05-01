@@ -7,6 +7,7 @@
 #include "imgui/imgui.h"
 #include "app_utils.h"
 #include "file_loader.h"
+#include "octree.h"
 
 application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
@@ -67,6 +68,10 @@ bool application::init(SDL_Window* window) {
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
     });
 
+    octree tree2({-100, -100, -100}, {100, 100, 100});
+    for (const auto& vertex : m_vertices) {
+        tree2.insert(vertex.position);
+    }
     return true;
 }
 
