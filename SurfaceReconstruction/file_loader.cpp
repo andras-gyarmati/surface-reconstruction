@@ -9,8 +9,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "file_loader.h"
 
-file_loader::physical_camera_params file_loader::load_physical_camera_params(const std::string& filename) {
-    physical_camera_params camera_params;
+file_loader::digital_camera_params file_loader::load_digital_camera_params(const std::string& filename) {
+    digital_camera_params camera_params;
 
     std::ifstream file(filename);
     if (!file) {

@@ -44,11 +44,11 @@ bool application::init(SDL_Window* window) {
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
 
-    m_virtual_camera_textures[0].FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
-    m_virtual_camera_textures[1].FromFile("inputs/garazs_kijarat/Dev1_Image_w960_h600_fn644.jpg");
-    m_virtual_camera_textures[2].FromFile("inputs/garazs_kijarat/Dev2_Image_w960_h600_fn644.jpg");
+    m_digital_camera_textures[0].FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
+    m_digital_camera_textures[1].FromFile("inputs/garazs_kijarat/Dev1_Image_w960_h600_fn644.jpg");
+    m_digital_camera_textures[2].FromFile("inputs/garazs_kijarat/Dev2_Image_w960_h600_fn644.jpg");
 
-    m_physical_camera_params = file_loader::load_physical_camera_params("inputs/CameraParameters_minimal.txt");
+    m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
     m_vertices = file_loader::load_xyz_file("inputs/garazs_kijarat/test_fn644.xyz");
 
     reset();
@@ -94,19 +94,19 @@ void application::draw_points(VertexArrayObject& vao, const size_t size) {
     m_particle_program.SetUniform("world", glm::mat4(1));
     m_particle_program.SetUniform("point_size", m_point_size);
 
-    m_particle_program.SetUniform("cam_k", m_physical_camera_params.get_cam_k());
+    m_particle_program.SetUniform("cam_k", m_digital_camera_params.get_cam_k());
 
-    m_particle_program.SetUniform("cam_r[0]", m_physical_camera_params.devices[0].r);
-    m_particle_program.SetUniform("cam_r[1]", m_physical_camera_params.devices[1].r);
-    m_particle_program.SetUniform("cam_r[2]", m_physical_camera_params.devices[2].r);
+    m_particle_program.SetUniform("cam_r[0]", m_digital_camera_params.devices[0].r);
+    m_particle_program.SetUniform("cam_r[1]", m_digital_camera_params.devices[1].r);
+    m_particle_program.SetUniform("cam_r[2]", m_digital_camera_params.devices[2].r);
 
-    m_particle_program.SetUniform("cam_t[0]", m_physical_camera_params.devices[0].t);
-    m_particle_program.SetUniform("cam_t[1]", m_physical_camera_params.devices[1].t);
-    m_particle_program.SetUniform("cam_t[2]", m_physical_camera_params.devices[2].t);
+    m_particle_program.SetUniform("cam_t[0]", m_digital_camera_params.devices[0].t);
+    m_particle_program.SetUniform("cam_t[1]", m_digital_camera_params.devices[1].t);
+    m_particle_program.SetUniform("cam_t[2]", m_digital_camera_params.devices[2].t);
 
-    m_particle_program.SetTexture("tex_image[0]", 0, m_virtual_camera_textures[0]);
-    m_particle_program.SetTexture("tex_image[1]", 1, m_virtual_camera_textures[1]);
-    m_particle_program.SetTexture("tex_image[2]", 2, m_virtual_camera_textures[2]);
+    m_particle_program.SetTexture("tex_image[0]", 0, m_digital_camera_textures[0]);
+    m_particle_program.SetTexture("tex_image[1]", 1, m_digital_camera_textures[1]);
+    m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
 
     glDrawArrays(GL_POINTS, 0, size);
     glDisable(GL_PROGRAM_POINT_SIZE);

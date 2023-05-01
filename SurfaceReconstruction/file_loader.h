@@ -13,7 +13,7 @@ public:
         glm::vec3 color;
     };
 
-    struct physical_camera_internal_params {
+    struct digital_camera_internal_params {
         float fu, fv, u0, v0;
     };
 
@@ -23,8 +23,8 @@ public:
         glm::vec3 t;
     };
 
-    struct physical_camera_params {
-        physical_camera_internal_params internal_params{};
+    struct digital_camera_params {
+        digital_camera_internal_params internal_params{};
         std::vector<device> devices;
 
         glm::mat3 get_cam_k() {
@@ -36,7 +36,7 @@ public:
         }
     };
 
-    static physical_camera_params load_physical_camera_params(const std::string& filename);
+    static digital_camera_params load_digital_camera_params(const std::string& filename);
     static std::vector<vertex> read_vertices_from_file(std::ifstream* file, const int num_vertices);
     static std::vector<vertex> load_ply_file(const std::string& filename);
     static std::vector<vertex> load_xyz_file(const std::string& filename);

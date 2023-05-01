@@ -39,7 +39,7 @@ protected:
     ProgramObject m_axes_program;
     ProgramObject m_particle_program;
 
-    Texture2D m_virtual_camera_textures[3];
+    Texture2D m_digital_camera_textures[3];
     gCamera m_virtual_camera;
 
     bool m_show_debug_sphere = false;
@@ -50,8 +50,8 @@ protected:
     std::vector<file_loader::vertex> m_vertices;
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
-    file_loader::physical_camera_params m_physical_camera_params;
+    file_loader::digital_camera_params m_digital_camera_params;
 
     float m_point_size = 4.f;
-    SDL_Window* m_window;
+    SDL_Window* m_window{};
 };
