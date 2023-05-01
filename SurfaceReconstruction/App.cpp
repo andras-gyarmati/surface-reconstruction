@@ -20,50 +20,10 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "app_utils.h"
+#include "file_loader.h"
 
 application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
-}
-
-physical_camera_params application::load_physical_camera_params(const std::string& filename) {
-    physical_camera_params camera_params;
-
-    std::ifstream file(filename);
-    if (!file) {
-        std::cerr << "Could not open file: " << filename << std::endl;
-        return camera_params;
-    }
-
-    file >> camera_params.internal_params.fu
-        >> camera_params.internal_params.u0
-        >> camera_params.internal_params.fv
-        >> camera_params.internal_params.v0;
-
-    int num_devices;
-    file >> num_devices;
-
-    for (int i = 0; i < num_devices; ++i) {
-        device dev;
-
-        file >> dev.name;
-
-        glm::mat3& r = dev.r;
-        for (int j = 0; j < 3; ++j) {
-            for (int k = 0; k < 3; ++k) {
-                file >> r[j][k];
-            }
-        }
-
-        for (int j = 0; j < 3; ++j) {
-            float t_val;
-            file >> t_val;
-            dev.t[j] = t_val;
-        }
-
-        camera_params.devices.push_back(dev);
-    }
-
-    return camera_params;
 }
 
 glm::vec3 application::to_descartes(const float fi, const float theta) {
@@ -86,63 +46,6 @@ glm::vec3 application::get_sphere_pos(const float u, const float v) {
     };
 }
 
-std::vector<vertex> application::read_vertices_from_file(std::ifstream* file, const int num_vertices) {
-    std::vector<vertex> vertices;
-    vertices.resize(num_vertices);
-
-    for (int i = 0; i < num_vertices; ++i) {
-        *file >> vertices[i].position.x >> vertices[i].position.y >> vertices[i].position.z;
-        *file >> vertices[i].color.r >> vertices[i].color.g >> vertices[i].color.b;
-        vertices[i].color = vertices[i].color * 2.f;
-    }
-    file->close();
-
-    return vertices;
-}
-
-std::vector<vertex> application::load_ply_file(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file) {
-        std::cerr << "Could not open file: " << filename << std::endl;
-        return {};
-    }
-
-    std::string line;
-    int num_vertices = 0;
-    bool header_finished = false;
-    while (std::getline(file, line)) {
-        if (line == "end_header") {
-            header_finished = true;
-            break;
-        }
-
-        if (line.find("element vertex") == 0) {
-            std::sscanf(line.c_str(), "element vertex %d", &num_vertices);
-        }
-    }
-
-    if (!header_finished) {
-        std::cerr << "Error: Could not find end_header in PLY file" << std::endl;
-        return {};
-    }
-
-    return read_vertices_from_file(&file, num_vertices);
-}
-
-std::vector<vertex> application::load_xyz_file(const std::string& filename) {
-    std::ifstream file(filename);
-    if (!file) {
-        std::cerr << "Could not open file: " << filename << std::endl;
-        return {};
-    }
-
-    const int num_vertices = std::count(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), '\n');
-
-    file.seekg(0, std::ios::beg);
-
-    return read_vertices_from_file(&file, num_vertices);
-}
-
 bool application::init(SDL_Window* window) {
     m_window = window;
     m_virtual_camera.SetProj(glm::radians(60.0f), 1280.0f / 720.0f, 0.01f, 1000.0f);
@@ -158,8 +61,8 @@ bool application::init(SDL_Window* window) {
     m_virtual_camera_textures[1].FromFile("inputs/garazs_kijarat/Dev1_Image_w960_h600_fn644.jpg");
     m_virtual_camera_textures[2].FromFile("inputs/garazs_kijarat/Dev2_Image_w960_h600_fn644.jpg");
 
-    m_physical_camera_params = load_physical_camera_params("inputs/CameraParameters_minimal.txt");
-    m_vertices = load_xyz_file("inputs/garazs_kijarat/test_fn644.xyz");
+    m_physical_camera_params = file_loader::load_physical_camera_params("inputs/CameraParameters_minimal.txt");
+    m_vertices = file_loader::load_xyz_file("inputs/garazs_kijarat/test_fn644.xyz");
 
     reset();
 
@@ -174,8 +77,8 @@ bool application::init(SDL_Window* window) {
 
     m_gpu_particle_buffer.BufferData(m_vertices);
     m_gpu_particle_vao.Init({
-        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, position)}, m_gpu_particle_buffer},
-        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void*)offsetof(vertex, color)}, m_gpu_particle_buffer}
+        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_gpu_particle_buffer},
+        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
     });
 
     return true;
@@ -218,16 +121,7 @@ void application::draw_points(VertexArrayObject& vao, const size_t size) {
     glDisable(GL_PROGRAM_POINT_SIZE);
 }
 
-void application::render() {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    m_axes_program.Use();
-    m_axes_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    glDrawArrays(GL_LINES, 0, 6);
-
-    draw_points(m_gpu_particle_vao, m_vertices.size());
-    if (m_show_debug_sphere) draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
-
+void application::render_imgui() {
     glm::vec3 eye = m_virtual_camera.GetEye();
     glm::vec3 at = m_virtual_camera.GetAt();
     glm::vec3 up = m_virtual_camera.GetUp();
@@ -238,11 +132,11 @@ void application::render() {
         }
         ImGui::Text("Properties");
         ImGui::Checkbox("Show debug sphere", &m_show_debug_sphere);
-        ImGui::SliderFloat("Point size", &m_point_size, 1.0f, 10.0f);
+        ImGui::SliderFloat("Point size", &m_point_size, 1.0f, 30.0f);
         ImGui::SliderFloat("Cam speed", &cam_speed, 0.1f, 20.0f);
         ImGui::SliderFloat3("eye", &eye[0], -10.0f, 10.0f);
-        ImGui::SliderFloat3("at", &at[0], -10.0f, 10.0f);
-        ImGui::SliderFloat3("up", &up[0], -10.0f, 10.0f);
+        ImGui::SliderFloat3("at", &at[0], -1.0f, 1.0f);
+        ImGui::SliderFloat3("up", &up[0], -1.0f, 1.0f);
         if (ImGui::Button("reset camera")) {
             eye = glm::vec3(0, 0, 0);
             at = glm::vec3(0, 1, 0);
@@ -252,6 +146,19 @@ void application::render() {
     ImGui::End();
     m_virtual_camera.SetView(eye, at, up);
     m_virtual_camera.SetSpeed(cam_speed);
+}
+
+void application::render() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    m_axes_program.Use();
+    m_axes_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    glDrawArrays(GL_LINES, 0, 6);
+
+    draw_points(m_gpu_particle_vao, m_vertices.size());
+    if (m_show_debug_sphere) draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
+
+    render_imgui();
 }
 
 void application::keyboard_down(const SDL_KeyboardEvent& key) {

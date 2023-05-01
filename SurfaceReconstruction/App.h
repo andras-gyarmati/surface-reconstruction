@@ -25,33 +25,8 @@
 
 #include <vector>
 
-struct vertex {
-    glm::vec3 position;
-    glm::vec3 color;
-};
+#include "file_loader.h"
 
-struct physical_camera_internal_params {
-    float fu, fv, u0, v0;
-};
-
-struct device {
-    std::string name;
-    glm::mat3 r;
-    glm::vec3 t;
-};
-
-struct physical_camera_params {
-    physical_camera_internal_params internal_params{};
-    std::vector<device> devices;
-
-    glm::mat3 get_cam_k() {
-        return {
-            internal_params.fu, 0.0f, internal_params.u0,
-            0.0f, internal_params.fv, internal_params.v0,
-            0.0f, 0.0f, 1.0f
-        };
-    }
-};
 
 class application {
 public:
@@ -73,13 +48,10 @@ public:
     void mouse_wheel(const SDL_MouseWheelEvent&);
     void resize(int, int);
 
-    static std::vector<vertex> load_ply_file(const std::string& filename);
-    static std::vector<vertex> read_vertices_from_file(std::ifstream* file, int num_vertices);
-    static std::vector<vertex> load_xyz_file(const std::string& filename);
-    static physical_camera_params load_physical_camera_params(const std::string& filename);
     static glm::vec3 to_descartes(float fi, float theta);
     static glm::vec3 get_sphere_pos(float u, float v);
     void draw_points(VertexArrayObject& vao, const size_t size);
+    void render_imgui();
 
 protected:
     ProgramObject m_axes_program;
@@ -93,10 +65,10 @@ protected:
     VertexArrayObject m_gpu_debug_sphere_vao;
     ArrayBuffer m_gpu_debug_sphere_buffer;
 
-    std::vector<vertex> m_vertices;
+    std::vector<file_loader::vertex> m_vertices;
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
-    physical_camera_params m_physical_camera_params;
+    file_loader::physical_camera_params m_physical_camera_params;
 
     float m_point_size = 4.f;
     SDL_Window* m_window;

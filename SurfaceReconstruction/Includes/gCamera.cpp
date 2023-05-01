@@ -107,10 +107,10 @@ void gCamera::KeyboardDown(const SDL_KeyboardEvent& key) {
         m_goRight = 1;
         break;
     case SDLK_q:
-        m_goUp = -1;
+        m_goUp = 1;
         break;
     case SDLK_e:
-        m_goUp = 1;
+        m_goUp = -1;
         break;
     }
 }
