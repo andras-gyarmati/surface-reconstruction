@@ -2,28 +2,12 @@
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
-
-#include <math.h>
 #include <vector>
-#include <array>
-#include <list>
-#include <tuple>
 #include <random>
-#include "imgui/imgui.h"
-#include "Includes/ObjParser_OGL3.h"
-#include <iostream>
-#include <sstream>
-#include <fstream>
 #include <string>
-#include <glm/glm.hpp>
-#include <limits>
-#include <algorithm>
-#include <set>
-#include <unordered_set>
 
-#include <glm/gtc/type_ptr.hpp>
-
-namespace file_loader {
+class file_loader {
+public:
     struct vertex {
         glm::vec3 position;
         glm::vec3 color;
@@ -52,8 +36,8 @@ namespace file_loader {
         }
     };
 
-    physical_camera_params load_physical_camera_params(const std::string& filename);
-    std::vector<vertex> read_vertices_from_file(std::ifstream* file, const int num_vertices);
-    std::vector<vertex> load_ply_file(const std::string& filename);
-    std::vector<vertex> load_xyz_file(const std::string& filename);
-}
+    static physical_camera_params load_physical_camera_params(const std::string& filename);
+    static std::vector<vertex> read_vertices_from_file(std::ifstream* file, const int num_vertices);
+    static std::vector<vertex> load_ply_file(const std::string& filename);
+    static std::vector<vertex> load_xyz_file(const std::string& filename);
+};

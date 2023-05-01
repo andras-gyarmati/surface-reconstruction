@@ -1,24 +1,10 @@
 ﻿#include "App.h"
 #include <math.h>
 #include <vector>
-#include <array>
-#include <list>
-#include <tuple>
 #include <random>
-#include "imgui/imgui.h"
-#include "Includes/ObjParser_OGL3.h"
-#include <iostream>
-#include <sstream>
-#include <fstream>
-#include <string>
 #include <glm/glm.hpp>
-#include <limits>
-#include <algorithm>
-#include <set>
-#include <unordered_set>
-
 #include <glm/gtc/type_ptr.hpp>
-
+#include "imgui/imgui.h"
 #include "app_utils.h"
 #include "file_loader.h"
 
