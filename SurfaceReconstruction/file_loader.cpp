@@ -105,5 +105,17 @@ std::vector<file_loader::vertex> file_loader::load_xyz_file(const std::string& f
 
     file.seekg(0, std::ios::beg);
 
-    return read_vertices_from_file(&file, num_vertices);
+    auto vertices = read_vertices_from_file(&file, num_vertices);
+
+    bool delete_next = false;
+    for (auto it = vertices.begin(); it != vertices.end();) {
+        if (delete_next || it->position == glm::vec3(0, 0, 0)) {
+            it = vertices.erase(it);
+        } else {
+            ++it;
+        }
+        delete_next = !delete_next;
+    }
+
+    return vertices;
 }
