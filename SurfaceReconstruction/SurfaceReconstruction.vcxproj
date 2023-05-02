@@ -180,7 +180,6 @@
     <ClInclude Include="T:\OGLPack\include\imgui\stb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="octree.cpp" />
     <ClCompile Include="window_utils.cpp" />
     <ClCompile Include="file_loader.cpp" />
     <ClCompile Include="Includes\gCamera.cpp" />

@@ -64,9 +64,14 @@ bool application::init(SDL_Window* window) {
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
 
-    load_inputs_from_folder("inputs/parkolo_gomb");
-
+    load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
+
+    octree tree({-100, -100, -100}, {100, 100, 100});
+    for (const auto& vertex : m_vertices) {
+        tree.insert(vertex.position);
+    }
+
     return true;
 }
 
