@@ -32,6 +32,7 @@ public:
 
     static glm::vec3 to_descartes(float fi, float theta);
     static glm::vec3 get_sphere_pos(float u, float v);
+    void load_inputs_from_folder(const std::string& folder_name);
     void draw_points(VertexArrayObject& vao, const size_t size);
     void render_imgui();
 

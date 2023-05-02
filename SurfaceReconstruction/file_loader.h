@@ -40,4 +40,5 @@ public:
     static std::vector<vertex> read_vertices_from_file(std::ifstream* file, const int num_vertices);
     static std::vector<vertex> load_ply_file(const std::string& filename);
     static std::vector<vertex> load_xyz_file(const std::string& filename);
+    static std::vector<std::string> get_directory_files(const std::string& string);
 };

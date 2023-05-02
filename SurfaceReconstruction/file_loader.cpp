@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <algorithm>
 #include <glm/gtc/type_ptr.hpp>
+#include <filesystem>
 #include "file_loader.h"
 
 file_loader::digital_camera_params file_loader::load_digital_camera_params(const std::string& filename) {
@@ -118,4 +119,12 @@ std::vector<file_loader::vertex> file_loader::load_xyz_file(const std::string& f
     }
 
     return vertices;
+}
+
+std::vector<std::string> file_loader::get_directory_files(const std::string& folder_name) {
+    std::vector<std::string> file_paths;
+    for (const auto& entry : std::filesystem::directory_iterator(folder_name)) {
+        file_paths.push_back(entry.path().string());
+    }
+    return file_paths;
 }

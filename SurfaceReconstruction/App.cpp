@@ -33,6 +33,26 @@ glm::vec3 application::get_sphere_pos(const float u, const float v) {
     };
 }
 
+void application::load_inputs_from_folder(const std::string& folder_name) {
+    const std::vector<std::string> file_paths = file_loader::get_directory_files(folder_name);
+    std::string xyz_file;
+
+    for (const auto& file : file_paths) {
+        if (file.find("Dev0") != std::string::npos) {
+            m_digital_camera_textures[0].FromFile(file);
+        } else if (file.find("Dev1") != std::string::npos) {
+            m_digital_camera_textures[1].FromFile(file);
+        } else if (file.find("Dev2") != std::string::npos) {
+            m_digital_camera_textures[2].FromFile(file);
+        } else if (file.find(".xyz") != std::string::npos) {
+            xyz_file = file;
+        }
+    }
+
+    m_vertices = file_loader::load_xyz_file(xyz_file);
+    m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
+}
+
 bool application::init(SDL_Window* window) {
     m_window = window;
     m_virtual_camera.SetProj(glm::radians(60.0f), 1280.0f / 720.0f, 0.01f, 1000.0f);
@@ -44,12 +64,9 @@ bool application::init(SDL_Window* window) {
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
 
-    m_digital_camera_textures[0].FromFile("inputs/garazs_kijarat/Dev0_Image_w960_h600_fn644.jpg");
-    m_digital_camera_textures[1].FromFile("inputs/garazs_kijarat/Dev1_Image_w960_h600_fn644.jpg");
-    m_digital_camera_textures[2].FromFile("inputs/garazs_kijarat/Dev2_Image_w960_h600_fn644.jpg");
-
-    m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
-    m_vertices = file_loader::load_xyz_file("inputs/garazs_kijarat/test_fn644.xyz");
+    // load_inputs_from_folder("inputs/garazs_kijarat");
+    // load_inputs_from_folder("inputs/elte_logo");
+    load_inputs_from_folder("inputs/parkolo_gomb");
 
     reset();
 
