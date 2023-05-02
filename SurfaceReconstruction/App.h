@@ -9,7 +9,6 @@
 #include <vector>
 #include "file_loader.h"
 
-
 class application {
 public:
     application(void);
@@ -55,4 +54,5 @@ protected:
 
     float m_point_size = 4.f;
     SDL_Window* m_window{};
+    char m_input_folder[256];
 };

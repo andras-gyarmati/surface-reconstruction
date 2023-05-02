@@ -11,6 +11,8 @@
 
 application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
+    strncpy(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
+    m_input_folder[sizeof(m_input_folder) - 1] = '\0';
 }
 
 glm::vec3 application::to_descartes(const float fi, const float theta) {
@@ -51,6 +53,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
+    m_gpu_particle_buffer.BufferData(m_vertices);
 }
 
 bool application::init(SDL_Window* window) {
@@ -137,6 +140,19 @@ void application::render_imgui() {
     if (ImGui::Begin("Points")) {
         if (ImGui::Button("Toggle Fullscreen")) {
             toggle_fullscreen(m_window);
+        }
+        if (ImGui::Button("load garazs_kijarat")) {
+            load_inputs_from_folder("inputs/garazs_kijarat");
+        }
+        if (ImGui::Button("load elte_logo")) {
+            load_inputs_from_folder("inputs/elte_logo");
+        }
+        if (ImGui::Button("load parkolo_gomb")) {
+            load_inputs_from_folder("inputs/parkolo_gomb");
+        }
+        ImGui::InputText("Folder path", m_input_folder, sizeof(m_input_folder));
+        if (ImGui::Button("Load points")) {
+            load_inputs_from_folder(m_input_folder);
         }
         ImGui::Text("Properties");
         ImGui::Checkbox("Show debug sphere", &m_show_debug_sphere);
