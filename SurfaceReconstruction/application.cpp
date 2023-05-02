@@ -68,9 +68,11 @@ bool application::init(SDL_Window* window) {
     init_debug_sphere();
 
     octree tree({-100, -100, -100}, {100, 100, 100});
-    for (const auto& vertex : m_vertices) {
-        tree.insert(vertex.position);
+    for (int i = 0; i < m_vertices.size(); ++i) {
+        tree.insert(m_vertices[i].position, i);
     }
+
+    tree.display();
 
     return true;
 }

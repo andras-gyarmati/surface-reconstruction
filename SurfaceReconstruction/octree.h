@@ -4,6 +4,8 @@
 #include <glm/vec3.hpp>
 #include "glm/ext.hpp"
 
+constexpr float epsilon = 1e-6f;
+
 class octree {
     enum octant {
         top_left_front,
@@ -16,21 +18,25 @@ class octree {
         bottom_left_back
     };
 
-    glm::vec3* m_point;
+    struct point {
+        glm::vec3 pos; // *
+        int index;
+    };
+
+    point* m_point;
     glm::vec3* m_top_left_front;
     glm::vec3* m_bottom_right_back;
     std::vector<octree*> m_children;
-    const float epsilon = 1e-6f;
 
 public:
     octree() {
-        m_point = new glm::vec3(-1, -1, -1);
+        m_point = new point{glm::vec3(-1, -1, -1), -1};
         m_top_left_front = new glm::vec3(0, 0, 0);
         m_bottom_right_back = new glm::vec3(0, 0, 0);
     }
 
-    octree(glm::vec3 p) {
-        m_point = new glm::vec3(p);
+    octree(glm::vec3 pos, const int index) {
+        m_point = new point{glm::vec3(pos), index};
         m_top_left_front = new glm::vec3(0, 0, 0);
         m_bottom_right_back = new glm::vec3(0, 0, 0);
     }
@@ -59,7 +65,7 @@ public:
             m_children[i] = new octree();
     }
 
-    void insert(const glm::vec3 pos) {
+    void insert(glm::vec3 pos, const int index) {
         if (find(pos)) {
             std::cout << "Point already exists in the tree" << " pos: " << glm::to_string(pos) << std::endl;
             return;
@@ -79,14 +85,14 @@ public:
 
         const int octant = get_octant(pos, mid);
         if (m_children[octant]->m_point == nullptr) {
-            m_children[octant]->insert(pos);
+            m_children[octant]->insert(pos, index);
             return;
-        } else if ((*m_children[octant]->m_point) == glm::vec3(-1, -1, -1)) {
+        } else if ((*m_children[octant]->m_point).pos == glm::vec3(-1, -1, -1)) {
             delete m_children[octant];
-            m_children[octant] = new octree(pos);
+            m_children[octant] = new octree(pos, index);
             return;
         } else {
-            const glm::vec3 p = *m_children[octant]->m_point;
+            const point p = *m_children[octant]->m_point;
             delete m_children[octant];
             m_children[octant] = nullptr;
             if (octant == top_left_front) {
@@ -106,8 +112,8 @@ public:
             } else if (octant == bottom_left_back) {
                 m_children[octant] = new octree(glm::vec3(m_top_left_front->x, mid.y + epsilon, mid.z + epsilon), glm::vec3(mid.x, m_bottom_right_back->y, m_bottom_right_back->z));
             }
-            m_children[octant]->insert(p);
-            m_children[octant]->insert(pos);
+            m_children[octant]->insert(p.pos, p.index);
+            m_children[octant]->insert(pos, index);
         }
     }
 
@@ -152,10 +158,20 @@ public:
         const int octant = get_octant(pos, mid);
         if (m_children[octant]->m_point == nullptr) {
             return m_children[octant]->find(pos);
-        } else if ((*m_children[octant]->m_point) == glm::vec3(-1, -1, -1)) {
+        } else if ((*m_children[octant]->m_point).pos == glm::vec3(-1, -1, -1)) {
             return false;
         } else {
-            return pos == *m_children[octant]->m_point;
+            return pos == m_children[octant]->m_point->pos;
+        }
+    }
+
+    void display() {
+        for (auto ch : m_children) {
+            if (ch->m_point == nullptr) {
+                ch->display();
+            } else {
+                std::cout << "Point: " << glm::to_string(ch->m_point->pos) << " index: " << ch->m_point->index << std::endl;
+            }
         }
     }
 };
