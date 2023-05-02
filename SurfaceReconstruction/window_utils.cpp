@@ -1,4 +1,4 @@
-﻿#include "app_utils.h"
+﻿#include "window_utils.h"
 
 void toggle_fullscreen(SDL_Window* win) {
     const Uint32 window_flags = SDL_GetWindowFlags(win);

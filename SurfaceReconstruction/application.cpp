@@ -1,38 +1,19 @@
-﻿#include "App.h"
-#include <math.h>
+﻿#include <math.h>
 #include <vector>
 #include <random>
 #include <glm/glm.hpp>
+#include "application.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "imgui/imgui.h"
-#include "app_utils.h"
+#include "window_utils.h"
 #include "file_loader.h"
 #include "octree.h"
+// #include "parametric_surface.h"
 
 application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
-    strncpy(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
+    strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
-}
-
-glm::vec3 application::to_descartes(const float fi, const float theta) {
-    return {
-        sinf(theta) * cosf(fi),
-        cosf(theta),
-        sinf(theta) * sinf(fi)
-    };
-}
-
-glm::vec3 application::get_sphere_pos(const float u, const float v) {
-    const float th = u * 2.0f * static_cast<float>(M_PI);
-    const float fi = v * 2.0f * static_cast<float>(M_PI);
-    constexpr float r = 2.0f;
-
-    return {
-        r * sin(th) * cos(fi),
-        r * sin(th) * sin(fi),
-        r * cos(th)
-    };
 }
 
 void application::load_inputs_from_folder(const std::string& folder_name) {
@@ -53,7 +34,23 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
+
     m_gpu_particle_buffer.BufferData(m_vertices);
+    m_gpu_particle_vao.Init({
+        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_gpu_particle_buffer},
+        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
+    });
+}
+
+void application::init_debug_sphere() {
+    constexpr int n = 960;
+    constexpr int m = 960;
+    m_debug_sphere.resize((m + 1) * (n + 1));
+    for (int i = 0; i <= n; ++i)
+        for (int j = 0; j <= m; ++j)
+            m_debug_sphere[i + j * (n + 1)] = get_sphere_pos(static_cast<float>(i) / static_cast<float>(n), static_cast<float>(j) / static_cast<float>(m));
+    m_gpu_debug_sphere_buffer.BufferData(m_debug_sphere);
+    m_gpu_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_debug_sphere_buffer}});
 }
 
 bool application::init(SDL_Window* window) {
@@ -67,31 +64,9 @@ bool application::init(SDL_Window* window) {
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
 
-    // load_inputs_from_folder("inputs/garazs_kijarat");
-    // load_inputs_from_folder("inputs/elte_logo");
     load_inputs_from_folder("inputs/parkolo_gomb");
 
-    reset();
-
-    constexpr int n = 960;
-    constexpr int m = 960;
-    m_debug_sphere.resize((m + 1) * (n + 1));
-    for (int i = 0; i <= n; ++i)
-        for (int j = 0; j <= m; ++j)
-            m_debug_sphere[i + j * (n + 1)] = get_sphere_pos(static_cast<float>(i) / static_cast<float>(n), static_cast<float>(j) / static_cast<float>(m));
-    m_gpu_debug_sphere_buffer.BufferData(m_debug_sphere);
-    m_gpu_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_debug_sphere_buffer}});
-
-    m_gpu_particle_buffer.BufferData(m_vertices);
-    m_gpu_particle_vao.Init({
-        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_gpu_particle_buffer},
-        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
-    });
-
-    octree tree2({-100, -100, -100}, {100, 100, 100});
-    for (const auto& vertex : m_vertices) {
-        tree2.insert(vertex.position);
-    }
+    init_debug_sphere();
     return true;
 }
 

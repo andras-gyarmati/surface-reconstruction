@@ -1,15 +1,11 @@
 #pragma once
-
 #include <GL\glew.h>
 #include <GL\GL.h>
-
 #include "ShaderObject.h"
-
 #include <unordered_map>
 #include <string>
 #include <vector>
 #include <array>
-
 #include <initializer_list>
 #include <utility>
 

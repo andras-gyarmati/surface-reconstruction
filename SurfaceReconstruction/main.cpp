@@ -1,24 +1,15 @@
-// GLEW
 #include <GL/glew.h>
-
-// SDL
 #include <SDL.h>
 #include <SDL_opengl.h>
-
-// ImGui
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_sdl_gl3.h>
-
-// standard
 #include <iostream>
 #include <sstream>
-
 #include "Includes/GLDebugMessageCallback.h"
-
-#include "App.h"
+#include "application.h"
 
 int main(int argc, char* args[]) {
-    // állítsuk be, hogy kilépés előtt hívja meg a rendszer az exitProgram() függvényt - Kérdés: mi lenne enélkül?
+    // Set up the system to call exitProgram() before exiting
     atexit([]() {
         SDL_Quit();
 
@@ -26,82 +17,51 @@ int main(int argc, char* args[]) {
         std::cin.get();
     });
 
-    //
-    // 1. lépés: inicializáljuk az SDL-t
-    //
-
-    // a grafikus alrendszert kapcsoljuk csak be, ha gond van, akkor jelezzük és lépjün ki
+    // 1. Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) == -1) {
-        // irjuk ki a hibat es terminaljon a program
         std::cout << "[SDL init] Error while initializing SDL: " << SDL_GetError() << std::endl;
         return 1;
     }
 
-    //
-    // 2. lépés: állítsuk be az OpenGL-es igényeinket, hozzuk létre az ablakunkat, indítsuk el az OpenGL-t
-    //
-
-    // 2a: OpenGL indításának konfigurálása, ezt az ablak létrehozása előtt kell megtenni!
+    // 2. Set up OpenGL requirements, create the window, and start OpenGL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #ifdef _DEBUG
-    // ha debug módú a fordítás, legyen az OpenGL context is debug módban, ekkor működik a debug callback
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
 
-    // állítsuk be, hogy hány biten szeretnénk tárolni a piros, zöld, kék és átlátszatlansági információkat pixelenként
     SDL_GL_SetAttribute(SDL_GL_BUFFER_SIZE, 32);
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-    // duplapufferelés
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    // mélységi puffer hány bites legyen
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-    // antialiasing - ha kell
-    //SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,  1);
-    //SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,  2);
-
-    // hozzuk létre az ablakunkat
-    SDL_Window* win = nullptr;
     const char* title = "LiDAR Point Cloud Visualizer";
-    win = SDL_CreateWindow(title, // az ablak fejléce
-                           10, // az ablak bal-felső sarkának kezdeti X koordinátája
-                           40, // az ablak bal-felső sarkának kezdeti Y koordinátája
-                           1280, // ablak szélessége
-                           720, // és magassága
-                           SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE); // megjelenítési tulajdonságok
+    SDL_Window* win = SDL_CreateWindow(title, 10, 40, 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
-    // win = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP);
-
-    // ha nem sikerült létrehozni az ablakot, akkor írjuk ki a hibát, amit kaptunk és lépjünk ki
     if (win == nullptr) {
         std::cout << "[Window creation] Error while initializing SDL: " << SDL_GetError() << std::endl;
         return 1;
     }
 
-    //
-    // 3. lépés: hozzunk létre az OpenGL context-et - ezen keresztül fogunk rajzolni
-    //
-
+    // 3. Create the OpenGL context
     const SDL_GLContext context = SDL_GL_CreateContext(win);
     if (context == 0) {
         std::cout << "[OGL context creation] Error while initializing SDL" << SDL_GetError() << std::endl;
         return 1;
     }
 
-    // megjelenítés: várjuk be a vsync-et
     SDL_GL_SetSwapInterval(1);
 
-    // indítsuk el a GLEW-t
+    // Initialize GLEW
     const GLenum error = glewInit();
     if (error != GLEW_OK) {
         std::cout << "[GLEW] Error while init!" << std::endl;
         return 1;
     }
 
-    // kérdezzük le az OpenGL verziót
+    // Get OpenGL version
     int glVersion[2] = {-1, -1};
     glGetIntegerv(GL_MAJOR_VERSION, &glVersion[0]);
     glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]);
@@ -120,7 +80,7 @@ int main(int argc, char* args[]) {
     window_title << "OpenGL " << glVersion[0] << "." << glVersion[1];
     SDL_SetWindowTitle(win, window_title.str().c_str());
 
-    // engedélyezzük és állítsuk be a debug callback függvényt ha debug context-ben vagyunk
+    // Set up the debug callback function if in debug context
     GLint context_flags;
     glGetIntegerv(GL_CONTEXT_FLAGS, &context_flags);
     if (context_flags & GL_CONTEXT_FLAG_DEBUG_BIT) {
@@ -130,19 +90,14 @@ int main(int argc, char* args[]) {
         glDebugMessageCallback(GLDebugMessageCallback, nullptr);
     }
 
-    //Imgui init
+    // Initialize ImGui
     ImGui_ImplSdlGL3_Init(win);
 
-    //
-    // 4. lépés: indítsuk el a fő üzenetfeldolgozó ciklust
-    //
+    // 4. Start the main event processing loop
     {
-        // véget kell-e érjen a program futása?
         bool quit = false;
-        // feldolgozandó üzenet ide kerül
         SDL_Event ev;
 
-        // alkalmazas példánya
         application app;
         if (!app.init(win)) {
             SDL_GL_DeleteContext(context);
@@ -155,11 +110,10 @@ int main(int argc, char* args[]) {
         app.resize(w, h);
 
         while (!quit) {
-            // amíg van feldolgozandó üzenet dolgozzuk fel mindet:
             while (SDL_PollEvent(&ev)) {
                 ImGui_ImplSdlGL3_ProcessEvent(&ev);
-                const bool is_mouse_captured = ImGui::GetIO().WantCaptureMouse; //kell-e az imgui-nak az egér
-                const bool is_keyboard_captured = ImGui::GetIO().WantCaptureKeyboard; //kell-e az imgui-nak a billentyűzet
+                const bool is_mouse_captured = ImGui::GetIO().WantCaptureMouse;
+                const bool is_keyboard_captured = ImGui::GetIO().WantCaptureKeyboard;
                 switch (ev.type) {
                 case SDL_QUIT:
                     quit = true;
@@ -199,7 +153,7 @@ int main(int argc, char* args[]) {
                 default: break;
                 }
             }
-            ImGui_ImplSdlGL3_NewFrame(win); //Ezután lehet imgui parancsokat hívni, egészen az ImGui::Render()-ig
+            ImGui_ImplSdlGL3_NewFrame(win);
 
             app.update();
             app.render();
@@ -208,13 +162,10 @@ int main(int argc, char* args[]) {
             SDL_GL_SwapWindow(win);
         }
 
-        // takarítson el maga után az objektumunk
         app.clean();
-    } // így az app destruktora még úgy fut le, hogy él a contextünk => a GPU erőforrásokat befoglaló osztályok destruktorai is itt futnak le
+    }
 
-    //
-    // 5. lépés: lépjünk ki
-    //
+    // 5. Exit
     ImGui_ImplSdlGL3_Shutdown();
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(win);

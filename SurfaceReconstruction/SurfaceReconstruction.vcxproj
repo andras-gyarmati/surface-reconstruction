@@ -153,7 +153,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="app_utils.h" />
+    <ClInclude Include="parametric_surface.cpp" />
+    <ClInclude Include="parametric_surface.h" />
+    <ClInclude Include="window_utils.h" />
     <ClInclude Include="file_loader.h" />
     <ClInclude Include="Includes\BufferObject.h" />
     <ClInclude Include="Includes\gCamera.h" />
@@ -167,7 +169,7 @@
     <ClInclude Include="Includes\ShaderObject.h" />
     <ClInclude Include="Includes\TextureObject.h" />
     <ClInclude Include="Includes\VertexArrayObject.h" />
-    <ClInclude Include="App.h" />
+    <ClInclude Include="application.h" />
     <ClInclude Include="octree.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imconfig.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imgui.h" />
@@ -178,7 +180,8 @@
     <ClInclude Include="T:\OGLPack\include\imgui\stb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="app_utils.cpp" />
+    <ClCompile Include="octree.cpp" />
+    <ClCompile Include="window_utils.cpp" />
     <ClCompile Include="file_loader.cpp" />
     <ClCompile Include="Includes\gCamera.cpp" />
     <ClCompile Include="Includes\GLconversions.cpp" />
@@ -189,7 +192,7 @@
     <ClCompile Include="Includes\ShaderObject.cpp" />
     <ClCompile Include="Includes\VertexArrayObject.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="App.cpp" />
+    <ClCompile Include="application.cpp" />
     <None Include="axes.frag" />
     <None Include="axes.vert" />
     <None Include="Includes\BufferObject.inl" />

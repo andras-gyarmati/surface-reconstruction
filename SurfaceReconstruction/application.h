@@ -28,12 +28,23 @@ public:
     void mouse_up(const SDL_MouseButtonEvent&);
     void mouse_wheel(const SDL_MouseWheelEvent&);
     void resize(int, int);
-
-    static glm::vec3 to_descartes(float fi, float theta);
-    static glm::vec3 get_sphere_pos(float u, float v);
     void load_inputs_from_folder(const std::string& folder_name);
-    void draw_points(VertexArrayObject& vao, const size_t size);
+    void init_debug_sphere();
+    void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
+
+    glm::vec3 get_sphere_pos(const float u, const float v) {
+        const float th = u * 2.0f * static_cast<float>(M_PI);
+        const float fi = v * 2.0f * static_cast<float>(M_PI);
+        constexpr float r = 2.0f;
+
+        return {
+            r * sin(th) * cos(fi),
+            r * sin(th) * sin(fi),
+            r * cos(th)
+        };
+    }
+
 
 protected:
     ProgramObject m_axes_program;
@@ -54,5 +65,5 @@ protected:
 
     float m_point_size = 4.f;
     SDL_Window* m_window{};
-    char m_input_folder[256];
+    char m_input_folder[256]{};
 };

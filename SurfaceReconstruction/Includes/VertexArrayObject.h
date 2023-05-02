@@ -1,17 +1,14 @@
 #pragma once
-
 #include <GL\glew.h>
 #include <GL\GL.h>
-
 #include "GLconversions.hpp"
 #include "BufferObject.h"
-
 #include <initializer_list>
 #include <utility>
 
 struct AttributeData
 {
-	AttributeData(GLuint pIndex, GLint pSize, GLenum pType, GLboolean pNormalized, GLsizei pStride, void* pPtr) : index(pIndex), size(pSize), type(pType), normalized(pNormalized), stride(pStride), ptr(pPtr) 
+	AttributeData(GLuint pIndex, GLint pSize, GLenum pType, GLboolean pNormalized, GLsizei pStride, void* pPtr) : index(pIndex), size(pSize), type(pType), normalized(pNormalized), stride(pStride), ptr(pPtr)
 	{ }
 
 	void Apply()

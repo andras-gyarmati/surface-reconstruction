@@ -1,18 +1,15 @@
 #pragma once
-
 #include <GL\glew.h>
 #include <GL\GL.h>
-
 #include <utility>
 #include <string>
 #include <vector>
 #include <array>
-
 #include <type_traits>
 
 /*
 
-	Convenience conversion functions to simplify the creation of ShaderObject objects using the _vs, _tcs, _tes, _gs, _fs, and _comp suffices. 
+	Convenience conversion functions to simplify the creation of ShaderObject objects using the _vs, _tcs, _tes, _gs, _fs, and _comp suffices.
 
 */
 using TypeSourcePair = std::pair<GLuint, std::string>;
@@ -90,8 +87,8 @@ template<typename T>	constexpr std::pair<size_t, size_t> ComponentCount() { retu
 /*
 
 	Extract primitive type of argument, i.e. what is the base type (e.g. float) of whatever construct (e.g. glm::vec3, glm::mat4, etc.)
-	we received. 
-	
+	we received.
+
 */
 
 template <typename T, typename C = void> struct GLExtractPrimitiveType;
@@ -104,7 +101,7 @@ template <typename T> struct GLExtractPrimitiveType<T, IsValidBaseType<T>>		{ us
 /*
 
 	Selection of appropriate OpenGL glUniform* function, depending on argument primitive type.
-	
+
 */
 template <typename T, int N, int M> inline void CallSetter(GLint, GLsizei, const T*) { }
 
@@ -164,7 +161,7 @@ template <typename T, size_t N> struct ElementInfo<T[N]> { using value_type = T;
 
 /*
 
-	Compute the length of the container in _elements_ in types that our SetUniform supports. 
+	Compute the length of the container in _elements_ in types that our SetUniform supports.
 
 */
 template <typename T>			constexpr GLsizei ContainerLength(const T&) { return 1; }
@@ -185,7 +182,7 @@ template <typename T>			constexpr GLsizei ContainerSizeInBytes(const std::vector
 /*
 
 	Get a pointer to the beginning of the container. In case of non-contagious containers this should involve
-	the creation of a contagious copy of the contents of the passed in containers. 
+	the creation of a contagious copy of the contents of the passed in containers.
 
 */
 template <typename T>			constexpr const T* PointerToStart(const T& pArg) { return &pArg; }
@@ -205,5 +202,5 @@ template<typename T> struct HasContiguousStorage<std::vector<T>> : public std::t
 template<typename T, size_t N> struct HasContiguousStorage<std::array<T, N>> : public std::true_type {};
 template<typename T, size_t N> struct HasContiguousStorage< T[N]> : public std::true_type {};
 
-template <typename T, typename R = void> 
+template <typename T, typename R = void>
 using IsContiguousContainer = std::enable_if_t<HasContiguousStorage< T>::value, R>;

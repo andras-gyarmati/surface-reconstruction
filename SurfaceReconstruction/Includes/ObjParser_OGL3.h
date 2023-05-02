@@ -7,7 +7,6 @@
 #include <vector>
 #include <map>
 #include <glm/glm.hpp>
-
 #include "Mesh_OGL3.h"
 
 class ObjParser
@@ -20,11 +19,11 @@ private:
 	struct IndexedVert {
 		int v, vt, vn;
 		IndexedVert(int _v, int _vt, int _vn) : v(_v), vt(_vt), vn(_vn) {};
-		bool operator<(const IndexedVert& rhs) const { 
+		bool operator<(const IndexedVert& rhs) const {
 			return v<rhs.v || (v == rhs.v && (vt<rhs.vt || (vt == rhs.vt && vn<rhs.vn)));
 		}
 	};
-		
+
 	ObjParser(void) : mesh(0), nIndexedVerts(0) {}
 
 	bool processLine();

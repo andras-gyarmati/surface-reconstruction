@@ -1,10 +1,7 @@
 #pragma once
-
 #include <GL\glew.h>
 #include <GL\GL.h>
-
 #include <vector>
-
 #include "GLconversions.hpp"
 
 /*
@@ -94,4 +91,3 @@ private:
 
 using ArrayBuffer = BufferObject<>;
 using IndexBuffer = BufferObject<BufferType::ElementArray>;
-
