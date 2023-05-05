@@ -7,8 +7,6 @@
 #include "imgui/imgui.h"
 #include "window_utils.h"
 #include "file_loader.h"
-#include "octree.h"
-// #include "parametric_surface.h"
 
 application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
@@ -23,11 +21,14 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     for (const auto& file : file_paths) {
         if (file.find("Dev0") != std::string::npos) {
             m_digital_camera_textures[0].FromFile(file);
-        } else if (file.find("Dev1") != std::string::npos) {
+        }
+        else if (file.find("Dev1") != std::string::npos) {
             m_digital_camera_textures[1].FromFile(file);
-        } else if (file.find("Dev2") != std::string::npos) {
+        }
+        else if (file.find("Dev2") != std::string::npos) {
             m_digital_camera_textures[2].FromFile(file);
-        } else if (file.find(".xyz") != std::string::npos) {
+        }
+        else if (file.find(".xyz") != std::string::npos) {
             xyz_file = file;
         }
     }
@@ -63,16 +64,10 @@ bool application::init(SDL_Window* window) {
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
+    m_box_wireframe_program.Init({{GL_VERTEX_SHADER, "box_wireframe.vert"}, {GL_FRAGMENT_SHADER, "box_wireframe.frag"}}, {{0, "vs_in_pos"}});
 
     load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
-
-    octree tree({-100, -100, -100}, {100, 100, 100});
-    for (int i = 0; i < m_vertices.size(); ++i) {
-        tree.insert(m_vertices[i].position, i);
-    }
-
-    tree.display();
 
     return true;
 }

@@ -9,7 +9,8 @@
 #include <vector>
 #include "file_loader.h"
 
-class application {
+class application
+{
 public:
     application(void);
     ~application(void) = default;
@@ -33,7 +34,8 @@ public:
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
 
-    glm::vec3 get_sphere_pos(const float u, const float v) {
+    glm::vec3 get_sphere_pos(const float u, const float v)
+    {
         const float th = u * 2.0f * static_cast<float>(M_PI);
         const float fi = v * 2.0f * static_cast<float>(M_PI);
         constexpr float r = 2.0f;
@@ -45,10 +47,10 @@ public:
         };
     }
 
-
 protected:
     ProgramObject m_axes_program;
     ProgramObject m_particle_program;
+    ProgramObject m_box_wireframe_program;
 
     Texture2D m_digital_camera_textures[3];
     gCamera m_virtual_camera;
@@ -62,6 +64,9 @@ protected:
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
     file_loader::digital_camera_params m_digital_camera_params;
+
+    VertexArrayObject m_octree_vao;
+    ArrayBuffer m_octree_buffer;
 
     float m_point_size = 4.f;
     SDL_Window* m_window{};

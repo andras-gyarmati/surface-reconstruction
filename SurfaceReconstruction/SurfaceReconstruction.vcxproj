@@ -208,6 +208,8 @@
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_impl_sdl_gl3.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="box_wireframe.frag" />
+    <Content Include="box_wireframe.vert" />
     <Content Include="mesh.frag" />
     <Content Include="mesh.vert" />
   </ItemGroup>
