@@ -54,6 +54,48 @@ void application::init_debug_sphere() {
     m_gpu_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_debug_sphere_buffer}});
 }
 
+void application::init_box() {
+    m_box_gpu_buffer_pos.BufferData(
+        std::vector<glm::vec3>{
+            // back face
+            glm::vec3(-1, -1, -1),
+            glm::vec3(1, -1, -1),
+            glm::vec3(1, 1, -1),
+            glm::vec3(-1, 1, -1),
+            // front face
+            glm::vec3(-1, -1, 1),
+            glm::vec3(1, -1, 1),
+            glm::vec3(1, 1, 1),
+            glm::vec3(-1, 1, 1),
+        }
+    );
+
+    m_box_gpu_buffer_indices.BufferData(
+        std::vector<int>{
+            // back face
+            0, 1, 2,
+            2, 3, 0,
+            // front face
+            4, 6, 5,
+            6, 4, 7,
+            // left face
+            0, 3, 4,
+            4, 3, 7,
+            // right face
+            1, 5, 2,
+            5, 6, 2,
+            // bottom face
+            1, 0, 4,
+            1, 4, 5,
+            // top face
+            3, 2, 6,
+            3, 6, 7,
+        }
+    );
+
+    m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_gpu_buffer_pos},}, m_box_gpu_buffer_indices);
+}
+
 bool application::init(SDL_Window* window) {
     m_window = window;
     m_virtual_camera.SetProj(glm::radians(60.0f), 1280.0f / 720.0f, 0.01f, 1000.0f);
@@ -68,6 +110,7 @@ bool application::init(SDL_Window* window) {
 
     load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
+    init_box();
 
     return true;
 }
@@ -158,6 +201,14 @@ void application::render() {
 
     draw_points(m_gpu_particle_vao, m_vertices.size());
     if (m_show_debug_sphere) draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
+
+    //
+    glPolygonMode(GL_FRONT, GL_LINE);
+    m_box_vao.Bind();
+    m_box_wireframe_program.Use();
+    m_box_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
+    //
 
     render_imgui();
 }

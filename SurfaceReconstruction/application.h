@@ -9,8 +9,7 @@
 #include <vector>
 #include "file_loader.h"
 
-class application
-{
+class application {
 public:
     application(void);
     ~application(void) = default;
@@ -31,11 +30,11 @@ public:
     void resize(int, int);
     void load_inputs_from_folder(const std::string& folder_name);
     void init_debug_sphere();
+    void init_box();
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
 
-    glm::vec3 get_sphere_pos(const float u, const float v)
-    {
+    glm::vec3 get_sphere_pos(const float u, const float v) {
         const float th = u * 2.0f * static_cast<float>(M_PI);
         const float fi = v * 2.0f * static_cast<float>(M_PI);
         constexpr float r = 2.0f;
@@ -49,24 +48,25 @@ public:
 
 protected:
     ProgramObject m_axes_program;
-    ProgramObject m_particle_program;
-    ProgramObject m_box_wireframe_program;
 
+    file_loader::digital_camera_params m_digital_camera_params;
     Texture2D m_digital_camera_textures[3];
     gCamera m_virtual_camera;
+
+    ProgramObject m_particle_program;
+    std::vector<file_loader::vertex> m_vertices;
+    VertexArrayObject m_gpu_particle_vao;
+    ArrayBuffer m_gpu_particle_buffer;
 
     bool m_show_debug_sphere = false;
     std::vector<glm::vec3> m_debug_sphere;
     VertexArrayObject m_gpu_debug_sphere_vao;
     ArrayBuffer m_gpu_debug_sphere_buffer;
 
-    std::vector<file_loader::vertex> m_vertices;
-    VertexArrayObject m_gpu_particle_vao;
-    ArrayBuffer m_gpu_particle_buffer;
-    file_loader::digital_camera_params m_digital_camera_params;
-
-    VertexArrayObject m_octree_vao;
-    ArrayBuffer m_octree_buffer;
+    ProgramObject m_box_wireframe_program;
+    VertexArrayObject m_box_vao;
+    IndexBuffer m_box_gpu_buffer_indices;
+    ArrayBuffer m_box_gpu_buffer_pos;
 
     float m_point_size = 4.f;
     SDL_Window* m_window{};
