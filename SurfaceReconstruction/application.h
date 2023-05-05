@@ -30,7 +30,7 @@ public:
     void resize(int, int);
     void load_inputs_from_folder(const std::string& folder_name);
     void init_debug_sphere();
-    void init_box();
+    void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back);
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
 

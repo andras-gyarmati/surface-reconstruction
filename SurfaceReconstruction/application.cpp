@@ -54,19 +54,26 @@ void application::init_debug_sphere() {
     m_gpu_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_debug_sphere_buffer}});
 }
 
-void application::init_box() {
+void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back) {
+    glm::vec3 bottom_left_front(top_left_front.x, bottom_right_back.y, top_left_front.z);
+    glm::vec3 top_right_back(bottom_right_back.x, top_left_front.y, bottom_right_back.z);
+    glm::vec3 bottom_left_back(top_left_front.x, bottom_right_back.y, bottom_right_back.z);
+    glm::vec3 top_right_front(bottom_right_back.x, top_left_front.y, top_left_front.z);
+    glm::vec3 top_left_back(top_left_front.x, top_left_front.y, bottom_right_back.z);
+    glm::vec3 bottom_right_front(bottom_right_back.x, bottom_right_back.y, top_left_front.z);
+
     m_box_gpu_buffer_pos.BufferData(
         std::vector<glm::vec3>{
             // back face
-            glm::vec3(-1, -1, -1),
-            glm::vec3(1, -1, -1),
-            glm::vec3(1, 1, -1),
-            glm::vec3(-1, 1, -1),
+            bottom_left_back,
+            bottom_right_back,
+            top_right_back,
+            top_left_back,
             // front face
-            glm::vec3(-1, -1, 1),
-            glm::vec3(1, -1, 1),
-            glm::vec3(1, 1, 1),
-            glm::vec3(-1, 1, 1),
+            bottom_left_front,
+            bottom_right_front,
+            top_right_front,
+            top_left_front,
         }
     );
 
@@ -76,25 +83,26 @@ void application::init_box() {
             0, 1, 2,
             2, 3, 0,
             // front face
-            4, 6, 5,
-            6, 4, 7,
+            4, 5, 6,
+            6, 7, 4,
             // left face
-            0, 3, 4,
-            4, 3, 7,
+            0, 3, 7,
+            7, 4, 0,
             // right face
-            1, 5, 2,
-            5, 6, 2,
+            1, 5, 6,
+            6, 2, 1,
             // bottom face
-            1, 0, 4,
-            1, 4, 5,
+            0, 1, 5,
+            5, 4, 0,
             // top face
             3, 2, 6,
-            3, 6, 7,
+            6, 7, 3,
         }
     );
 
     m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_gpu_buffer_pos},}, m_box_gpu_buffer_indices);
 }
+
 
 bool application::init(SDL_Window* window) {
     m_window = window;
@@ -110,7 +118,7 @@ bool application::init(SDL_Window* window) {
 
     load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
-    init_box();
+    init_box(glm::vec3(2, 2, 2), glm::vec3(1, 1, 1));
 
     return true;
 }
