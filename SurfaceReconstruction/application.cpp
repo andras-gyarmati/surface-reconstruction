@@ -41,6 +41,8 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_gpu_particle_buffer},
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
     });
+
+
 }
 
 void application::init_debug_sphere() {
@@ -80,29 +82,16 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
     m_box_gpu_buffer_indices.BufferData(
         std::vector<int>{
             // back face
-            0, 1, 2,
-            2, 3, 0,
+            0, 1, 1, 2, 2, 3, 3, 0,
             // front face
-            4, 5, 6,
-            6, 7, 4,
-            // left face
-            0, 3, 7,
-            7, 4, 0,
-            // right face
-            1, 5, 6,
-            6, 2, 1,
-            // bottom face
-            0, 1, 5,
-            5, 4, 0,
-            // top face
-            3, 2, 6,
-            6, 7, 3,
+            4, 5, 5, 6, 6, 7, 7, 4,
+            // connecting edges
+            0, 4, 1, 5, 2, 6, 3, 7,
         }
     );
 
     m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_gpu_buffer_pos},}, m_box_gpu_buffer_indices);
 }
-
 
 bool application::init(SDL_Window* window) {
     m_window = window;
@@ -118,7 +107,6 @@ bool application::init(SDL_Window* window) {
 
     load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
-    init_box(glm::vec3(2, 2, 2), glm::vec3(1, 1, 1));
 
     return true;
 }
@@ -189,6 +177,8 @@ void application::render_imgui() {
         ImGui::SliderFloat3("eye", &eye[0], -10.0f, 10.0f);
         ImGui::SliderFloat3("at", &at[0], -1.0f, 1.0f);
         ImGui::SliderFloat3("up", &up[0], -1.0f, 1.0f);
+        ImGui::SliderFloat3("m_top_left_front", &m_top_left_front[0], -10.0f, 10.0f);
+        ImGui::SliderFloat3("m_bottom_right_back", &m_bottom_right_back[0], -10.0f, 10.0f);
         if (ImGui::Button("reset camera")) {
             eye = glm::vec3(0, 0, 0);
             at = glm::vec3(0, 1, 0);
@@ -198,6 +188,14 @@ void application::render_imgui() {
     ImGui::End();
     m_virtual_camera.SetView(eye, at, up);
     m_virtual_camera.SetSpeed(cam_speed);
+}
+
+void application::render_box() {
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    m_box_vao.Bind();
+    m_box_wireframe_program.Use();
+    m_box_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, nullptr);
 }
 
 void application::render() {
@@ -210,13 +208,8 @@ void application::render() {
     draw_points(m_gpu_particle_vao, m_vertices.size());
     if (m_show_debug_sphere) draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
 
-    //
-    glPolygonMode(GL_FRONT, GL_LINE);
-    m_box_vao.Bind();
-    m_box_wireframe_program.Use();
-    m_box_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
-    //
+    init_box(m_top_left_front, m_bottom_right_back);
+    render_box();
 
     render_imgui();
 }

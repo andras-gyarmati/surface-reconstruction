@@ -8,6 +8,7 @@
 #include "Includes/gCamera.h"
 #include <vector>
 #include "file_loader.h"
+#include "octree.h"
 
 class application {
 public:
@@ -33,6 +34,7 @@ public:
     void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back);
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
+    void render_box();
 
     glm::vec3 get_sphere_pos(const float u, const float v) {
         const float th = u * 2.0f * static_cast<float>(M_PI);
@@ -63,10 +65,15 @@ protected:
     VertexArrayObject m_gpu_debug_sphere_vao;
     ArrayBuffer m_gpu_debug_sphere_buffer;
 
+    glm::vec3 m_top_left_front;
+    glm::vec3 m_bottom_right_back;
+
     ProgramObject m_box_wireframe_program;
     VertexArrayObject m_box_vao;
     IndexBuffer m_box_gpu_buffer_indices;
     ArrayBuffer m_box_gpu_buffer_pos;
+
+    octree m_octree;
 
     float m_point_size = 4.f;
     SDL_Window* m_window{};
