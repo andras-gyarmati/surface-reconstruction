@@ -123,7 +123,10 @@ void application::update() {
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
 
-    m_points_to_add_index += 10;
+    m_points_to_add_index += 100;
+    if (m_points_to_add_index >= m_vertices.size()) {
+        m_points_to_add_index = m_vertices.size() - 1;
+    }
 
     while (m_points_added_index < m_points_to_add_index) {
         ++m_points_added_index;
@@ -192,9 +195,6 @@ void application::render_imgui() {
             eye = glm::vec3(0, 0, 0);
             at = glm::vec3(0, 1, 0);
             up = glm::vec3(0, 0, 1);
-        }
-        if (ImGui::Button("add next point to octree")) {
-            m_points_to_add_index += 10;
         }
     }
     ImGui::End();
