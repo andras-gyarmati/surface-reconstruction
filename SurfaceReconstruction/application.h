@@ -35,6 +35,7 @@ public:
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
     void render_box();
+    void render_octree(const octree* root);
 
     glm::vec3 get_sphere_pos(const float u, const float v) {
         const float th = u * 2.0f * static_cast<float>(M_PI);
@@ -74,6 +75,8 @@ protected:
     ArrayBuffer m_box_gpu_buffer_pos;
 
     octree m_octree;
+    int m_points_to_add_index = -1;
+    int m_points_added_index = -1;
 
     float m_point_size = 4.f;
     SDL_Window* m_window{};

@@ -1,5 +1,6 @@
 ﻿#include <math.h>
 #include <vector>
+#include <stack>
 #include <random>
 #include <glm/glm.hpp>
 #include "application.h"
@@ -12,6 +13,9 @@ application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
     strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
+    m_octree = octree(-100, -100, -100, 100, 100, 100);
+    m_top_left_front = glm::vec3(-1, -1, -1);
+    m_bottom_right_back = glm::vec3(1, 1, 1);
 }
 
 void application::load_inputs_from_folder(const std::string& folder_name) {
@@ -41,8 +45,6 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_gpu_particle_buffer},
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
     });
-
-
 }
 
 void application::init_debug_sphere() {
@@ -120,6 +122,13 @@ void application::update() {
     const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
+
+    m_points_to_add_index += 1;
+
+    while (m_points_added_index < m_points_to_add_index) {
+        ++m_points_added_index;
+        m_octree.insert(m_vertices[m_points_added_index].position);
+    }
 }
 
 void application::draw_points(VertexArrayObject& vao, const size_t size) {
@@ -184,6 +193,9 @@ void application::render_imgui() {
             at = glm::vec3(0, 1, 0);
             up = glm::vec3(0, 0, 1);
         }
+        if (ImGui::Button("add next point to octree")) {
+            m_points_to_add_index += 10;
+        }
     }
     ImGui::End();
     m_virtual_camera.SetView(eye, at, up);
@@ -198,6 +210,31 @@ void application::render_box() {
     glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, nullptr);
 }
 
+void application::render_octree(const octree* root) {
+    if (!root) return;
+
+    std::stack<const octree*> octree_stack;
+    octree_stack.push(root);
+
+    while (!octree_stack.empty()) {
+        const octree* node = octree_stack.top();
+        octree_stack.pop();
+
+        if (!node->m_children.empty()) {
+            for (const auto child : node->m_children) {
+                if (child != nullptr) {
+                    octree_stack.push(child);
+                }
+            }
+        }
+
+        if (node->m_top_left_front != nullptr) {
+            init_box(*node->m_top_left_front, *node->m_bottom_right_back);
+            render_box();
+        }
+    }
+}
+
 void application::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -208,8 +245,7 @@ void application::render() {
     draw_points(m_gpu_particle_vao, m_vertices.size());
     if (m_show_debug_sphere) draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
 
-    init_box(m_top_left_front, m_bottom_right_back);
-    render_box();
+    render_octree(&m_octree);
 
     render_imgui();
 }
