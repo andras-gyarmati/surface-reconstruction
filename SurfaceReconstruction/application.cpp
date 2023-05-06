@@ -123,7 +123,7 @@ void application::update() {
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
 
-    m_points_to_add_index += 1;
+    m_points_to_add_index += 10;
 
     while (m_points_added_index < m_points_to_add_index) {
         ++m_points_added_index;
