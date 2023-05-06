@@ -13,9 +13,6 @@ application::application(void) {
     m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
     strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
-    m_octree = octree(-100, -100, -100, 100, 100, 100);
-    m_top_left_front = glm::vec3(-1, -1, -1);
-    m_bottom_right_back = glm::vec3(1, 1, 1);
 }
 
 void application::load_inputs_from_folder(const std::string& folder_name) {
@@ -45,6 +42,16 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_gpu_particle_buffer},
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
     });
+
+    m_octree = octree(-100, -100, -100, 100, 100, 100);
+    m_top_left_front = glm::vec3(-1, -1, -1);
+    m_bottom_right_back = glm::vec3(1, 1, 1);
+    m_points_to_add_index = -1;
+    m_points_added_index = -1;
+
+    for (int i = 0; i < m_vertices.size(); ++i) {
+        m_octree.insert(m_vertices[i].position);
+    }
 }
 
 void application::init_debug_sphere() {
@@ -66,7 +73,7 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
     glm::vec3 top_left_back(top_left_front.x, top_left_front.y, bottom_right_back.z);
     glm::vec3 bottom_right_front(bottom_right_back.x, bottom_right_back.y, top_left_front.z);
 
-    m_box_gpu_buffer_pos.BufferData(
+    m_box_pos_gpu_buffer.BufferData(
         std::vector<glm::vec3>{
             // back face
             bottom_left_back,
@@ -80,19 +87,18 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
             top_left_front,
         }
     );
+    m_box_indices = {
+        // back face
+        0, 1, 1, 2, 2, 3, 3, 0,
+        // front face
+        4, 5, 5, 6, 6, 7, 7, 4,
+        // connecting edges
+        0, 4, 1, 5, 2, 6, 3, 7,
+    };
+    m_box_indices_count = m_box_indices.size();
+    m_box_indices_gpu_buffer.BufferData(m_box_indices);
 
-    m_box_gpu_buffer_indices.BufferData(
-        std::vector<int>{
-            // back face
-            0, 1, 1, 2, 2, 3, 3, 0,
-            // front face
-            4, 5, 5, 6, 6, 7, 7, 4,
-            // connecting edges
-            0, 4, 1, 5, 2, 6, 3, 7,
-        }
-    );
-
-    m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_gpu_buffer_pos},}, m_box_gpu_buffer_indices);
+    m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_pos_gpu_buffer},}, m_box_indices_gpu_buffer);
 }
 
 bool application::init(SDL_Window* window) {
@@ -123,15 +129,15 @@ void application::update() {
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
 
-    m_points_to_add_index += 100;
-    if (m_points_to_add_index >= m_vertices.size()) {
-        m_points_to_add_index = m_vertices.size() - 1;
-    }
-
-    while (m_points_added_index < m_points_to_add_index) {
-        ++m_points_added_index;
-        m_octree.insert(m_vertices[m_points_added_index].position);
-    }
+    // m_points_to_add_index += 100;
+    // if (m_points_to_add_index >= m_vertices.size()) {
+    //     m_points_to_add_index = m_vertices.size() - 1;
+    // }
+    //
+    // while (m_points_added_index < m_points_to_add_index) {
+    //     ++m_points_added_index;
+    //     m_octree.insert(m_vertices[m_points_added_index].position);
+    // }
 }
 
 void application::draw_points(VertexArrayObject& vao, const size_t size) {
@@ -207,7 +213,7 @@ void application::render_box() {
     m_box_vao.Bind();
     m_box_wireframe_program.Use();
     m_box_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, nullptr);
+    glDrawElements(GL_LINES, m_box_indices_count, GL_UNSIGNED_INT, nullptr);
 }
 
 void application::render_octree(const octree* root) {

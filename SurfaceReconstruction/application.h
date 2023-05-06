@@ -69,10 +69,12 @@ protected:
     glm::vec3 m_top_left_front;
     glm::vec3 m_bottom_right_back;
 
+    std::vector<int> m_box_indices;
+    int m_box_indices_count = 0;
     ProgramObject m_box_wireframe_program;
     VertexArrayObject m_box_vao;
-    IndexBuffer m_box_gpu_buffer_indices;
-    ArrayBuffer m_box_gpu_buffer_pos;
+    IndexBuffer m_box_indices_gpu_buffer;
+    ArrayBuffer m_box_pos_gpu_buffer;
 
     octree m_octree;
     int m_points_to_add_index = -1;

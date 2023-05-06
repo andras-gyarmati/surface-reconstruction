@@ -3,19 +3,19 @@
 #include <iostream>
 #include <vector>
 
-enum octant {
-    top_left_front = 0,
-    top_right_front = 1,
-    bottom_right_front = 2,
-    bottom_left_front = 3,
-    top_left_bottom = 4,
-    top_right_bottom = 5,
-    bottom_right_back = 6,
-    bottom_left_back = 7
-};
-
 // Octree class
 class octree {
+    enum octant {
+        top_left_front = 0,
+        top_right_front = 1,
+        bottom_right_front = 2,
+        bottom_left_front = 3,
+        top_left_bottom = 4,
+        top_right_bottom = 5,
+        bottom_right_back = 6,
+        bottom_left_back = 7
+    };
+
     // if point == NULL, node is internal node.
     // if point == (-1, -1, -1), node is empty.
     glm::vec3* m_point = nullptr;
