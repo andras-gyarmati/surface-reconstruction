@@ -73,21 +73,21 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
     glm::vec3 top_left_back(top_left_front.x, top_left_front.y, bottom_right_back.z);
     glm::vec3 bottom_right_front(bottom_right_back.x, bottom_right_back.y, top_left_front.z);
 
-    m_box_pos_gpu_buffer.BufferData(
-        std::vector<glm::vec3>{
-            // back face
-            bottom_left_back,
-            bottom_right_back,
-            top_right_back,
-            top_left_back,
-            // front face
-            bottom_left_front,
-            bottom_right_front,
-            top_right_front,
-            top_left_front,
-        }
-    );
-    m_box_indices = {
+    auto pos = std::vector<glm::vec3>{
+        // back face
+        bottom_left_back,
+        bottom_right_back,
+        top_right_back,
+        top_left_back,
+        // front face
+        bottom_left_front,
+        bottom_right_front,
+        top_right_front,
+        top_left_front,
+    };
+    m_box_pos.insert(m_box_pos.end(), pos.begin(), pos.end());
+
+    auto indices = std::vector<int>{
         // back face
         0, 1, 1, 2, 2, 3, 3, 0,
         // front face
@@ -95,10 +95,10 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
         // connecting edges
         0, 4, 1, 5, 2, 6, 3, 7,
     };
-    m_box_indices_count = m_box_indices.size();
-    m_box_indices_gpu_buffer.BufferData(m_box_indices);
-
-    m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_pos_gpu_buffer},}, m_box_indices_gpu_buffer);
+    for (auto& index : indices) {
+        index += m_box_indices.size();
+    }
+    m_box_indices.insert(m_box_indices.end(), indices.begin(), indices.end());
 }
 
 bool application::init(SDL_Window* window) {
@@ -128,16 +128,6 @@ void application::update() {
     const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
-
-    // m_points_to_add_index += 100;
-    // if (m_points_to_add_index >= m_vertices.size()) {
-    //     m_points_to_add_index = m_vertices.size() - 1;
-    // }
-    //
-    // while (m_points_added_index < m_points_to_add_index) {
-    //     ++m_points_added_index;
-    //     m_octree.insert(m_vertices[m_points_added_index].position);
-    // }
 }
 
 void application::draw_points(VertexArrayObject& vao, const size_t size) {
@@ -213,7 +203,7 @@ void application::render_box() {
     m_box_vao.Bind();
     m_box_wireframe_program.Use();
     m_box_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    glDrawElements(GL_LINES, m_box_indices_count, GL_UNSIGNED_INT, nullptr);
+    glDrawElements(GL_LINES, m_box_indices.size(), GL_UNSIGNED_INT, nullptr);
 }
 
 void application::render_octree(const octree* root) {
@@ -236,9 +226,13 @@ void application::render_octree(const octree* root) {
 
         if (node->m_top_left_front != nullptr) {
             init_box(*node->m_top_left_front, *node->m_bottom_right_back);
-            render_box();
         }
     }
+
+    m_box_pos_gpu_buffer.BufferData(m_box_pos);
+    m_box_indices_gpu_buffer.BufferData(m_box_indices);
+    m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_pos_gpu_buffer},}, m_box_indices_gpu_buffer);
+    render_box();
 }
 
 void application::render() {

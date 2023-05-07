@@ -70,7 +70,7 @@ protected:
     glm::vec3 m_bottom_right_back;
 
     std::vector<int> m_box_indices;
-    int m_box_indices_count = 0;
+    std::vector<glm::vec3> m_box_pos;
     ProgramObject m_box_wireframe_program;
     VertexArrayObject m_box_vao;
     IndexBuffer m_box_indices_gpu_buffer;
