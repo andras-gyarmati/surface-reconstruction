@@ -194,6 +194,11 @@ void application::render_imgui() {
             at = glm::vec3(0, 1, 0);
             up = glm::vec3(0, 0, 1);
         }
+        if (ImGui::Button("set camera far")) {
+            eye = glm::vec3(100, 100, 100);
+            at = glm::vec3(0, 0, 0);
+            up = glm::vec3(0, 0, 1);
+        }
     }
     ImGui::End();
     m_virtual_camera.SetView(eye, at, up);
