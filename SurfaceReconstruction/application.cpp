@@ -121,7 +121,7 @@ bool application::init(SDL_Window* window) {
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
     m_box_wireframe_program.Init({{GL_VERTEX_SHADER, "box_wireframe.vert"}, {GL_FRAGMENT_SHADER, "box_wireframe.frag"}}, {{0, "vs_in_pos"}});
-    m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}}, {{0, "vs_in_pos"}});
+    m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
 
     load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
@@ -263,21 +263,44 @@ void application::init_octree_visualization(const octree* root) {
 }
 
 void application::init_mesh_visualization() {
-    m_mesh_pos.push_back(m_vertices[0].position);
-    m_mesh_pos.push_back(m_vertices[1].position);
-    m_mesh_pos.push_back(m_vertices[25].position);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    m_mesh_vertices.push_back(m_vertices[0]);
+    m_mesh_vertices.push_back(m_vertices[1]);
+    m_mesh_vertices.push_back(m_vertices[25]);
     m_mesh_indices.push_back(0);
     m_mesh_indices.push_back(1);
     m_mesh_indices.push_back(2);
-    m_mesh_pos_gpu_buffer.BufferData(m_mesh_pos);
+    m_mesh_pos_gpu_buffer.BufferData(m_mesh_vertices);
     m_mesh_indices_gpu_buffer.BufferData(m_mesh_indices);
-    m_mesh_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_mesh_pos_gpu_buffer}}, m_mesh_indices_gpu_buffer);
+    m_mesh_vao.Init(
+        {
+            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_mesh_pos_gpu_buffer},
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_mesh_pos_gpu_buffer}
+        },
+        m_mesh_indices_gpu_buffer);
 }
 
 void application::render_mesh() {
     m_mesh_vao.Bind();
-    m_mesh_program.Use();
-    m_mesh_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    // m_mesh_program.Use();
+    m_particle_program.Use();
+    m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    m_particle_program.SetUniform("world", glm::mat4(1));
+
+    m_particle_program.SetUniform("cam_k", m_digital_camera_params.get_cam_k());
+
+    m_particle_program.SetUniform("cam_r[0]", m_digital_camera_params.devices[0].r);
+    m_particle_program.SetUniform("cam_r[1]", m_digital_camera_params.devices[1].r);
+    m_particle_program.SetUniform("cam_r[2]", m_digital_camera_params.devices[2].r);
+
+    m_particle_program.SetUniform("cam_t[0]", m_digital_camera_params.devices[0].t);
+    m_particle_program.SetUniform("cam_t[1]", m_digital_camera_params.devices[1].t);
+    m_particle_program.SetUniform("cam_t[2]", m_digital_camera_params.devices[2].t);
+
+    m_particle_program.SetTexture("tex_image[0]", 0, m_digital_camera_textures[0]);
+    m_particle_program.SetTexture("tex_image[1]", 1, m_digital_camera_textures[1]);
+    m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
+
     glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
 }
 
@@ -295,7 +318,7 @@ void application::render() {
     if (m_show_octree)
         render_octree_boxes();
 
-    //render_mesh();
+    render_mesh();
 
     render_imgui();
 }
