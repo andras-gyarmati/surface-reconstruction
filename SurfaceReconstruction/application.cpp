@@ -10,9 +10,20 @@
 #include "file_loader.h"
 
 application::application(void) {
-    m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
+    m_virtual_camera.SetView(glm::vec3(100, 100, 100), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
     strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
+    m_point_size = 4.f;
+    m_show_debug_sphere = false;
+    m_show_octree = true;
+}
+
+void application::init_octree() {
+    m_octree = octree(glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100));
+    m_points_to_add_index = -1;
+    m_points_added_index = -1;
+    m_box_indices = {};
+    m_box_pos = {};
 }
 
 void application::load_inputs_from_folder(const std::string& folder_name) {
@@ -22,14 +33,11 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     for (const auto& file : file_paths) {
         if (file.find("Dev0") != std::string::npos) {
             m_digital_camera_textures[0].FromFile(file);
-        }
-        else if (file.find("Dev1") != std::string::npos) {
+        } else if (file.find("Dev1") != std::string::npos) {
             m_digital_camera_textures[1].FromFile(file);
-        }
-        else if (file.find("Dev2") != std::string::npos) {
+        } else if (file.find("Dev2") != std::string::npos) {
             m_digital_camera_textures[2].FromFile(file);
-        }
-        else if (file.find(".xyz") != std::string::npos) {
+        } else if (file.find(".xyz") != std::string::npos) {
             xyz_file = file;
         }
     }
@@ -43,15 +51,13 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
     });
 
-    m_octree = octree(glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100));
-    m_top_left_front = glm::vec3(-1, -1, -1);
-    m_bottom_right_back = glm::vec3(1, 1, 1);
-    m_points_to_add_index = -1;
-    m_points_added_index = -1;
+    init_octree();
 
     for (int i = 0; i < m_vertices.size(); ++i) {
         m_octree.insert(m_vertices[i].position);
     }
+
+    init_octree_visualization(&m_octree);
 }
 
 void application::init_debug_sphere() {
@@ -180,13 +186,9 @@ void application::render_imgui() {
         }
         ImGui::Text("Properties");
         ImGui::Checkbox("Show debug sphere", &m_show_debug_sphere);
+        ImGui::Checkbox("Show octree", &m_show_octree);
         ImGui::SliderFloat("Point size", &m_point_size, 1.0f, 30.0f);
         ImGui::SliderFloat("Cam speed", &cam_speed, 0.1f, 20.0f);
-        ImGui::SliderFloat3("eye", &eye[0], -10.0f, 10.0f);
-        ImGui::SliderFloat3("at", &at[0], -1.0f, 1.0f);
-        ImGui::SliderFloat3("up", &up[0], -1.0f, 1.0f);
-        ImGui::SliderFloat3("m_top_left_front", &m_top_left_front[0], -10.0f, 10.0f);
-        ImGui::SliderFloat3("m_bottom_right_back", &m_bottom_right_back[0], -10.0f, 10.0f);
         if (ImGui::Button("reset camera")) {
             eye = glm::vec3(0, 0, 0);
             at = glm::vec3(0, 1, 0);
@@ -198,7 +200,7 @@ void application::render_imgui() {
     m_virtual_camera.SetSpeed(cam_speed);
 }
 
-void application::render_box() {
+void application::render_octree_boxes() {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     m_box_vao.Bind();
     m_box_wireframe_program.Use();
@@ -206,8 +208,9 @@ void application::render_box() {
     glDrawElements(GL_LINES, m_box_indices.size(), GL_UNSIGNED_INT, nullptr);
 }
 
-void application::render_octree(const octree* root) {
-    if (!root) return;
+void application::init_octree_visualization(const octree* root) {
+    if (!root)
+        return;
 
     std::stack<const octree*> octree_stack;
     octree_stack.push(root);
@@ -232,7 +235,6 @@ void application::render_octree(const octree* root) {
     m_box_pos_gpu_buffer.BufferData(m_box_pos);
     m_box_indices_gpu_buffer.BufferData(m_box_indices);
     m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_pos_gpu_buffer},}, m_box_indices_gpu_buffer);
-    render_box();
 }
 
 void application::render() {
@@ -243,9 +245,11 @@ void application::render() {
     glDrawArrays(GL_LINES, 0, 6);
 
     draw_points(m_gpu_particle_vao, m_vertices.size());
-    if (m_show_debug_sphere) draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
+    if (m_show_debug_sphere)
+        draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
 
-    render_octree(&m_octree);
+    if (m_show_octree)
+        render_octree_boxes();
 
     render_imgui();
 }
