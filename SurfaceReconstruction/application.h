@@ -103,4 +103,7 @@ protected:
     char m_input_folder[256]{};
     float m_ignore_center_radius;
     int m_mesh_rendering_mode;
+    glm::vec3 m_start_eye;
+    glm::vec3 m_start_at;
+    glm::vec3 m_start_up;
 };

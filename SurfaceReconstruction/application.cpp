@@ -10,14 +10,17 @@
 #include "file_loader.h"
 
 application::application(void) {
-    m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1));
+    m_start_eye = glm::vec3(0, 0, 0);
+    m_start_at = glm::vec3(1, 0, 0);
+    m_start_up = glm::vec3(0, 0, 1);
+    m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
     strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
     m_point_size = 4.f;
     m_show_debug_sphere = false;
     m_show_octree = false;
     m_auto_increment_rendered_point_index = false;
-    m_render_points_up_to_index = 30;
+    m_render_points_up_to_index = 192;
     m_ignore_center_radius = 1.3f;
     m_mesh_rendering_mode = solid;
 }
@@ -217,9 +220,9 @@ void application::render_imgui() {
         ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 20.0f);
         ImGui::SliderFloat("ignore center radius", &m_ignore_center_radius, 0.1f, 4.0f);
         if (ImGui::Button("reset camera")) {
-            eye = glm::vec3(0, 0, 0);
-            at = glm::vec3(0, 1, 0);
-            up = glm::vec3(0, 0, 1);
+            eye = m_start_eye;
+            at = m_start_at;
+            up = m_start_up;
         }
         if (ImGui::Button("set camera far")) {
             eye = glm::vec3(100, 100, 100);
@@ -272,8 +275,10 @@ void application::init_octree_visualization(const octree* root) {
 void application::init_mesh_visualization() {
     m_mesh_vertices = m_vertices; //
     m_mesh_indices.clear();
-    for (int i = 0; i < m_render_points_up_to_index - 25; ++i) {
-        if (true) {
+    // we use a [/] quad right now but if the top right vertex is missing we lose two triangles
+    // so we need to check if a vertex is missing we might can use a [\] quad there and have more triangles
+    for (int i = 0; i < m_render_points_up_to_index; ++i) {
+        if (!((i % (16 * 12)) > (14 * 12 - 1) || ((i % 12) == 11))) {
             if (glm::distance(m_mesh_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
                 glm::distance(m_mesh_vertices[i + 1].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
                 glm::distance(m_mesh_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
