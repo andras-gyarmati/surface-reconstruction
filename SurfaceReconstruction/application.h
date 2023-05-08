@@ -61,6 +61,7 @@ protected:
     std::vector<file_loader::vertex> m_vertices;
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
+    int m_render_points_up_to_index;
 
     bool m_show_debug_sphere;
     std::vector<glm::vec3> m_debug_sphere;
@@ -78,6 +79,7 @@ protected:
     IndexBuffer m_box_indices_gpu_buffer;
     ArrayBuffer m_box_pos_gpu_buffer;
 
+    bool m_auto_increment_rendered_point_index;
     float m_point_size;
     SDL_Window* m_window{};
     char m_input_folder[256]{};

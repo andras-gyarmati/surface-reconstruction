@@ -10,12 +10,14 @@
 #include "file_loader.h"
 
 application::application(void) {
-    m_virtual_camera.SetView(glm::vec3(100, 100, 100), glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
+    m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
     strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
     m_point_size = 4.f;
     m_show_debug_sphere = false;
-    m_show_octree = true;
+    m_show_octree = false;
+    m_auto_increment_rendered_point_index = true;
+    m_render_points_up_to_index = 0;
 }
 
 void application::init_octree() {
@@ -134,6 +136,14 @@ void application::update() {
     const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
+
+    if (m_auto_increment_rendered_point_index) {
+        m_render_points_up_to_index += 1;
+    }
+
+    if (m_render_points_up_to_index > m_vertices.size()) {
+        m_render_points_up_to_index = m_vertices.size();
+    }
 }
 
 void application::draw_points(VertexArrayObject& vao, const size_t size) {
@@ -184,11 +194,19 @@ void application::render_imgui() {
         if (ImGui::Button("Load points")) {
             load_inputs_from_folder(m_input_folder);
         }
-        ImGui::Text("Properties");
-        ImGui::Checkbox("Show debug sphere", &m_show_debug_sphere);
-        ImGui::Checkbox("Show octree", &m_show_octree);
-        ImGui::SliderFloat("Point size", &m_point_size, 1.0f, 30.0f);
-        ImGui::SliderFloat("Cam speed", &cam_speed, 0.1f, 20.0f);
+        ImGui::Text("properties");
+        ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
+        ImGui::Checkbox("show octree", &m_show_octree);
+        ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
+        ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size());
+        if (ImGui::Button("+1")) {
+            ++m_render_points_up_to_index;
+        }
+        if (ImGui::Button("-1")) {
+            --m_render_points_up_to_index;
+        }
+        ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
+        ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 20.0f);
         if (ImGui::Button("reset camera")) {
             eye = glm::vec3(0, 0, 0);
             at = glm::vec3(0, 1, 0);
@@ -249,7 +267,7 @@ void application::render() {
     m_axes_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     glDrawArrays(GL_LINES, 0, 6);
 
-    draw_points(m_gpu_particle_vao, m_vertices.size());
+    draw_points(m_gpu_particle_vao, m_render_points_up_to_index);
     if (m_show_debug_sphere)
         draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
 
