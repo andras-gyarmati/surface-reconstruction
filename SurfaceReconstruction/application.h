@@ -10,6 +10,12 @@
 #include "file_loader.h"
 #include "octree.h"
 
+enum mesh_rendering_mode {
+    none = 0,
+    wireframe = 1,
+    solid = 2
+};
+
 class application {
 public:
     application(void);
@@ -92,4 +98,6 @@ protected:
     float m_point_size;
     SDL_Window* m_window{};
     char m_input_folder[256]{};
+    float m_ignore_center_radius;
+    int m_mesh_rendering_mode;
 };

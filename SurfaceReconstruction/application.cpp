@@ -16,8 +16,10 @@ application::application(void) {
     m_point_size = 4.f;
     m_show_debug_sphere = false;
     m_show_octree = false;
-    m_auto_increment_rendered_point_index = true;
-    m_render_points_up_to_index = 0;
+    m_auto_increment_rendered_point_index = false;
+    m_render_points_up_to_index = m_vertices.size() - 1;
+    m_ignore_center_radius = 1.3f;
+    m_mesh_rendering_mode = solid;
 }
 
 void application::init_octree() {
@@ -179,8 +181,8 @@ void application::render_imgui() {
     glm::vec3 at = m_virtual_camera.GetAt();
     glm::vec3 up = m_virtual_camera.GetUp();
     float cam_speed = m_virtual_camera.GetSpeed();
-    if (ImGui::Begin("Points")) {
-        if (ImGui::Button("Toggle Fullscreen")) {
+    if (ImGui::Begin("settings")) {
+        if (ImGui::Button("toggle Fullscreen")) {
             toggle_fullscreen(m_window);
         }
         if (ImGui::Button("load garazs_kijarat")) {
@@ -192,7 +194,7 @@ void application::render_imgui() {
         if (ImGui::Button("load parkolo_gomb")) {
             load_inputs_from_folder("inputs/parkolo_gomb");
         }
-        ImGui::InputText("Folder path", m_input_folder, sizeof(m_input_folder));
+        ImGui::InputText("folder path", m_input_folder, sizeof(m_input_folder));
         if (ImGui::Button("Load points")) {
             load_inputs_from_folder(m_input_folder);
         }
@@ -207,8 +209,11 @@ void application::render_imgui() {
         if (ImGui::Button("-1")) {
             --m_render_points_up_to_index;
         }
+        ImGui::Text("mesh rendering mode");
+        ImGui::SliderInt(m_mesh_rendering_mode == none ? "none" : m_mesh_rendering_mode == wireframe ? "wireframe" : "solid", &m_mesh_rendering_mode, none, solid);
         ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
         ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 20.0f);
+        ImGui::SliderFloat("ignore center radius", &m_ignore_center_radius, 0.1f, 4.0f);
         if (ImGui::Button("reset camera")) {
             eye = glm::vec3(0, 0, 0);
             at = glm::vec3(0, 1, 0);
@@ -263,13 +268,19 @@ void application::init_octree_visualization(const octree* root) {
 }
 
 void application::init_mesh_visualization() {
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    m_mesh_vertices.push_back(m_vertices[0]);
-    m_mesh_vertices.push_back(m_vertices[1]);
-    m_mesh_vertices.push_back(m_vertices[25]);
-    m_mesh_indices.push_back(0);
-    m_mesh_indices.push_back(1);
-    m_mesh_indices.push_back(2);
+    m_mesh_vertices = m_vertices; //
+    m_mesh_indices.clear();
+    for (int i = 0; i < m_mesh_vertices.size() - 25; ++i) {
+        if (
+            // i % 2 <= 0 &&
+            glm::distance(m_mesh_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+            glm::distance(m_mesh_vertices[i + 1].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+            glm::distance(m_mesh_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
+            m_mesh_indices.push_back(i + 0);
+            m_mesh_indices.push_back(i + 1);
+            m_mesh_indices.push_back(i + 25);
+        }
+    }
     m_mesh_pos_gpu_buffer.BufferData(m_mesh_vertices);
     m_mesh_indices_gpu_buffer.BufferData(m_mesh_indices);
     m_mesh_vao.Init(
@@ -318,7 +329,17 @@ void application::render() {
     if (m_show_octree)
         render_octree_boxes();
 
-    render_mesh();
+    if (m_mesh_rendering_mode == none) {
+        //
+    } else {
+        if (m_mesh_rendering_mode == solid) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        } else if (m_mesh_rendering_mode == wireframe) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        }
+        init_mesh_visualization();
+        render_mesh();
+    }
 
     render_imgui();
 }
