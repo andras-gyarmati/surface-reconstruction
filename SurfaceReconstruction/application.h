@@ -45,6 +45,9 @@ public:
     void render_octree_boxes();
     void init_mesh_visualization();
     void render_mesh();
+    void randomize_colors();
+    glm::vec3 hsl_to_rgb(float h, float s, float l) const;
+    glm::vec3 get_random_color() const;
 
     glm::vec3 get_sphere_pos(const float u, const float v) {
         const float th = u * 2.0f * static_cast<float>(M_PI);

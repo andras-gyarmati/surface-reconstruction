@@ -10,14 +10,14 @@
 #include "file_loader.h"
 
 application::application(void) {
-    m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1));
+    m_virtual_camera.SetView(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1));
     strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
     m_point_size = 4.f;
     m_show_debug_sphere = false;
     m_show_octree = false;
     m_auto_increment_rendered_point_index = false;
-    m_render_points_up_to_index = m_vertices.size() - 1;
+    m_render_points_up_to_index = 30;
     m_ignore_center_radius = 1.3f;
     m_mesh_rendering_mode = solid;
 }
@@ -54,6 +54,8 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_gpu_particle_buffer},
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
     });
+
+    randomize_colors();
 
     init_octree();
 
@@ -270,15 +272,22 @@ void application::init_octree_visualization(const octree* root) {
 void application::init_mesh_visualization() {
     m_mesh_vertices = m_vertices; //
     m_mesh_indices.clear();
-    for (int i = 0; i < m_mesh_vertices.size() - 25; ++i) {
-        if (
-            // i % 2 <= 0 &&
-            glm::distance(m_mesh_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-            glm::distance(m_mesh_vertices[i + 1].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-            glm::distance(m_mesh_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
-            m_mesh_indices.push_back(i + 0);
-            m_mesh_indices.push_back(i + 1);
-            m_mesh_indices.push_back(i + 25);
+    for (int i = 0; i < m_render_points_up_to_index - 25; ++i) {
+        if (true) {
+            if (glm::distance(m_mesh_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                glm::distance(m_mesh_vertices[i + 1].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                glm::distance(m_mesh_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
+                m_mesh_indices.push_back(i + 0);
+                m_mesh_indices.push_back(i + 1);
+                m_mesh_indices.push_back(i + 25);
+            }
+            if (glm::distance(m_mesh_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                glm::distance(m_mesh_vertices[i + 24].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                glm::distance(m_mesh_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
+                m_mesh_indices.push_back(i + 0);
+                m_mesh_indices.push_back(i + 25);
+                m_mesh_indices.push_back(i + 24);
+            }
         }
     }
     m_mesh_pos_gpu_buffer.BufferData(m_mesh_vertices);
@@ -314,6 +323,69 @@ void application::render_mesh() {
 
     glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
 }
+
+void application::randomize_colors() {
+    for (int i = 0; i < m_vertices.size(); ++i) {
+        m_vertices[i].color = get_random_color();
+    }
+}
+
+glm::vec3 application::hsl_to_rgb(const float h, const float s, const float l) const {
+    float c = (1.0f - fabs(2.0f * l - 1.0f)) * s;
+    float x = c * (1.0f - fabs(fmod(h / 60.0f, 2.0f) - 1.0f));
+    float m = l - c / 2.0f;
+
+    float r, g, b;
+    if (h < 60.0f) {
+        r = c;
+        g = x;
+        b = 0;
+    } else if (h < 120.0f) {
+        r = x;
+        g = c;
+        b = 0;
+    } else if (h < 180.0f) {
+        r = 0;
+        g = c;
+        b = x;
+    } else if (h < 240.0f) {
+        r = 0;
+        g = x;
+        b = c;
+    } else if (h < 300.0f) {
+        r = x;
+        g = 0;
+        b = c;
+    } else {
+        r = c;
+        g = 0;
+        b = x;
+    }
+
+    return glm::vec3(r + m, g + m, b + m);
+}
+
+glm::vec3 application::get_random_color() const {
+    // Create a random number generator
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+
+    // Define the range of HSL values
+    std::uniform_real_distribution<float> hue_distribution(0.0f, 360.0f); // Hue range: 0° to 360°
+    std::uniform_real_distribution<float> saturation_distribution(0.0f, 1.0f); // Saturation range: 0.0 to 1.0
+    std::uniform_real_distribution<float> lightness_distribution(0.0f, 1.0f); // Lightness range: 0.0 to 1.0
+
+    // Generate random HSL values
+    float h = hue_distribution(gen);
+    float s = saturation_distribution(gen);
+    float l = lightness_distribution(gen);
+
+    // Convert HSL to RGB
+    glm::vec3 rgb = hsl_to_rgb(h, s, l);
+
+    return rgb;
+}
+
 
 void application::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

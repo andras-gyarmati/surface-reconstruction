@@ -38,7 +38,7 @@ int main(int argc, char* args[]) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
     const char* title = "LiDAR Point Cloud Visualizer";
-    SDL_Window* win = SDL_CreateWindow(title, 10, 40, 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    SDL_Window* win = SDL_CreateWindow(title, 10, 100, 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
     if (win == nullptr) {
         std::cout << "[Window creation] Error while initializing SDL: " << SDL_GetError() << std::endl;
