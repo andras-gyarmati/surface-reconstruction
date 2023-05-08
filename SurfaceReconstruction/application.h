@@ -35,8 +35,10 @@ public:
     void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back);
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
-    void render_octree_boxes();
     void init_octree_visualization(const octree* root);
+    void render_octree_boxes();
+    void init_mesh_visualization();
+    void render_mesh();
 
     glm::vec3 get_sphere_pos(const float u, const float v) {
         const float th = u * 2.0f * static_cast<float>(M_PI);
@@ -72,12 +74,19 @@ protected:
     octree m_octree;
     int m_points_to_add_index{};
     int m_points_added_index{};
-    std::vector<int> m_box_indices;
     std::vector<glm::vec3> m_box_pos;
+    std::vector<int> m_box_indices;
     ProgramObject m_box_wireframe_program;
     VertexArrayObject m_box_vao;
     IndexBuffer m_box_indices_gpu_buffer;
     ArrayBuffer m_box_pos_gpu_buffer;
+
+    std::vector<glm::vec3> m_mesh_pos;
+    std::vector<int> m_mesh_indices;
+    ProgramObject m_mesh_program;
+    VertexArrayObject m_mesh_vao;
+    IndexBuffer m_mesh_indices_gpu_buffer;
+    ArrayBuffer m_mesh_pos_gpu_buffer;
 
     bool m_auto_increment_rendered_point_index;
     float m_point_size;

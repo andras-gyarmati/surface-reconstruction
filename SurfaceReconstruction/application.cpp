@@ -60,6 +60,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     }
 
     init_octree_visualization(&m_octree);
+    init_mesh_visualization();
 }
 
 void application::init_debug_sphere() {
@@ -120,6 +121,7 @@ bool application::init(SDL_Window* window) {
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
     m_box_wireframe_program.Init({{GL_VERTEX_SHADER, "box_wireframe.vert"}, {GL_FRAGMENT_SHADER, "box_wireframe.frag"}}, {{0, "vs_in_pos"}});
+    m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}}, {{0, "vs_in_pos"}});
 
     load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
@@ -257,7 +259,26 @@ void application::init_octree_visualization(const octree* root) {
 
     m_box_pos_gpu_buffer.BufferData(m_box_pos);
     m_box_indices_gpu_buffer.BufferData(m_box_indices);
-    m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_pos_gpu_buffer},}, m_box_indices_gpu_buffer);
+    m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_pos_gpu_buffer}}, m_box_indices_gpu_buffer);
+}
+
+void application::init_mesh_visualization() {
+    m_mesh_pos.push_back(m_vertices[0].position);
+    m_mesh_pos.push_back(m_vertices[1].position);
+    m_mesh_pos.push_back(m_vertices[25].position);
+    m_mesh_indices.push_back(0);
+    m_mesh_indices.push_back(1);
+    m_mesh_indices.push_back(2);
+    m_mesh_pos_gpu_buffer.BufferData(m_mesh_pos);
+    m_mesh_indices_gpu_buffer.BufferData(m_mesh_indices);
+    m_mesh_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_mesh_pos_gpu_buffer}}, m_mesh_indices_gpu_buffer);
+}
+
+void application::render_mesh() {
+    m_mesh_vao.Bind();
+    m_mesh_program.Use();
+    m_mesh_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
 }
 
 void application::render() {
@@ -273,6 +294,8 @@ void application::render() {
 
     if (m_show_octree)
         render_octree_boxes();
+
+    //render_mesh();
 
     render_imgui();
 }

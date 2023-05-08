@@ -110,7 +110,7 @@ std::vector<file_loader::vertex> file_loader::load_xyz_file(const std::string& f
 
     bool delete_next = false;
     for (auto it = vertices.begin(); it != vertices.end();) {
-        if (delete_next || it->position == glm::vec3(0, 0, 0)) {
+        if (delete_next /*|| it->position == glm::vec3(0, 0, 0)*/) {
             it = vertices.erase(it);
         } else {
             ++it;
