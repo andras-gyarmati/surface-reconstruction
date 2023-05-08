@@ -43,7 +43,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
     });
 
-    m_octree = octree(-100, -100, -100, 100, 100, 100);
+    m_octree = octree(glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100));
     m_top_left_front = glm::vec3(-1, -1, -1);
     m_bottom_right_back = glm::vec3(1, 1, 1);
     m_points_to_add_index = -1;

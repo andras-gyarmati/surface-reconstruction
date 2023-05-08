@@ -1,9 +1,9 @@
-﻿// Implementation of Octree in c++
-#pragma once
+﻿#pragma once
 #include <iostream>
 #include <vector>
+#include <glm/glm.hpp>
+#include "glm/ext.hpp"
 
-// Octree class
 class octree {
     enum octant {
         top_left_front = 0,
@@ -16,275 +16,144 @@ class octree {
         bottom_left_back = 7
     };
 
-    // if point == NULL, node is internal node.
-    // if point == (-1, -1, -1), node is empty.
+    enum node_state {
+        empty = 0,
+        point = 1,
+        internal = 2
+    };
+
     glm::vec3* m_point = nullptr;
+    node_state m_state = empty;
 
 public:
-    // Represent the boundary of the cube
     glm::vec3* m_top_left_front = nullptr;
     glm::vec3* m_bottom_right_back = nullptr;
     std::vector<octree*> m_children;
 
-    // Constructor
     octree() {
-        // To declare empty node
-        m_point = new glm::vec3(-1, -1, -1);
+        m_point = nullptr;
+        m_state = empty;
     }
 
-    // Constructor with three arguments
-    octree(float x, float y, float z) {
-        // To declare point node
-        m_point = new glm::vec3(x, y, z);
+    octree(const glm::vec3 pos) {
+        m_point = new glm::vec3(pos);
+        m_state = point;
     }
 
-    // Constructor with six arguments
-    octree(float x1, float y1, float z1, float x2, float y2, float z2) {
-        // This use to construct Octree
-        // with boundaries defined
-        if (x2 < x1
-            || y2 < y1
-            || z2 < z1) {
-            std::cout << "boundary points are not valid" << std::endl;
+    octree(const glm::vec3 tlf, const glm::vec3 brb) {
+        if (brb.x < tlf.x || brb.y < tlf.y || brb.z < tlf.z) {
+            std::cout << "Boundary points are not valid" << std::endl;
             return;
         }
 
         m_point = nullptr;
-        m_top_left_front = new glm::vec3(x1, y1, z1);
-        m_bottom_right_back = new glm::vec3(x2, y2, z2);
+        m_state = internal;
+        m_top_left_front = new glm::vec3(tlf);
+        m_bottom_right_back = new glm::vec3(brb);
 
-        // Assigning null to the children
         m_children.assign(8, nullptr);
-        for (int i = top_left_front;
-             i <= bottom_left_back;
-             ++i)
+        for (int i = top_left_front; i <= bottom_left_back; ++i)
             m_children[i] = new octree();
     }
 
-    // Function to insert a point in the octree
-    void insert(glm::vec3 pos) {
-        // If the point already exists in the octree
-        if (find(pos)) {
-            std::cout << "Point already exist in the tree" << std::endl;
+    void insert(const glm::vec3 point_to_insert) {
+        if (find(point_to_insert)) {
+            std::cout << "Point already exists in the tree" << " pos: " << glm::to_string(point_to_insert) << std::endl;
             return;
         }
 
-        // If the point is out of bounds
-        if (pos.x < m_top_left_front->x
-            || pos.x > m_bottom_right_back->x
-            || pos.y < m_top_left_front->y
-            || pos.y > m_bottom_right_back->y
-            || pos.z < m_top_left_front->z
-            || pos.z > m_bottom_right_back->z) {
-            std::cout << "Point is out of bound" << std::endl;
+        if (point_to_insert.x < m_top_left_front->x || point_to_insert.x > m_bottom_right_back->x || point_to_insert.y < m_top_left_front->y ||
+            point_to_insert.y > m_bottom_right_back->y || point_to_insert.z < m_top_left_front->z || point_to_insert.z > m_bottom_right_back->z) {
+            std::cout << "Point is out of bounds." << " pos: " << glm::to_string(point_to_insert) << " m_top_left_front: "
+                << glm::to_string(*m_top_left_front) << " m_bottom_right_back: " << glm::to_string(*m_bottom_right_back) << std::endl;
             return;
         }
 
-        // Binary search to insert the point
-        float midx = (m_top_left_front->x
-                + m_bottom_right_back->x)
-            / 2;
-        float midy = (m_top_left_front->y
-                + m_bottom_right_back->y)
-            / 2;
-        float midz = (m_top_left_front->z
-                + m_bottom_right_back->z)
-            / 2;
+        const glm::vec3 mid = (*m_top_left_front + *m_bottom_right_back) / 2.f;
 
-        int octant = -1;
+        const int octant = get_octant(point_to_insert, mid);
 
-        // Checking the octant of
-        // the point
-        if (pos.x <= midx) {
-            if (pos.y <= midy) {
-                if (pos.z <= midz)
-                    octant = top_left_front;
-                else
-                    octant = top_left_bottom;
-            }
-            else {
-                if (pos.z <= midz)
-                    octant = bottom_left_front;
-                else
-                    octant = bottom_left_back;
-            }
-        }
-        else {
-            if (pos.y <= midy) {
-                if (pos.z <= midz)
-                    octant = top_right_front;
-                else
-                    octant = top_right_bottom;
-            }
-            else {
-                if (pos.z <= midz)
-                    octant = bottom_right_front;
-                else
-                    octant = bottom_right_back;
-            }
-        }
-
-        // If an internal node is encountered
-        if (m_children[octant]->m_point == nullptr) {
-            m_children[octant]->insert(pos);
+        if (m_children[octant]->m_state == internal) {
+            m_children[octant]->insert(point_to_insert);
             return;
         }
-
-        // If an empty node is encountered
-        else if (m_children[octant]->m_point->x == -1) {
+        if (m_children[octant]->m_state == empty) {
             delete m_children[octant];
-            m_children[octant] = new octree(pos.x, pos.y, pos.z);
+            m_children[octant] = new octree(point_to_insert);
             return;
         }
-        else {
-            glm::vec3 pos_ = *m_children[octant]->m_point;
-            delete m_children[octant];
-            m_children[octant] = nullptr;
-            if (octant == top_left_front) {
-                m_children[octant] = new octree(m_top_left_front->x,
-                                                m_top_left_front->y,
-                                                m_top_left_front->z,
-                                                midx,
-                                                midy,
-                                                midz);
-            }
-
-            else if (octant == top_right_front) {
-                m_children[octant] = new octree(midx,
-                                                m_top_left_front->y,
-                                                m_top_left_front->z,
-                                                m_bottom_right_back->x,
-                                                midy,
-                                                midz);
-            }
-            else if (octant == bottom_right_front) {
-                m_children[octant] = new octree(midx,
-                                                midy,
-                                                m_top_left_front->z,
-                                                m_bottom_right_back->x,
-                                                m_bottom_right_back->y,
-                                                midz);
-            }
-            else if (octant == bottom_left_front) {
-                m_children[octant] = new octree(m_top_left_front->x,
-                                                midy,
-                                                m_top_left_front->z,
-                                                midx,
-                                                m_bottom_right_back->y,
-                                                midz);
-            }
-            else if (octant == top_left_bottom) {
-                m_children[octant] = new octree(m_top_left_front->x,
-                                                m_top_left_front->y,
-                                                midz,
-                                                midx,
-                                                midy,
-                                                m_bottom_right_back->z);
-            }
-            else if (octant == top_right_bottom) {
-                m_children[octant] = new octree(midx,
-                                                m_top_left_front->y,
-                                                midz,
-                                                m_bottom_right_back->x,
-                                                midy,
-                                                m_bottom_right_back->z);
-            }
-            else if (octant == bottom_right_back) {
-                m_children[octant] = new octree(midx,
-                                                midy,
-                                                midz,
-                                                m_bottom_right_back->x,
-                                                m_bottom_right_back->y,
-                                                m_bottom_right_back->z);
-            }
-            else if (octant == bottom_left_back) {
-                m_children[octant] = new octree(m_top_left_front->x,
-                                                midy,
-                                                midz,
-                                                midx,
-                                                m_bottom_right_back->y,
-                                                m_bottom_right_back->z);
-            }
-            m_children[octant]->insert(pos_);
-            m_children[octant]->insert(pos);
-            m_children[octant]->m_point = nullptr;
+        const glm::vec3 already_stored_point = *m_children[octant]->m_point;
+        delete m_children[octant];
+        m_children[octant] = nullptr;
+        if (octant == top_left_front) {
+            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, m_top_left_front->y, m_top_left_front->z), glm::vec3(mid.x, mid.y, mid.z));
+        } else if (octant == top_right_front) {
+            m_children[octant] = new octree(glm::vec3(mid.x, m_top_left_front->y, m_top_left_front->z), glm::vec3(m_bottom_right_back->x, mid.y, mid.z));
+        } else if (octant == bottom_right_front) {
+            m_children[octant] = new octree(glm::vec3(mid.x, mid.y, m_top_left_front->z), glm::vec3(m_bottom_right_back->x, m_bottom_right_back->y, mid.z));
+        } else if (octant == bottom_left_front) {
+            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, mid.y, m_top_left_front->z), glm::vec3(mid.x, m_bottom_right_back->y, mid.z));
+        } else if (octant == top_left_bottom) {
+            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, m_top_left_front->y, mid.z), glm::vec3(mid.x, mid.y, m_bottom_right_back->z));
+        } else if (octant == top_right_bottom) {
+            m_children[octant] = new octree(glm::vec3(mid.x, m_top_left_front->y, mid.z), glm::vec3(m_bottom_right_back->x, mid.y, m_bottom_right_back->z));
+        } else if (octant == bottom_right_back) {
+            m_children[octant] = new octree(glm::vec3(mid.x, mid.y, mid.z), glm::vec3(m_bottom_right_back->x, m_bottom_right_back->y, m_bottom_right_back->z));
+        } else if (octant == bottom_left_back) {
+            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, mid.y, mid.z), glm::vec3(mid.x, m_bottom_right_back->y, m_bottom_right_back->z));
         }
+        m_children[octant]->insert(already_stored_point);
+        m_children[octant]->insert(point_to_insert);
+        m_children[octant]->m_point = nullptr;
+        m_children[octant]->m_state = internal;
     }
 
-    // Function that returns true if the point
-    // (x, y, z) exists in the octree
-    bool find(glm::vec3 pos) {
-        // If point is out of bound
-        if (pos.x < m_top_left_front->x
-            || pos.x > m_bottom_right_back->x
-            || pos.y < m_top_left_front->y
-            || pos.y > m_bottom_right_back->y
-            || pos.z < m_top_left_front->z
-            || pos.z > m_bottom_right_back->z)
-            return 0;
+    bool find(const glm::vec3 pos) const {
+        if (pos.x < m_top_left_front->x || pos.x > m_bottom_right_back->x || pos.y < m_top_left_front->y ||
+            pos.y > m_bottom_right_back->y || pos.z < m_top_left_front->z || pos.z > m_bottom_right_back->z) {
+            return false;
+        }
 
-        // Otherwise perform binary search
-        // for each ordinate
-        float midx = (m_top_left_front->x
-                + m_bottom_right_back->x)
-            / 2;
-        float midy = (m_top_left_front->y
-                + m_bottom_right_back->y)
-            / 2;
-        float midz = (m_top_left_front->z
-                + m_bottom_right_back->z)
-            / 2;
+        const glm::vec3 mid = (*m_top_left_front + *m_bottom_right_back) / 2.f;
 
-        int octant = -1;
+        const int octant = get_octant(pos, mid);
 
-        // Deciding the position
-        // where to move
-        if (pos.x <= midx) {
-            if (pos.y <= midy) {
-                if (pos.z <= midz)
+        if (m_children[octant]->m_state == internal) {
+            return m_children[octant]->find(pos);
+        }
+        if (m_children[octant]->m_state == empty) {
+            return false;
+        }
+        return pos == *m_children[octant]->m_point;
+    }
+
+    static int get_octant(const glm::vec3 point, const glm::vec3 mid) {
+        int octant;
+        if (point.x <= mid.x) {
+            if (point.y <= mid.y) {
+                if (point.z <= mid.z)
                     octant = top_left_front;
                 else
                     octant = top_left_bottom;
-            }
-            else {
-                if (pos.z <= midz)
+            } else {
+                if (point.z <= mid.z)
                     octant = bottom_left_front;
                 else
                     octant = bottom_left_back;
             }
-        }
-        else {
-            if (pos.y <= midy) {
-                if (pos.z <= midz)
+        } else {
+            if (point.y <= mid.y) {
+                if (point.z <= mid.z)
                     octant = top_right_front;
                 else
                     octant = top_right_bottom;
-            }
-            else {
-                if (pos.z <= midz)
+            } else {
+                if (point.z <= mid.z)
                     octant = bottom_right_front;
                 else
                     octant = bottom_right_back;
             }
         }
-
-        // If an internal node is encountered
-        if (m_children[octant]->m_point == nullptr) {
-            return m_children[octant]->find(pos);
-        }
-
-        // If an empty node is encountered
-        else if (m_children[octant]->m_point->x == -1) {
-            return 0;
-        }
-        else {
-            // If node is found with
-            // the given value
-            if (pos.x == m_children[octant]->m_point->x
-                && pos.y == m_children[octant]->m_point->y
-                && pos.z == m_children[octant]->m_point->z)
-                return 1;
-        }
-        return 0;
+        return octant;
     }
 };
