@@ -11,16 +11,16 @@
 
 application::application(void) {
     m_start_eye = glm::vec3(0, 0, 0);
-    m_start_at = glm::vec3(1, 0, 0);
+    m_start_at = glm::vec3(0, 1, 0);
     m_start_up = glm::vec3(0, 0, 1);
     m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
     strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
-    m_point_size = 4.f;
+    m_point_size = 2.f;
     m_show_debug_sphere = false;
     m_show_octree = false;
     m_auto_increment_rendered_point_index = false;
-    m_render_points_up_to_index = 192;
+    m_render_points_up_to_index = m_vertices.size() - 1;
     m_ignore_center_radius = 1.3f;
     m_mesh_rendering_mode = solid;
 }
@@ -193,9 +193,11 @@ void application::render_imgui() {
         if (ImGui::Button("load garazs_kijarat")) {
             load_inputs_from_folder("inputs/garazs_kijarat");
         }
+        ImGui::SameLine();
         if (ImGui::Button("load elte_logo")) {
             load_inputs_from_folder("inputs/elte_logo");
         }
+        ImGui::SameLine();
         if (ImGui::Button("load parkolo_gomb")) {
             load_inputs_from_folder("inputs/parkolo_gomb");
         }
@@ -208,11 +210,12 @@ void application::render_imgui() {
         ImGui::Checkbox("show octree", &m_show_octree);
         ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
         ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size());
-        if (ImGui::Button("+1")) {
-            ++m_render_points_up_to_index;
-        }
         if (ImGui::Button("-1")) {
             --m_render_points_up_to_index;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("+1")) {
+            ++m_render_points_up_to_index;
         }
         ImGui::Text("mesh rendering mode");
         ImGui::SliderInt(m_mesh_rendering_mode == none ? "none" : m_mesh_rendering_mode == wireframe ? "wireframe" : "solid", &m_mesh_rendering_mode, none, solid);
@@ -224,6 +227,7 @@ void application::render_imgui() {
             at = m_start_at;
             up = m_start_up;
         }
+        ImGui::SameLine();
         if (ImGui::Button("set camera far")) {
             eye = glm::vec3(100, 100, 100);
             at = glm::vec3(0, 0, 0);
@@ -390,7 +394,6 @@ glm::vec3 application::get_random_color() const {
 
     return rgb;
 }
-
 
 void application::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
