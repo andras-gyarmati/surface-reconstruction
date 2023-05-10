@@ -91,7 +91,7 @@ protected:
     ArrayBuffer m_box_pos_gpu_buffer;
 
     std::vector<int> m_mesh_indices;
-    ProgramObject m_mesh_program;
+    // ProgramObject m_mesh_program;
     VertexArrayObject m_mesh_vao;
     IndexBuffer m_mesh_indices_gpu_buffer;
     ArrayBuffer m_mesh_pos_gpu_buffer;
