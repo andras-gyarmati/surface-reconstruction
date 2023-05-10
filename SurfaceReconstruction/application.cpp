@@ -18,7 +18,7 @@ application::application(void) {
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
     m_point_size = 2.f;
     m_show_debug_sphere = false;
-    m_show_octree = false;
+    m_show_octree = true;
     m_auto_increment_rendered_point_index = false;
     m_render_points_up_to_index = m_vertices.size() - 1;
     m_ignore_center_radius = 1.3f;
@@ -63,7 +63,9 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     init_octree();
 
     for (int i = 0; i < m_vertices.size(); ++i) {
-        m_octree.insert(m_vertices[i].position);
+        if (m_vertices[i].position != glm::vec3(0, 0, 0)) {
+            m_octree.insert(m_vertices[i].position);
+        }
     }
 
     init_octree_visualization(&m_octree);
@@ -340,38 +342,26 @@ void application::randomize_colors() {
 }
 
 glm::vec3 application::hsl_to_rgb(const float h, const float s, const float l) const {
-    float c = (1.0f - fabs(2.0f * l - 1.0f)) * s;
-    float x = c * (1.0f - fabs(fmod(h / 60.0f, 2.0f) - 1.0f));
-    float m = l - c / 2.0f;
+    const float c = (1.0f - fabs(2.0f * l - 1.0f)) * s;
+    const float x = c * (1.0f - fabs(fmod(h / 60.0f, 2.0f) - 1.0f));
+    const float m = l - c / 2.0f;
 
-    float r, g, b;
+    glm::vec3 color;
     if (h < 60.0f) {
-        r = c;
-        g = x;
-        b = 0;
+        color = glm::vec3(c, x, 0);
     } else if (h < 120.0f) {
-        r = x;
-        g = c;
-        b = 0;
+        color = glm::vec3(x, c, 0);
     } else if (h < 180.0f) {
-        r = 0;
-        g = c;
-        b = x;
+        color = glm::vec3(0, c, x);
     } else if (h < 240.0f) {
-        r = 0;
-        g = x;
-        b = c;
+        color = glm::vec3(0, x, c);
     } else if (h < 300.0f) {
-        r = x;
-        g = 0;
-        b = c;
+        color = glm::vec3(x, 0, c);
     } else {
-        r = c;
-        g = 0;
-        b = x;
+        color = glm::vec3(c, 0, x);
     }
 
-    return glm::vec3(r + m, g + m, b + m);
+    return color + m;
 }
 
 glm::vec3 application::get_random_color() const {
@@ -385,14 +375,12 @@ glm::vec3 application::get_random_color() const {
     std::uniform_real_distribution<float> lightness_distribution(0.0f, 1.0f); // Lightness range: 0.0 to 1.0
 
     // Generate random HSL values
-    float h = hue_distribution(gen);
-    float s = saturation_distribution(gen);
-    float l = lightness_distribution(gen);
+    const float h = hue_distribution(gen);
+    const float s = 0.5f; // saturation_distribution(gen);
+    const float l = 0.5f; // lightness_distribution(gen);
 
     // Convert HSL to RGB
-    glm::vec3 rgb = hsl_to_rgb(h, s, l);
-
-    return rgb;
+    return hsl_to_rgb(h, s, l);
 }
 
 void application::render() {
@@ -409,9 +397,7 @@ void application::render() {
     if (m_show_octree)
         render_octree_boxes();
 
-    if (m_mesh_rendering_mode == none) {
-        //
-    } else {
+    if (m_mesh_rendering_mode != none) {
         if (m_mesh_rendering_mode == solid) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         } else if (m_mesh_rendering_mode == wireframe) {
