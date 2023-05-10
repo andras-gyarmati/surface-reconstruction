@@ -90,7 +90,6 @@ protected:
     IndexBuffer m_box_indices_gpu_buffer;
     ArrayBuffer m_box_pos_gpu_buffer;
 
-    std::vector<file_loader::vertex> m_mesh_vertices;
     std::vector<int> m_mesh_indices;
     ProgramObject m_mesh_program;
     VertexArrayObject m_mesh_vao;

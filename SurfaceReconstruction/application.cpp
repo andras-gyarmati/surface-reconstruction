@@ -158,8 +158,8 @@ void application::update() {
 }
 
 void application::draw_points(VertexArrayObject& vao, const size_t size) {
-    glEnable(GL_PROGRAM_POINT_SIZE);
     vao.Bind();
+    glEnable(GL_PROGRAM_POINT_SIZE);
     m_particle_program.Use();
     m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     m_particle_program.SetUniform("world", glm::mat4(1));
@@ -181,6 +181,7 @@ void application::draw_points(VertexArrayObject& vao, const size_t size) {
 
     glDrawArrays(GL_POINTS, 0, size);
     glDisable(GL_PROGRAM_POINT_SIZE);
+    vao.Unbind();
 }
 
 void application::render_imgui() {
@@ -242,11 +243,12 @@ void application::render_imgui() {
 }
 
 void application::render_octree_boxes() {
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     m_box_vao.Bind();
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     m_box_wireframe_program.Use();
     m_box_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     glDrawElements(GL_LINES, m_box_indices.size(), GL_UNSIGNED_INT, nullptr);
+    m_box_vao.Unbind();
 }
 
 void application::init_octree_visualization(const octree* root) {
@@ -279,29 +281,28 @@ void application::init_octree_visualization(const octree* root) {
 }
 
 void application::init_mesh_visualization() {
-    m_mesh_vertices = m_vertices; //
     m_mesh_indices.clear();
     // we use a [/] quad right now but if the top right vertex is missing we lose two triangles
     // so we need to check if a vertex is missing we might can use a [\] quad there and have more triangles
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
         if (!((i % (16 * 12)) > (14 * 12 - 1) || ((i % 12) == 11))) {
-            if (glm::distance(m_mesh_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_mesh_vertices[i + 1].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_mesh_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
+            if (glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                glm::distance(m_vertices[i + 1].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                glm::distance(m_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 1);
                 m_mesh_indices.push_back(i + 25);
             }
-            if (glm::distance(m_mesh_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_mesh_vertices[i + 24].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_mesh_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
+            if (glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                glm::distance(m_vertices[i + 24].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                glm::distance(m_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 25);
                 m_mesh_indices.push_back(i + 24);
             }
         }
     }
-    m_mesh_pos_gpu_buffer.BufferData(m_mesh_vertices);
+    m_mesh_pos_gpu_buffer.BufferData(m_vertices);
     m_mesh_indices_gpu_buffer.BufferData(m_mesh_indices);
     m_mesh_vao.Init(
         {
@@ -333,6 +334,7 @@ void application::render_mesh() {
     m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
 
     glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
+    m_mesh_vao.Unbind();
 }
 
 void application::randomize_colors() {
