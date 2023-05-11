@@ -153,6 +153,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="delaunay.h" />
     <ClInclude Include="parametric_surface.cpp" />
     <ClInclude Include="parametric_surface.h" />
     <ClInclude Include="window_utils.h" />

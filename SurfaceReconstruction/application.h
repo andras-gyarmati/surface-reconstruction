@@ -19,7 +19,6 @@ enum mesh_rendering_mode {
 class application {
 public:
     application(void);
-    void init_octree();
     ~application(void) = default;
 
     bool init(SDL_Window* window);
@@ -41,6 +40,7 @@ public:
     void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back);
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
+    void init_octree(const std::vector<file_loader::vertex>& vertices);
     void init_octree_visualization(const octree* root);
     void render_octree_boxes();
     void init_mesh_visualization();

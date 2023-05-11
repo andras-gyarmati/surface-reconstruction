@@ -25,12 +25,20 @@ application::application(void) {
     m_mesh_rendering_mode = solid;
 }
 
-void application::init_octree() {
-    m_octree = octree(glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100));
+void application::init_octree(const std::vector<file_loader::vertex>& vertices) {
+    const auto [tlf, brb] = octree::calc_boundary(vertices);
+
+    m_octree = octree(tlf, brb);
     m_points_to_add_index = -1;
     m_points_added_index = -1;
     m_box_indices = {};
     m_box_pos = {};
+
+    for (int i = 0; i < vertices.size(); ++i) {
+        if (vertices[i].position != glm::vec3(0, 0, 0)) {
+            m_octree.insert(vertices[i].position);
+        }
+    }
 }
 
 void application::load_inputs_from_folder(const std::string& folder_name) {
@@ -60,13 +68,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     randomize_colors();
 
-    init_octree();
-
-    for (int i = 0; i < m_vertices.size(); ++i) {
-        if (m_vertices[i].position != glm::vec3(0, 0, 0)) {
-            m_octree.insert(m_vertices[i].position);
-        }
-    }
+    init_octree(m_vertices);
 
     init_octree_visualization(&m_octree);
     init_mesh_visualization();

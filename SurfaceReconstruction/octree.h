@@ -156,4 +156,35 @@ public:
         }
         return octant;
     }
+
+    struct boundary {
+        glm::vec3 m_top_left_front;
+        glm::vec3 m_bottom_right_back;
+    };
+
+    static boundary calc_boundary(const std::vector<file_loader::vertex>& vertices) {
+        glm::vec3 top_left_front = glm::vec3(std::numeric_limits<float>::max());
+        glm::vec3 bottom_right_back = glm::vec3(std::numeric_limits<float>::min());
+        for (const auto& [position, color] : vertices) {
+            if (position.x < top_left_front.x) {
+                top_left_front.x = position.x;
+            }
+            if (position.y < top_left_front.y) {
+                top_left_front.y = position.y;
+            }
+            if (position.z < top_left_front.z) {
+                top_left_front.z = position.z;
+            }
+            if (position.x > bottom_right_back.x) {
+                bottom_right_back.x = position.x;
+            }
+            if (position.y > bottom_right_back.y) {
+                bottom_right_back.y = position.y;
+            }
+            if (position.z > bottom_right_back.z) {
+                bottom_right_back.z = position.z;
+            }
+        }
+        return boundary{top_left_front, bottom_right_back};
+    }
 };
