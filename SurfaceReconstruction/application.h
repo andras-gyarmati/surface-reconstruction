@@ -37,19 +37,22 @@ public:
     void resize(int, int);
     void load_inputs_from_folder(const std::string& folder_name);
     void init_debug_sphere();
-    void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back);
+    void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back, std::vector<file_loader::vertex>& _vertices, std::vector<int>& _indices, glm::vec3 _color);
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
     void init_octree(const std::vector<file_loader::vertex>& vertices);
     void init_octree_visualization(const octree* root);
     void render_octree_boxes();
     bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
+    bool is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const;
     void init_mesh_visualization();
     void set_particle_program_uniforms();
     void render_mesh();
     void randomize_colors();
     glm::vec3 hsl_to_rgb(float h, float s, float l) const;
     glm::vec3 get_random_color() const;
+    void init_sensor_rig_boundary_visualization();
+    void render_sensor_rig_boundary();
 
     glm::vec3 get_sphere_pos(const float u, const float v) {
         const float th = u * 2.0f * static_cast<float>(M_PI);
@@ -91,8 +94,16 @@ protected:
     ProgramObject m_wireframe_program;
     VertexArrayObject m_wireframe_vao;
     IndexBuffer m_wireframe_indices_gpu_buffer;
-    ArrayBuffer m_wireframe_pos_gpu_buffer;
+    ArrayBuffer m_wireframe_vertices_gpu_buffer;
     glm::vec3 m_octree_color;
+
+    bool m_show_sensor_rig_boundary;
+    octree::boundary m_sensor_rig_boundary;
+    std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
+    std::vector<int> m_sensor_rig_boundary_indices;
+    VertexArrayObject m_sensor_rig_boundary_vao;
+    IndexBuffer m_sensor_rig_boundary_indices_gpu_buffer;
+    ArrayBuffer m_sensor_rig_boundary_vertices_gpu_buffer;
 
     std::vector<int> m_mesh_indices;
     VertexArrayObject m_mesh_vao;
@@ -103,13 +114,10 @@ protected:
     float m_point_size;
     SDL_Window* m_window{};
     char m_input_folder[256]{};
-    float m_ignore_center_radius;
     float m_mesh_vertex_cut_distance;
     int m_mesh_rendering_mode;
     glm::vec3 m_start_eye;
     glm::vec3 m_start_at;
     glm::vec3 m_start_up;
-    bool m_is_non_shaded_discarded;
-
-    octree::boundary m_sensor_rig_boundary;
+    bool m_show_non_shaded;
 };

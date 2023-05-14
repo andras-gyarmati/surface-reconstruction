@@ -14,18 +14,19 @@ application::application(void) {
     m_start_at = glm::vec3(0, 1, 0);
     m_start_up = glm::vec3(0, 0, 1);
     m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
-    strncpy_s(m_input_folder, "inputs/elte_logo", sizeof(m_input_folder));
+    strncpy_s(m_input_folder, "inputs/parkolo_gomb", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
     m_point_size = 2.f;
     m_show_debug_sphere = false;
     m_show_points = false;
     m_show_octree = false;
+    m_show_sensor_rig_boundary = false;
+    m_show_non_shaded = false;
     m_octree_color = glm::vec3(0, 255, 0);
     m_auto_increment_rendered_point_index = false;
     m_render_points_up_to_index = m_vertices.size() - 1;
-    m_ignore_center_radius = 1.3f;
+    m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
     m_mesh_vertex_cut_distance = 5.0f;
-    m_is_non_shaded_discarded = true;
     m_mesh_rendering_mode = solid;
 }
 
@@ -87,7 +88,8 @@ void application::init_debug_sphere() {
     m_gpu_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_debug_sphere_buffer}});
 }
 
-void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back) {
+void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back, std::vector<file_loader::vertex>& _vertices, std::vector<int>& _indices,
+                           glm::vec3 _color) {
     glm::vec3 bottom_left_front(top_left_front.x, bottom_right_back.y, top_left_front.z);
     glm::vec3 top_right_back(bottom_right_back.x, top_left_front.y, bottom_right_back.z);
     glm::vec3 bottom_left_back(top_left_front.x, bottom_right_back.y, bottom_right_back.z);
@@ -97,17 +99,17 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
 
     auto pos = std::vector<file_loader::vertex>{
         // back face
-        {bottom_left_back, m_octree_color},
-        {bottom_right_back, m_octree_color},
-        {top_right_back, m_octree_color},
-        {top_left_back, m_octree_color},
+        {bottom_left_back, _color},
+        {bottom_right_back, _color},
+        {top_right_back, _color},
+        {top_left_back, _color},
         // front face
-        {bottom_left_front, m_octree_color},
-        {bottom_right_front, m_octree_color},
-        {top_right_front, m_octree_color},
-        {top_left_front, m_octree_color},
+        {bottom_left_front, _color},
+        {bottom_right_front, _color},
+        {top_right_front, _color},
+        {top_left_front, _color},
     };
-    m_wireframe_vertices.insert(m_wireframe_vertices.end(), pos.begin(), pos.end());
+    _vertices.insert(_vertices.end(), pos.begin(), pos.end());
 
     auto indices = std::vector<int>{
         // back face
@@ -118,9 +120,9 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
         0, 4, 1, 5, 2, 6, 3, 7,
     };
     for (auto& index : indices) {
-        index += m_wireframe_indices.size();
+        index += _indices.size();
     }
-    m_wireframe_indices.insert(m_wireframe_indices.end(), indices.begin(), indices.end());
+    _indices.insert(_indices.end(), indices.begin(), indices.end());
 }
 
 bool application::init(SDL_Window* window) {
@@ -135,8 +137,10 @@ bool application::init(SDL_Window* window) {
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
     m_wireframe_program.Init({{GL_VERTEX_SHADER, "wireframe.vert"}, {GL_FRAGMENT_SHADER, "wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
-    load_inputs_from_folder("inputs/garazs_kijarat");
+    load_inputs_from_folder("inputs/parkolo_gomb");
     init_debug_sphere();
+
+    init_sensor_rig_boundary_visualization();
 
     return true;
 }
@@ -198,7 +202,8 @@ void application::render_imgui() {
         ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
         ImGui::Checkbox("show points", &m_show_points);
         ImGui::Checkbox("show octree", &m_show_octree);
-        ImGui::Checkbox("discarded non shaded", &m_is_non_shaded_discarded);
+        ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
+        ImGui::Checkbox("show non shaded", &m_show_non_shaded);
         ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
         ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size());
         if (ImGui::Button("-1")) {
@@ -222,7 +227,8 @@ void application::render_imgui() {
         }
         ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
         ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 20.0f);
-        ImGui::SliderFloat("ignore center radius", &m_ignore_center_radius, 0.1f, 4.0f);
+        ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
+        ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
         ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
         if (ImGui::Button("reset camera")) {
             eye = m_start_eye;
@@ -260,12 +266,18 @@ bool application::is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const {
         glm::distance(m_vertices[i2].position, m_vertices[i0].position) < m_mesh_vertex_cut_distance;
 }
 
+bool application::is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const {
+    return !(m_sensor_rig_boundary.is_inside(m_vertices[i0].position) ||
+        m_sensor_rig_boundary.is_inside(m_vertices[i1].position) ||
+        m_sensor_rig_boundary.is_inside(m_vertices[i2].position));
+}
+
 void application::init_octree_visualization(const octree* root) {
     if (!root)
         return;
 
-    m_wireframe_indices = {};
     m_wireframe_vertices = {};
+    m_wireframe_indices = {};
 
     std::stack<const octree*> octree_stack;
     octree_stack.push(root);
@@ -283,16 +295,16 @@ void application::init_octree_visualization(const octree* root) {
         }
 
         if (node->m_top_left_front != nullptr) {
-            init_box(*node->m_top_left_front, *node->m_bottom_right_back);
+            init_box(*node->m_top_left_front, *node->m_bottom_right_back, m_wireframe_vertices, m_wireframe_indices, m_octree_color);
         }
     }
 
-    m_wireframe_pos_gpu_buffer.BufferData(m_wireframe_vertices);
+    m_wireframe_vertices_gpu_buffer.BufferData(m_wireframe_vertices);
     m_wireframe_indices_gpu_buffer.BufferData(m_wireframe_indices);
     m_wireframe_vao.Init(
         {
-            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_wireframe_pos_gpu_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_wireframe_pos_gpu_buffer}
+            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_wireframe_vertices_gpu_buffer},
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_wireframe_vertices_gpu_buffer}
         },
         m_wireframe_indices_gpu_buffer);
 }
@@ -303,18 +315,12 @@ void application::init_mesh_visualization() {
     // so we need to check if a vertex is missing we might can use a [\] quad there and have more triangles
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
         if (!((i % (16 * 12)) > (14 * 12 - 1) || ((i % 12) == 11))) {
-            if (glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_vertices[i + 1].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                is_mesh_vertex_cut_distance_ok(i, i + 1, i + 25)) {
+            if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 25) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 25)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 1);
                 m_mesh_indices.push_back(i + 25);
             }
-            if (glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_vertices[i + 24].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                is_mesh_vertex_cut_distance_ok(i, i + 24, i + 25)) {
+            if (is_outside_of_sensor_rig_boundary(i, i + 24, i + 25) && is_mesh_vertex_cut_distance_ok(i, i + 24, i + 25)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 25);
                 m_mesh_indices.push_back(i + 24);
@@ -345,7 +351,7 @@ void application::set_particle_program_uniforms() {
     m_particle_program.SetTexture("tex_image[0]", 0, m_digital_camera_textures[0]);
     m_particle_program.SetTexture("tex_image[1]", 1, m_digital_camera_textures[1]);
     m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
-    m_particle_program.SetUniform("is_non_shaded_discarded", (int)m_is_non_shaded_discarded);
+    m_particle_program.SetUniform("show_non_shaded", (int)m_show_non_shaded);
 }
 
 void application::render_mesh() {
@@ -403,6 +409,35 @@ glm::vec3 application::get_random_color() const {
     return hsl_to_rgb(h, s, l);
 }
 
+void application::init_sensor_rig_boundary_visualization() {
+    m_sensor_rig_boundary_vertices = {};
+    m_sensor_rig_boundary_indices = {};
+
+    init_box(m_sensor_rig_boundary.m_top_left_front,
+             m_sensor_rig_boundary.m_bottom_right_back,
+             m_sensor_rig_boundary_vertices,
+             m_sensor_rig_boundary_indices,
+             glm::vec3(255, 0, 0));
+
+    m_sensor_rig_boundary_vertices_gpu_buffer.BufferData(m_sensor_rig_boundary_vertices);
+    m_sensor_rig_boundary_indices_gpu_buffer.BufferData(m_sensor_rig_boundary_indices);
+    m_sensor_rig_boundary_vao.Init(
+        {
+            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_sensor_rig_boundary_vertices_gpu_buffer},
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_sensor_rig_boundary_vertices_gpu_buffer}
+        },
+        m_sensor_rig_boundary_indices_gpu_buffer);
+}
+
+void application::render_sensor_rig_boundary() {
+    m_sensor_rig_boundary_vao.Bind();
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    m_wireframe_program.Use();
+    m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    glDrawElements(GL_LINES, m_sensor_rig_boundary_indices.size(), GL_UNSIGNED_INT, nullptr);
+    m_sensor_rig_boundary_vao.Unbind();
+}
+
 void application::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -417,6 +452,11 @@ void application::render() {
 
     if (m_show_octree)
         render_octree_boxes();
+
+    if (m_show_sensor_rig_boundary) {
+        init_sensor_rig_boundary_visualization();
+        render_sensor_rig_boundary();
+    }
 
     if (m_mesh_rendering_mode != none) {
         if (m_mesh_rendering_mode == solid) {

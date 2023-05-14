@@ -160,6 +160,11 @@ public:
     struct boundary {
         glm::vec3 m_top_left_front;
         glm::vec3 m_bottom_right_back;
+
+        bool is_inside(const glm::vec3& point) const {
+            return point.x >= m_top_left_front.x && point.x <= m_bottom_right_back.x && point.y >= m_top_left_front.y &&
+                   point.y <= m_bottom_right_back.y && point.z >= m_top_left_front.z && point.z <= m_bottom_right_back.z;
+        }
     };
 
     static boundary calc_boundary(const std::vector<file_loader::vertex>& vertices) {

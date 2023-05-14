@@ -8,7 +8,7 @@ out vec4 fs_out_col;
 
 uniform vec4 color = vec4(1);
 uniform sampler2D tex_image[3];
-uniform int is_non_shaded_discarded;
+uniform int show_non_shaded;
 
 void main()
 {
@@ -18,9 +18,9 @@ void main()
         fs_out_col = texture(tex_image[0], vs_out_tex[0]);
     } else if (!any(equal(vs_out_tex[2], vec2(-1, -1)))) {
         fs_out_col = texture(tex_image[2], vs_out_tex[2]);
-    } else if (is_non_shaded_discarded == 1) {
-        discard;
-    } else {
+    } else if (show_non_shaded == 1) {
         fs_out_col = vec4(vs_out_col, 1);
+    } else {
+        discard;
     }
 }
