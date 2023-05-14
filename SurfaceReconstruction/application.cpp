@@ -20,6 +20,7 @@ application::application(void) {
     m_show_debug_sphere = false;
     m_show_points = false;
     m_show_octree = false;
+    m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
     m_show_non_shaded = false;
     m_octree_color = glm::vec3(0, 255, 0);
@@ -130,7 +131,6 @@ bool application::init(SDL_Window* window) {
     m_virtual_camera.SetProj(glm::radians(60.0f), 1280.0f / 720.0f, 0.01f, 1000.0f);
 
     glClearColor(0.1f, 0.1f, 0.41f, 1);
-    glDisable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
@@ -150,6 +150,12 @@ void application::clean() {}
 void application::reset() {}
 
 void application::update() {
+    if (m_show_back_faces) {
+        glDisable(GL_CULL_FACE);
+    } else {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+    }
     static Uint32 last_time = SDL_GetTicks();
     const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
@@ -213,6 +219,7 @@ void application::render_imgui() {
         if (ImGui::Button("+1")) {
             ++m_render_points_up_to_index;
         }
+        ImGui::Checkbox("show back faces", &m_show_back_faces);
         ImGui::Text("mesh rendering mode");
         if (ImGui::Button("none")) {
             m_mesh_rendering_mode = none;
@@ -253,7 +260,7 @@ void application::render_imgui() {
 
 void application::render_octree_boxes() {
     m_wireframe_vao.Bind();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT, GL_LINE);
     m_wireframe_program.Use();
     m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     glDrawElements(GL_LINES, m_wireframe_indices.size(), GL_UNSIGNED_INT, nullptr);
@@ -431,7 +438,7 @@ void application::init_sensor_rig_boundary_visualization() {
 
 void application::render_sensor_rig_boundary() {
     m_sensor_rig_boundary_vao.Bind();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT, GL_LINE);
     m_wireframe_program.Use();
     m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     glDrawElements(GL_LINES, m_sensor_rig_boundary_indices.size(), GL_UNSIGNED_INT, nullptr);
@@ -460,9 +467,9 @@ void application::render() {
 
     if (m_mesh_rendering_mode != none) {
         if (m_mesh_rendering_mode == solid) {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glPolygonMode(GL_FRONT, GL_FILL);
         } else if (m_mesh_rendering_mode == wireframe) {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glPolygonMode(GL_FRONT, GL_LINE);
         }
         init_mesh_visualization();
         render_mesh();

@@ -105,6 +105,7 @@ protected:
     IndexBuffer m_sensor_rig_boundary_indices_gpu_buffer;
     ArrayBuffer m_sensor_rig_boundary_vertices_gpu_buffer;
 
+    bool m_show_back_faces;
     std::vector<int> m_mesh_indices;
     VertexArrayObject m_mesh_vao;
     IndexBuffer m_mesh_indices_gpu_buffer;
