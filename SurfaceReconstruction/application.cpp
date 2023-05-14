@@ -18,10 +18,13 @@ application::application(void) {
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
     m_point_size = 2.f;
     m_show_debug_sphere = false;
-    m_show_octree = true;
+    m_show_points = false;
+    m_show_octree = false;
     m_auto_increment_rendered_point_index = false;
     m_render_points_up_to_index = m_vertices.size() - 1;
     m_ignore_center_radius = 1.3f;
+    m_mesh_vertex_cut_distance = 5.0f;
+    m_is_non_shaded_discarded = true;
     m_mesh_rendering_mode = solid;
 }
 
@@ -132,7 +135,6 @@ bool application::init(SDL_Window* window) {
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
     m_box_wireframe_program.Init({{GL_VERTEX_SHADER, "box_wireframe.vert"}, {GL_FRAGMENT_SHADER, "box_wireframe.frag"}}, {{0, "vs_in_pos"}});
-    // m_mesh_program.Init({{GL_VERTEX_SHADER, "mesh.vert"}, {GL_FRAGMENT_SHADER, "mesh.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
 
     load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
@@ -161,26 +163,9 @@ void application::update() {
 
 void application::draw_points(VertexArrayObject& vao, const size_t size) {
     vao.Bind();
+    set_particle_program_uniforms();
     glEnable(GL_PROGRAM_POINT_SIZE);
-    m_particle_program.Use();
-    m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    m_particle_program.SetUniform("world", glm::mat4(1));
     m_particle_program.SetUniform("point_size", m_point_size);
-
-    m_particle_program.SetUniform("cam_k", m_digital_camera_params.get_cam_k());
-
-    m_particle_program.SetUniform("cam_r[0]", m_digital_camera_params.devices[0].r);
-    m_particle_program.SetUniform("cam_r[1]", m_digital_camera_params.devices[1].r);
-    m_particle_program.SetUniform("cam_r[2]", m_digital_camera_params.devices[2].r);
-
-    m_particle_program.SetUniform("cam_t[0]", m_digital_camera_params.devices[0].t);
-    m_particle_program.SetUniform("cam_t[1]", m_digital_camera_params.devices[1].t);
-    m_particle_program.SetUniform("cam_t[2]", m_digital_camera_params.devices[2].t);
-
-    m_particle_program.SetTexture("tex_image[0]", 0, m_digital_camera_textures[0]);
-    m_particle_program.SetTexture("tex_image[1]", 1, m_digital_camera_textures[1]);
-    m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
-
     glDrawArrays(GL_POINTS, 0, size);
     glDisable(GL_PROGRAM_POINT_SIZE);
     vao.Unbind();
@@ -212,7 +197,9 @@ void application::render_imgui() {
         }
         ImGui::Text("properties");
         ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
+        ImGui::Checkbox("show points", &m_show_points);
         ImGui::Checkbox("show octree", &m_show_octree);
+        ImGui::Checkbox("discarded non shaded", &m_is_non_shaded_discarded);
         ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
         ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size());
         if (ImGui::Button("-1")) {
@@ -223,10 +210,21 @@ void application::render_imgui() {
             ++m_render_points_up_to_index;
         }
         ImGui::Text("mesh rendering mode");
-        ImGui::SliderInt(m_mesh_rendering_mode == none ? "none" : m_mesh_rendering_mode == wireframe ? "wireframe" : "solid", &m_mesh_rendering_mode, none, solid);
+        if (ImGui::Button("none")) {
+            m_mesh_rendering_mode = none;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("wireframe")) {
+            m_mesh_rendering_mode = wireframe;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("solid")) {
+            m_mesh_rendering_mode = solid;
+        }
         ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
         ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 20.0f);
         ImGui::SliderFloat("ignore center radius", &m_ignore_center_radius, 0.1f, 4.0f);
+        ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
         if (ImGui::Button("reset camera")) {
             eye = m_start_eye;
             at = m_start_at;
@@ -251,6 +249,12 @@ void application::render_octree_boxes() {
     m_box_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     glDrawElements(GL_LINES, m_box_indices.size(), GL_UNSIGNED_INT, nullptr);
     m_box_vao.Unbind();
+}
+
+bool application::is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const {
+    return glm::distance(m_vertices[i0].position, m_vertices[i1].position) < m_mesh_vertex_cut_distance &&
+        glm::distance(m_vertices[i1].position, m_vertices[i2].position) < m_mesh_vertex_cut_distance &&
+        glm::distance(m_vertices[i2].position, m_vertices[i0].position) < m_mesh_vertex_cut_distance;
 }
 
 void application::init_octree_visualization(const octree* root) {
@@ -290,14 +294,16 @@ void application::init_mesh_visualization() {
         if (!((i % (16 * 12)) > (14 * 12 - 1) || ((i % 12) == 11))) {
             if (glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
                 glm::distance(m_vertices[i + 1].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
+                glm::distance(m_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                is_mesh_vertex_cut_distance_ok(i, i + 1, i + 25)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 1);
                 m_mesh_indices.push_back(i + 25);
             }
             if (glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
                 glm::distance(m_vertices[i + 24].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
-                glm::distance(m_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius) {
+                glm::distance(m_vertices[i + 25].position, glm::vec3(0, 0, 0)) > m_ignore_center_radius &&
+                is_mesh_vertex_cut_distance_ok(i, i + 24, i + 25)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 25);
                 m_mesh_indices.push_back(i + 24);
@@ -314,27 +320,26 @@ void application::init_mesh_visualization() {
         m_mesh_indices_gpu_buffer);
 }
 
-void application::render_mesh() {
-    m_mesh_vao.Bind();
-    // m_mesh_program.Use();
+void application::set_particle_program_uniforms() {
     m_particle_program.Use();
     m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     m_particle_program.SetUniform("world", glm::mat4(1));
-
     m_particle_program.SetUniform("cam_k", m_digital_camera_params.get_cam_k());
-
     m_particle_program.SetUniform("cam_r[0]", m_digital_camera_params.devices[0].r);
     m_particle_program.SetUniform("cam_r[1]", m_digital_camera_params.devices[1].r);
     m_particle_program.SetUniform("cam_r[2]", m_digital_camera_params.devices[2].r);
-
     m_particle_program.SetUniform("cam_t[0]", m_digital_camera_params.devices[0].t);
     m_particle_program.SetUniform("cam_t[1]", m_digital_camera_params.devices[1].t);
     m_particle_program.SetUniform("cam_t[2]", m_digital_camera_params.devices[2].t);
-
     m_particle_program.SetTexture("tex_image[0]", 0, m_digital_camera_textures[0]);
     m_particle_program.SetTexture("tex_image[1]", 1, m_digital_camera_textures[1]);
     m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
+    m_particle_program.SetUniform("is_non_shaded_discarded", (int)m_is_non_shaded_discarded);
+}
 
+void application::render_mesh() {
+    m_mesh_vao.Bind();
+    set_particle_program_uniforms();
     glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
     m_mesh_vao.Unbind();
 }
@@ -394,7 +399,8 @@ void application::render() {
     m_axes_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     glDrawArrays(GL_LINES, 0, 6);
 
-    draw_points(m_gpu_particle_vao, m_render_points_up_to_index);
+    if (m_show_points)
+        draw_points(m_gpu_particle_vao, m_render_points_up_to_index);
     if (m_show_debug_sphere)
         draw_points(m_gpu_debug_sphere_vao, m_debug_sphere.size());
 

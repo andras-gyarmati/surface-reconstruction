@@ -199,8 +199,6 @@
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />
     <None Include="Includes\VertexArrayObject.inl" />
-    <None Include="mesh.frag" />
-    <None Include="mesh.vert" />
     <None Include="particle.frag" />
     <None Include="particle.vert" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui.cpp" />
@@ -211,8 +209,6 @@
   <ItemGroup>
     <Content Include="box_wireframe.frag" />
     <Content Include="box_wireframe.vert" />
-    <Content Include="mesh.frag" />
-    <Content Include="mesh.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

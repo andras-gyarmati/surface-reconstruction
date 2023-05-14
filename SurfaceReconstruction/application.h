@@ -43,7 +43,9 @@ public:
     void init_octree(const std::vector<file_loader::vertex>& vertices);
     void init_octree_visualization(const octree* root);
     void render_octree_boxes();
+    bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
     void init_mesh_visualization();
+    void set_particle_program_uniforms();
     void render_mesh();
     void randomize_colors();
     glm::vec3 hsl_to_rgb(float h, float s, float l) const;
@@ -73,6 +75,7 @@ protected:
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
     int m_render_points_up_to_index;
+    bool m_show_points;
 
     bool m_show_debug_sphere;
     std::vector<glm::vec3> m_debug_sphere;
@@ -91,7 +94,6 @@ protected:
     ArrayBuffer m_box_pos_gpu_buffer;
 
     std::vector<int> m_mesh_indices;
-    // ProgramObject m_mesh_program;
     VertexArrayObject m_mesh_vao;
     IndexBuffer m_mesh_indices_gpu_buffer;
     ArrayBuffer m_mesh_pos_gpu_buffer;
@@ -101,8 +103,10 @@ protected:
     SDL_Window* m_window{};
     char m_input_folder[256]{};
     float m_ignore_center_radius;
+    float m_mesh_vertex_cut_distance;
     int m_mesh_rendering_mode;
     glm::vec3 m_start_eye;
     glm::vec3 m_start_at;
     glm::vec3 m_start_up;
+    bool m_is_non_shaded_discarded;
 };
