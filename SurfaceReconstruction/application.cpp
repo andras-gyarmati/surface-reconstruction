@@ -25,7 +25,7 @@ application::application(void) {
     m_show_non_shaded = false;
     m_octree_color = glm::vec3(0, 255, 0);
     m_auto_increment_rendered_point_index = false;
-    m_render_points_up_to_index = m_vertices.size() - 1;
+    m_render_points_up_to_index = m_vertices.size() - 16;
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
     m_mesh_vertex_cut_distance = 5.0f;
     m_mesh_rendering_mode = solid;
@@ -165,8 +165,8 @@ void application::update() {
         m_render_points_up_to_index += 1;
     }
 
-    if (m_render_points_up_to_index > m_vertices.size()) {
-        m_render_points_up_to_index = m_vertices.size();
+    if (m_render_points_up_to_index > m_vertices.size() - 16) {
+        m_render_points_up_to_index = m_vertices.size() - 16;
     }
 }
 
@@ -211,7 +211,7 @@ void application::render_imgui() {
         ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
         ImGui::Checkbox("show non shaded", &m_show_non_shaded);
         ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
-        ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size());
+        ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size() - 16);
         if (ImGui::Button("-1")) {
             --m_render_points_up_to_index;
         }
@@ -321,16 +321,16 @@ void application::init_mesh_visualization() {
     // we use a [/] quad right now but if the top right vertex is missing we lose two triangles
     // so we need to check if a vertex is missing we might can use a [\] quad there and have more triangles
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
-        if (!((i % (16 * 12)) > (14 * 12 - 1) || ((i % 12) == 11))) {
-            if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 25) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 25)) {
+        if ((i % 16) != 15) {
+            if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 1);
-                m_mesh_indices.push_back(i + 25);
+                m_mesh_indices.push_back(i + 17);
             }
-            if (is_outside_of_sensor_rig_boundary(i, i + 24, i + 25) && is_mesh_vertex_cut_distance_ok(i, i + 24, i + 25)) {
+            if (is_outside_of_sensor_rig_boundary(i, i + 17, i + 16) && is_mesh_vertex_cut_distance_ok(i, i + 17, i + 16)) {
                 m_mesh_indices.push_back(i + 0);
-                m_mesh_indices.push_back(i + 25);
-                m_mesh_indices.push_back(i + 24);
+                m_mesh_indices.push_back(i + 17);
+                m_mesh_indices.push_back(i + 16);
             }
         }
     }
