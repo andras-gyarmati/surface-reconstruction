@@ -86,12 +86,13 @@ protected:
     octree m_octree;
     int m_points_to_add_index{};
     int m_points_added_index{};
-    std::vector<glm::vec3> m_box_pos;
-    std::vector<int> m_box_indices;
-    ProgramObject m_box_wireframe_program;
-    VertexArrayObject m_box_vao;
-    IndexBuffer m_box_indices_gpu_buffer;
-    ArrayBuffer m_box_pos_gpu_buffer;
+    std::vector<file_loader::vertex> m_wireframe_vertices;
+    std::vector<int> m_wireframe_indices;
+    ProgramObject m_wireframe_program;
+    VertexArrayObject m_wireframe_vao;
+    IndexBuffer m_wireframe_indices_gpu_buffer;
+    ArrayBuffer m_wireframe_pos_gpu_buffer;
+    glm::vec3 m_octree_color;
 
     std::vector<int> m_mesh_indices;
     VertexArrayObject m_mesh_vao;
@@ -109,4 +110,6 @@ protected:
     glm::vec3 m_start_at;
     glm::vec3 m_start_up;
     bool m_is_non_shaded_discarded;
+
+    octree::boundary m_sensor_rig_boundary;
 };

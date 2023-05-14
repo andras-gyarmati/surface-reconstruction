@@ -20,6 +20,7 @@ application::application(void) {
     m_show_debug_sphere = false;
     m_show_points = false;
     m_show_octree = false;
+    m_octree_color = glm::vec3(0, 255, 0);
     m_auto_increment_rendered_point_index = false;
     m_render_points_up_to_index = m_vertices.size() - 1;
     m_ignore_center_radius = 1.3f;
@@ -34,8 +35,6 @@ void application::init_octree(const std::vector<file_loader::vertex>& vertices) 
     m_octree = octree(tlf, brb);
     m_points_to_add_index = -1;
     m_points_added_index = -1;
-    m_box_indices = {};
-    m_box_pos = {};
 
     for (int i = 0; i < vertices.size(); ++i) {
         if (vertices[i].position != glm::vec3(0, 0, 0)) {
@@ -96,19 +95,19 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
     glm::vec3 top_left_back(top_left_front.x, top_left_front.y, bottom_right_back.z);
     glm::vec3 bottom_right_front(bottom_right_back.x, bottom_right_back.y, top_left_front.z);
 
-    auto pos = std::vector<glm::vec3>{
+    auto pos = std::vector<file_loader::vertex>{
         // back face
-        bottom_left_back,
-        bottom_right_back,
-        top_right_back,
-        top_left_back,
+        {bottom_left_back, m_octree_color},
+        {bottom_right_back, m_octree_color},
+        {top_right_back, m_octree_color},
+        {top_left_back, m_octree_color},
         // front face
-        bottom_left_front,
-        bottom_right_front,
-        top_right_front,
-        top_left_front,
+        {bottom_left_front, m_octree_color},
+        {bottom_right_front, m_octree_color},
+        {top_right_front, m_octree_color},
+        {top_left_front, m_octree_color},
     };
-    m_box_pos.insert(m_box_pos.end(), pos.begin(), pos.end());
+    m_wireframe_vertices.insert(m_wireframe_vertices.end(), pos.begin(), pos.end());
 
     auto indices = std::vector<int>{
         // back face
@@ -119,9 +118,9 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
         0, 4, 1, 5, 2, 6, 3, 7,
     };
     for (auto& index : indices) {
-        index += m_box_indices.size();
+        index += m_wireframe_indices.size();
     }
-    m_box_indices.insert(m_box_indices.end(), indices.begin(), indices.end());
+    m_wireframe_indices.insert(m_wireframe_indices.end(), indices.begin(), indices.end());
 }
 
 bool application::init(SDL_Window* window) {
@@ -134,7 +133,7 @@ bool application::init(SDL_Window* window) {
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
     m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
-    m_box_wireframe_program.Init({{GL_VERTEX_SHADER, "box_wireframe.vert"}, {GL_FRAGMENT_SHADER, "box_wireframe.frag"}}, {{0, "vs_in_pos"}});
+    m_wireframe_program.Init({{GL_VERTEX_SHADER, "wireframe.vert"}, {GL_FRAGMENT_SHADER, "wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
     load_inputs_from_folder("inputs/garazs_kijarat");
     init_debug_sphere();
@@ -236,6 +235,10 @@ void application::render_imgui() {
             at = glm::vec3(0, 0, 0);
             up = glm::vec3(0, 0, 1);
         }
+        ImGui::ColorEdit3("octree color", &m_octree_color[0]);
+        if (ImGui::Button("apply octree color")) {
+            init_octree_visualization(&m_octree);
+        }
     }
     ImGui::End();
     m_virtual_camera.SetView(eye, at, up);
@@ -243,12 +246,12 @@ void application::render_imgui() {
 }
 
 void application::render_octree_boxes() {
-    m_box_vao.Bind();
+    m_wireframe_vao.Bind();
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    m_box_wireframe_program.Use();
-    m_box_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    glDrawElements(GL_LINES, m_box_indices.size(), GL_UNSIGNED_INT, nullptr);
-    m_box_vao.Unbind();
+    m_wireframe_program.Use();
+    m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    glDrawElements(GL_LINES, m_wireframe_indices.size(), GL_UNSIGNED_INT, nullptr);
+    m_wireframe_vao.Unbind();
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const {
@@ -260,6 +263,9 @@ bool application::is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const {
 void application::init_octree_visualization(const octree* root) {
     if (!root)
         return;
+
+    m_wireframe_indices = {};
+    m_wireframe_vertices = {};
 
     std::stack<const octree*> octree_stack;
     octree_stack.push(root);
@@ -281,9 +287,14 @@ void application::init_octree_visualization(const octree* root) {
         }
     }
 
-    m_box_pos_gpu_buffer.BufferData(m_box_pos);
-    m_box_indices_gpu_buffer.BufferData(m_box_indices);
-    m_box_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_box_pos_gpu_buffer}}, m_box_indices_gpu_buffer);
+    m_wireframe_pos_gpu_buffer.BufferData(m_wireframe_vertices);
+    m_wireframe_indices_gpu_buffer.BufferData(m_wireframe_indices);
+    m_wireframe_vao.Init(
+        {
+            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_wireframe_pos_gpu_buffer},
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_wireframe_pos_gpu_buffer}
+        },
+        m_wireframe_indices_gpu_buffer);
 }
 
 void application::init_mesh_visualization() {

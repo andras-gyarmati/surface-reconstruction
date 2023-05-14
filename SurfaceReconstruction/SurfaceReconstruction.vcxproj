@@ -207,8 +207,8 @@
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_impl_sdl_gl3.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="box_wireframe.frag" />
-    <Content Include="box_wireframe.vert" />
+    <Content Include="wireframe.frag" />
+    <Content Include="wireframe.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
