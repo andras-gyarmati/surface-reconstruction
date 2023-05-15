@@ -5,6 +5,8 @@
 #include <glm/glm.hpp>
 #include "application.h"
 #include <glm/gtc/type_ptr.hpp>
+
+#include "delaunay.h"
 #include "imgui/imgui.h"
 #include "window_utils.h"
 #include "file_loader.h"
@@ -29,6 +31,7 @@ application::application(void) {
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
     m_mesh_vertex_cut_distance = 5.0f;
     m_mesh_rendering_mode = solid;
+    m_delaunay = delaunay(4.0f);
 }
 
 void application::init_octree(const std::vector<file_loader::vertex>& vertices) {
@@ -79,17 +82,19 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 }
 
 void application::init_debug_sphere() {
-    constexpr int n = 960;
-    constexpr int m = 960;
-    m_debug_sphere.resize((m + 1) * (n + 1));
-    for (int i = 0; i <= n; ++i)
-        for (int j = 0; j <= m; ++j)
-            m_debug_sphere[i + j * (n + 1)] = get_sphere_pos(static_cast<float>(i) / static_cast<float>(n), static_cast<float>(j) / static_cast<float>(m));
+    m_debug_sphere.resize((m_debug_sphere_m + 1) * (m_debug_sphere_n + 1));
+    for (int i = 0; i <= m_debug_sphere_n; ++i)
+        for (int j = 0; j <= m_debug_sphere_m; ++j)
+            m_debug_sphere[i + j * (m_debug_sphere_n + 1)] = get_sphere_pos(static_cast<float>(i) / static_cast<float>(m_debug_sphere_n),
+                                                                            static_cast<float>(j) / static_cast<float>(m_debug_sphere_m));
     m_gpu_debug_sphere_buffer.BufferData(m_debug_sphere);
     m_gpu_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_debug_sphere_buffer}});
 }
 
-void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back, std::vector<file_loader::vertex>& _vertices, std::vector<int>& _indices,
+void application::init_box(const glm::vec3& top_left_front,
+                           const glm::vec3& bottom_right_back,
+                           std::vector<file_loader::vertex>& _vertices,
+                           std::vector<int>& _indices,
                            glm::vec3 _color) {
     glm::vec3 bottom_left_front(top_left_front.x, bottom_right_back.y, top_left_front.z);
     glm::vec3 top_right_back(bottom_right_back.x, top_left_front.y, bottom_right_back.z);
@@ -142,6 +147,8 @@ bool application::init(SDL_Window* window) {
 
     init_sensor_rig_boundary_visualization();
 
+    init_tetrahedron(m_delaunay.m_tetrahedra[0]);
+
     return true;
 }
 
@@ -167,6 +174,12 @@ void application::update() {
 
     if (m_render_points_up_to_index > m_vertices.size() - 16) {
         m_render_points_up_to_index = m_vertices.size() - 16;
+    }
+
+    if (m_prev_debug_sphere_m != m_debug_sphere_m || m_prev_debug_sphere_n != m_debug_sphere_n) {
+        init_debug_sphere();
+        m_prev_debug_sphere_m = m_debug_sphere_m;
+        m_prev_debug_sphere_n = m_debug_sphere_n;
     }
 }
 
@@ -206,6 +219,8 @@ void application::render_imgui() {
         }
         ImGui::Text("properties");
         ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
+        ImGui::SliderInt("debug sphere m", &m_debug_sphere_m, 1, 959);
+        ImGui::SliderInt("debug sphere n", &m_debug_sphere_n, 1, 959);
         ImGui::Checkbox("show points", &m_show_points);
         ImGui::Checkbox("show octree", &m_show_octree);
         ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
@@ -445,6 +460,42 @@ void application::render_sensor_rig_boundary() {
     m_sensor_rig_boundary_vao.Unbind();
 }
 
+void application::init_tetrahedron(const delaunay::tetrahedron& tetrahedron) {
+    m_tetrahedra_vertices = {};
+    m_tetrahedra_indices = {};
+
+    for (const auto vert : tetrahedron.m_vertices) {
+        m_tetrahedra_vertices.push_back({vert, m_octree_color});
+    }
+
+    m_tetrahedra_indices = {
+        0, 1,
+        1, 2,
+        2, 0,
+        0, 3,
+        1, 3,
+        2, 3
+    };
+
+    m_tetrahedra_vertices_gpu_buffer.BufferData(m_tetrahedra_vertices);
+    m_tetrahedra_indices_gpu_buffer.BufferData(m_tetrahedra_indices);
+    m_tetrahedra_vao.Init(
+        {
+            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_tetrahedra_vertices_gpu_buffer},
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_tetrahedra_vertices_gpu_buffer}
+        },
+        m_tetrahedra_indices_gpu_buffer);
+}
+
+void application::render_tetrahedra() {
+    m_tetrahedra_vao.Bind();
+    glPolygonMode(GL_FRONT, GL_LINE);
+    m_wireframe_program.Use();
+    m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+    glDrawElements(GL_LINES, m_tetrahedra_indices.size(), GL_UNSIGNED_INT, nullptr);
+    m_tetrahedra_vao.Unbind();
+}
+
 void application::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -474,6 +525,8 @@ void application::render() {
         init_mesh_visualization();
         render_mesh();
     }
+
+    render_tetrahedra();
 
     render_imgui();
 }

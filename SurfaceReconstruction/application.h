@@ -7,6 +7,8 @@
 #include "Includes/TextureObject.h"
 #include "Includes/gCamera.h"
 #include <vector>
+
+#include "delaunay.h"
 #include "file_loader.h"
 #include "octree.h"
 
@@ -53,6 +55,8 @@ public:
     glm::vec3 get_random_color() const;
     void init_sensor_rig_boundary_visualization();
     void render_sensor_rig_boundary();
+    void init_tetrahedron(const delaunay::tetrahedron& tetrahedron);
+    void render_tetrahedra();
 
     glm::vec3 get_sphere_pos(const float u, const float v) {
         const float th = u * 2.0f * static_cast<float>(M_PI);
@@ -80,6 +84,10 @@ protected:
     int m_render_points_up_to_index;
     bool m_show_points;
 
+    int m_debug_sphere_n = 959;
+    int m_prev_debug_sphere_n = 959;
+    int m_debug_sphere_m = 959;
+    int m_prev_debug_sphere_m = 959;
     bool m_show_debug_sphere;
     std::vector<glm::vec3> m_debug_sphere;
     VertexArrayObject m_gpu_debug_sphere_vao;
@@ -105,6 +113,14 @@ protected:
     IndexBuffer m_sensor_rig_boundary_indices_gpu_buffer;
     ArrayBuffer m_sensor_rig_boundary_vertices_gpu_buffer;
 
+    bool m_show_tetrahedra;
+    octree::boundary m_tetrahedra;
+    std::vector<file_loader::vertex> m_tetrahedra_vertices;
+    std::vector<int> m_tetrahedra_indices;
+    VertexArrayObject m_tetrahedra_vao;
+    IndexBuffer m_tetrahedra_indices_gpu_buffer;
+    ArrayBuffer m_tetrahedra_vertices_gpu_buffer;
+
     bool m_show_back_faces;
     std::vector<int> m_mesh_indices;
     VertexArrayObject m_mesh_vao;
@@ -121,4 +137,6 @@ protected:
     glm::vec3 m_start_at;
     glm::vec3 m_start_up;
     bool m_show_non_shaded;
+
+    delaunay m_delaunay;
 };
