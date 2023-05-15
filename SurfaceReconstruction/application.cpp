@@ -335,6 +335,8 @@ void application::init_mesh_visualization() {
     m_mesh_indices.clear();
     // we use a [/] quad right now but if the top right vertex is missing we lose two triangles
     // so we need to check if a vertex is missing we might can use a [\] quad there and have more triangles
+    // also we can filter out the long triangles that are in an odd direction, the floor triangles are good exceptions
+    // as they are long but flat and almost parallel to the xy plane
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
         if ((i % 16) != 15) {
             if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
@@ -468,13 +470,22 @@ void application::init_tetrahedron(const delaunay::tetrahedron& tetrahedron) {
         m_tetrahedra_vertices.push_back({vert, m_octree_color});
     }
 
+    // lines
+    // m_tetrahedra_indices = {
+    //     0, 1,
+    //     1, 2,
+    //     2, 0,
+    //     0, 3,
+    //     1, 3,
+    //     2, 3
+    // };
+
+    // triangles
     m_tetrahedra_indices = {
-        0, 1,
-        1, 2,
-        2, 0,
-        0, 3,
-        1, 3,
-        2, 3
+        0, 1, 2,
+        1, 0, 3,
+        2, 1, 3,
+        0, 2, 3
     };
 
     m_tetrahedra_vertices_gpu_buffer.BufferData(m_tetrahedra_vertices);
@@ -488,12 +499,20 @@ void application::init_tetrahedron(const delaunay::tetrahedron& tetrahedron) {
 }
 
 void application::render_tetrahedra() {
+    glDisable(GL_CULL_FACE);
     m_tetrahedra_vao.Bind();
     glPolygonMode(GL_FRONT, GL_LINE);
     m_wireframe_program.Use();
     m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    glDrawElements(GL_LINES, m_tetrahedra_indices.size(), GL_UNSIGNED_INT, nullptr);
+    // glDrawElements(GL_LINES, m_tetrahedra_indices.size(), GL_UNSIGNED_INT, nullptr);
+    glDrawElements(GL_TRIANGLES, m_tetrahedra_indices.size(), GL_UNSIGNED_INT, nullptr);
     m_tetrahedra_vao.Unbind();
+    if (m_show_back_faces) {
+        glDisable(GL_CULL_FACE);
+    } else {
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+    }
 }
 
 void application::render() {
