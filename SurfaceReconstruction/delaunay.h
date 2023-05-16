@@ -186,6 +186,31 @@ public:
             const auto circumcenter = glm::vec3(circ_x, circ_y, circ_z);
             return circumcenter;
         }
+
+        bool is_point_inside_circumsphere(const glm::vec3 point) const {
+            const auto circumcenter = get_circumcenter();
+            const auto radius = glm::distance(circumcenter, m_vertices[0]);
+            const auto distance = glm::distance(point, circumcenter);
+            return distance < radius;
+        }
+
+        bool is_face_shared_by_any_other_tetrahedra_in(const std::vector<tetrahedron>& bad_tetrahedra, const face& face) const {
+            for (auto tetrahedron : bad_tetrahedra) {
+                if (tetrahedron != *this && tetrahedron.contains_face(face)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        bool contains_a_vertex_from_original_super_tetrahedron(const tetrahedron& root) const {
+            for (auto vertex : m_vertices) {
+                if (vertex == root.m_vertices[0] || vertex == root.m_vertices[1] || vertex == root.m_vertices[2] || vertex == root.m_vertices[3]) {
+                    return true;
+                }
+            }
+            return false;
+        }
     };
 
     std::vector<tetrahedron> m_tetrahedra;
@@ -200,38 +225,13 @@ public:
         m_root.insert(point);
     }
 
-    bool point_is_inside_circumsphere_of_tetrahedron(const glm::vec3 point, const tetrahedron& tetrahedron) const {
-        const auto circumcenter = tetrahedron.get_circumcenter();
-        const auto radius = glm::distance(circumcenter, tetrahedron.m_vertices[0]);
-        const auto distance = glm::distance(point, circumcenter);
-        return distance < radius;
-    }
-
-    static bool is_shared_by_any_other_tetrahedra_in(const std::vector<tetrahedron>& bad_tetrahedra, const face& face, const tetrahedron& current_tetrahedron) {
-        for (auto tetrahedron : bad_tetrahedra) {
-            if (tetrahedron != current_tetrahedron && tetrahedron.contains_face(face)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool tetrahedron_contains_a_vertex_from_original_super_tetrahedron(const tetrahedron& tetrahedron) const {
-        for (auto vertex : tetrahedron.m_vertices) {
-            if (vertex == m_root.m_vertices[0] || vertex == m_root.m_vertices[1] || vertex == m_root.m_vertices[2] || vertex == m_root.m_vertices[3]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     std::vector<tetrahedron> create_mesh(std::vector<file_loader::vertex> vertices) {
         for (auto point : vertices) {
             // add all the points one at a time to the m_tetrahedra
             std::vector<tetrahedron> bad_tetrahedra;
             for (auto tetrahedron : m_tetrahedra) {
                 // first find all the _tetrahedra that are no longer valid due to the insertion
-                if (point_is_inside_circumsphere_of_tetrahedron(point.position, tetrahedron)) {
+                if (tetrahedron.is_point_inside_circumsphere(point.position)) {
                     bad_tetrahedra.push_back(tetrahedron);
                 }
             }
@@ -239,7 +239,7 @@ public:
             for (auto tetrahedron : bad_tetrahedra) {
                 // find the boundary of the polygonal hole
                 for (auto face : tetrahedron.m_faces) {
-                    if (!is_shared_by_any_other_tetrahedra_in(bad_tetrahedra, face, tetrahedron)) {
+                    if (!tetrahedron.is_face_shared_by_any_other_tetrahedra_in(bad_tetrahedra, face)) {
                         poly_body.push_back(face);
                     }
                 }
@@ -256,7 +256,7 @@ public:
         }
         for (auto tetrahedron : m_tetrahedra) {
             // done inserting points, now clean up
-            if (tetrahedron_contains_a_vertex_from_original_super_tetrahedron(tetrahedron)) {
+            if (tetrahedron.contains_a_vertex_from_original_super_tetrahedron(m_root)) {
                 m_tetrahedra.erase(std::remove(m_tetrahedra.begin(), m_tetrahedra.end(), tetrahedron), m_tetrahedra.end());
             }
         }
