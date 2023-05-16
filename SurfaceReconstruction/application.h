@@ -55,7 +55,8 @@ public:
     glm::vec3 get_random_color() const;
     void init_sensor_rig_boundary_visualization();
     void render_sensor_rig_boundary();
-    void init_tetrahedron(const delaunay::tetrahedron& tetrahedron);
+    void init_delaunay(const delaunay::tetrahedron* root);
+    void init_tetrahedron(const delaunay::tetrahedron* tetrahedron);
     void render_tetrahedra();
 
     glm::vec3 get_sphere_pos(const float u, const float v) {

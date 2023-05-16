@@ -20,18 +20,18 @@ application::application(void) {
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
     m_point_size = 2.f;
     m_show_debug_sphere = false;
-    m_show_points = false;
+    m_show_points = true;
     m_show_octree = false;
     m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
     m_show_non_shaded = false;
     m_octree_color = glm::vec3(0, 255, 0);
     m_auto_increment_rendered_point_index = false;
-    m_render_points_up_to_index = m_vertices.size() - 16;
+    m_render_points_up_to_index = 0;
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
     m_mesh_vertex_cut_distance = 5.0f;
-    m_mesh_rendering_mode = solid;
-    m_delaunay = delaunay(4.0f);
+    m_mesh_rendering_mode = none;
+    m_delaunay = delaunay(200.0f, glm::vec3(0, 0, 120.f));
 }
 
 void application::init_octree(const std::vector<file_loader::vertex>& vertices) {
@@ -76,6 +76,14 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     randomize_colors();
 
     init_octree(m_vertices);
+
+    // debug
+    for (int i = 0; i < m_vertices.size(); ++i) {
+        if (m_vertices[i].position != glm::vec3(0, 0, 0)) {
+            m_delaunay.insert(m_vertices[i].position);
+        }
+    }
+    init_delaunay(&m_delaunay.m_root);
 
     init_octree_visualization(&m_octree);
     init_mesh_visualization();
@@ -147,7 +155,7 @@ bool application::init(SDL_Window* window) {
 
     init_sensor_rig_boundary_visualization();
 
-    init_tetrahedron(m_delaunay.m_tetrahedra[0]);
+    init_delaunay(&m_delaunay.m_root);
 
     return true;
 }
@@ -462,31 +470,27 @@ void application::render_sensor_rig_boundary() {
     m_sensor_rig_boundary_vao.Unbind();
 }
 
-void application::init_tetrahedron(const delaunay::tetrahedron& tetrahedron) {
+void application::init_delaunay(const delaunay::tetrahedron* root) {
     m_tetrahedra_vertices = {};
     m_tetrahedra_indices = {};
 
-    for (const auto vert : tetrahedron.m_vertices) {
-        m_tetrahedra_vertices.push_back({vert, m_octree_color});
+    std::stack<const delaunay::tetrahedron*> delaunay_stack;
+    delaunay_stack.push(root);
+
+    while (!delaunay_stack.empty()) {
+        const delaunay::tetrahedron* node = delaunay_stack.top();
+        delaunay_stack.pop();
+
+        if (node->m_children[0] != nullptr) {
+            for (const auto child : node->m_children) {
+                if (child != nullptr) {
+                    delaunay_stack.push(child);
+                }
+            }
+        }
+
+        init_tetrahedron(node);
     }
-
-    // lines
-    // m_tetrahedra_indices = {
-    //     0, 1,
-    //     1, 2,
-    //     2, 0,
-    //     0, 3,
-    //     1, 3,
-    //     2, 3
-    // };
-
-    // triangles
-    m_tetrahedra_indices = {
-        0, 1, 2,
-        1, 0, 3,
-        2, 1, 3,
-        0, 2, 3
-    };
 
     m_tetrahedra_vertices_gpu_buffer.BufferData(m_tetrahedra_vertices);
     m_tetrahedra_indices_gpu_buffer.BufferData(m_tetrahedra_indices);
@@ -496,6 +500,23 @@ void application::init_tetrahedron(const delaunay::tetrahedron& tetrahedron) {
             {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_tetrahedra_vertices_gpu_buffer}
         },
         m_tetrahedra_indices_gpu_buffer);
+}
+
+void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
+    for (const auto vert : tetrahedron->m_vertices) {
+        m_tetrahedra_vertices.push_back({vert, m_octree_color});
+    }
+
+    auto indices = std::vector<int> {
+        0, 1, 2,
+        1, 0, 3,
+        2, 1, 3,
+        0, 2, 3
+    };
+    for (auto& index : indices) {
+        index += m_tetrahedra_indices.size();
+    }
+    m_tetrahedra_indices.insert(m_tetrahedra_indices.end(), indices.begin(), indices.end());
 }
 
 void application::render_tetrahedra() {
