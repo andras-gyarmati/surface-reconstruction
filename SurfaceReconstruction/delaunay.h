@@ -10,7 +10,35 @@ public:
         glm::vec3 a;
         glm::vec3 b;
         glm::vec3 c;
+
+        // bool operator==(const face& other) const {
+        //     auto this_face_points = std::array<glm::vec3, 3>{a, b, c};
+        //     auto other_face_points = std::array<glm::vec3, 3>{other.a, other.b, other.c};
+        //
+        //     auto point_sum = [](const glm::vec3& point) {
+        //         return point.x + point.y + point.z;
+        //     };
+        //     std::sort(this_face_points.begin(),
+        //               this_face_points.end(),
+        //               [&point_sum](const glm::vec3& lhs, const glm::vec3& rhs) {
+        //                   return point_sum(lhs) < point_sum(rhs);
+        //               });
+        //     std::sort(other_face_points.begin(),
+        //               other_face_points.end(),
+        //               [&point_sum](const glm::vec3& lhs, const glm::vec3& rhs) {
+        //                   return point_sum(lhs) < point_sum(rhs);
+        //               });
+        //
+        //     return this_face_points == other_face_points;
+        // }
+
+        bool operator==(const face& other) const {
+            return (a == other.a || a == other.b || a == other.c) &&
+                (b == other.a || b == other.b || b == other.c) &&
+                (c == other.a || c == other.b || c == other.c);
+        }
     };
+
 
     struct edge {
         glm::vec3 a;
@@ -32,6 +60,10 @@ public:
                 (m_vertices[3] == other.m_vertices[3]);
         }
 
+        bool operator!=(const tetrahedron& tetrahedron) const {
+            return !(*this == tetrahedron);
+        }
+
         void init_edges() {
             m_edges[0] = {m_vertices[0], m_vertices[1]};
             m_edges[1] = {m_vertices[0], m_vertices[2]};
@@ -46,6 +78,15 @@ public:
             m_faces[1] = {m_vertices[0], m_vertices[1], m_vertices[3]};
             m_faces[2] = {m_vertices[0], m_vertices[2], m_vertices[3]};
             m_faces[3] = {m_vertices[1], m_vertices[2], m_vertices[3]};
+        }
+
+        bool contains_face(const face& face) {
+            for (const auto& f : m_faces) {
+                if (f == face) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         explicit tetrahedron(const float side_length, glm::vec3 center = glm::vec3(0, 0, 0)) {
@@ -106,6 +147,45 @@ public:
                 }
             }
         }
+
+        glm::vec3 get_circumcenter() const {
+            // Use coordinates relative to point 'a' of the tetrahedron.
+
+            const glm::vec3 ba = m_vertices[1] - m_vertices[0];
+            const glm::vec3 ca = m_vertices[2] - m_vertices[0];
+            const glm::vec3 da = m_vertices[3] - m_vertices[0];
+
+            // Squares of lengths of the edges incident to 'a'.
+            const float len_ba = ba.x * ba.x + ba.y * ba.y + ba.z * ba.z;
+            const float len_ca = ca.x * ca.x + ca.y * ca.y + ca.z * ca.z;
+            const float len_da = da.x * da.x + da.y * da.y + da.z * da.z;
+
+            // c cross d
+            const float cross_cd_x = ca.y * da.z - da.y * ca.z;
+            const float cross_cd_y = ca.z * da.x - da.z * ca.x;
+            const float cross_cd_z = ca.x * da.y - da.x * ca.y;
+
+            // d cross b
+            const float cross_db_x = da.y * ba.z - ba.y * da.z;
+            const float cross_db_y = da.z * ba.x - ba.z * da.x;
+            const float cross_db_z = da.x * ba.y - ba.x * da.y;
+
+            // b cross c
+            const float cross_bc_x = ba.y * ca.z - ca.y * ba.z;
+            const float cross_bc_y = ba.z * ca.x - ca.z * ba.x;
+            const float cross_bc_z = ba.x * ca.y - ca.x * ba.y;
+
+            // Calculate the denominator of the formula.
+            const float denominator = 0.5f / (ba.x * cross_cd_x + ba.y * cross_cd_y + ba.z * cross_cd_z);
+
+            // Calculate offset (from 'a') of circumcenter.
+            const float circ_x = (len_ba * cross_cd_x + len_ca * cross_db_x + len_da * cross_bc_x) * denominator;
+            const float circ_y = (len_ba * cross_cd_y + len_ca * cross_db_y + len_da * cross_bc_y) * denominator;
+            const float circ_z = (len_ba * cross_cd_z + len_ca * cross_db_z + len_da * cross_bc_z) * denominator;
+
+            const auto circumcenter = glm::vec3(circ_x, circ_y, circ_z);
+            return circumcenter;
+        }
     };
 
     std::vector<tetrahedron> m_tetrahedra;
@@ -120,15 +200,28 @@ public:
         m_root.insert(point);
     }
 
-    bool point_is_inside_circumsphere_of_tetrahedron(glm::vec3 point, delaunay::tetrahedron tetrahedron) {
+    bool point_is_inside_circumsphere_of_tetrahedron(const glm::vec3 point, const tetrahedron& tetrahedron) const {
+        const auto circumcenter = tetrahedron.get_circumcenter();
+        const auto radius = glm::distance(circumcenter, tetrahedron.m_vertices[0]);
+        const auto distance = glm::distance(point, circumcenter);
+        return distance < radius;
+    }
+
+    static bool is_shared_by_any_other_tetrahedra_in(const std::vector<tetrahedron>& bad_tetrahedra, const face& face, const tetrahedron& current_tetrahedron) {
+        for (auto tetrahedron : bad_tetrahedra) {
+            if (tetrahedron != current_tetrahedron && tetrahedron.contains_face(face)) {
+                return true;
+            }
+        }
         return false;
     }
 
-    bool is_shared_by_any_other_tetrahedra_in(const std::vector<delaunay::tetrahedron>& bad_tetrahedra, const delaunay::face& face) {
-        return false;
-    }
-
-    bool tetrahedron_contains_a_vertex_from_original_super_tetrahedron(const delaunay::tetrahedron& tetrahedron) {
+    bool tetrahedron_contains_a_vertex_from_original_super_tetrahedron(const tetrahedron& tetrahedron) const {
+        for (auto vertex : tetrahedron.m_vertices) {
+            if (vertex == m_root.m_vertices[0] || vertex == m_root.m_vertices[1] || vertex == m_root.m_vertices[2] || vertex == m_root.m_vertices[3]) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -146,7 +239,7 @@ public:
             for (auto tetrahedron : bad_tetrahedra) {
                 // find the boundary of the polygonal hole
                 for (auto face : tetrahedron.m_faces) {
-                    if (!is_shared_by_any_other_tetrahedra_in(bad_tetrahedra, face)) {
+                    if (!is_shared_by_any_other_tetrahedra_in(bad_tetrahedra, face, tetrahedron)) {
                         poly_body.push_back(face);
                     }
                 }
