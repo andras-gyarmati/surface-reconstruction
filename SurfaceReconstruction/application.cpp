@@ -155,7 +155,7 @@ bool application::init(SDL_Window* window) {
 
     init_sensor_rig_boundary_visualization();
 
-    init_delaunay(&m_delaunay.m_root);
+    // init_delaunay(&m_delaunay.m_root);
 
     return true;
 }
@@ -474,22 +474,25 @@ void application::init_delaunay(const delaunay::tetrahedron* root) {
     m_tetrahedra_vertices = {};
     m_tetrahedra_indices = {};
 
-    std::stack<const delaunay::tetrahedron*> delaunay_stack;
-    delaunay_stack.push(root);
+    // std::stack<const delaunay::tetrahedron*> delaunay_stack;
+    // delaunay_stack.push(root);
+    //
+    // while (!delaunay_stack.empty()) {
+    //     const delaunay::tetrahedron* node = delaunay_stack.top();
+    //     delaunay_stack.pop();
+    //
+    //     for (const auto child : node->m_children) {
+    //         if (child != nullptr) {
+    //             delaunay_stack.push(child);
+    //         }
+    //     }
+    //
+    //     init_tetrahedron(node);
+    // }
 
-    while (!delaunay_stack.empty()) {
-        const delaunay::tetrahedron* node = delaunay_stack.top();
-        delaunay_stack.pop();
-
-        if (node->m_children[0] != nullptr) {
-            for (const auto child : node->m_children) {
-                if (child != nullptr) {
-                    delaunay_stack.push(child);
-                }
-            }
-        }
-
-        init_tetrahedron(node);
+    const auto tetrahedra = m_delaunay.create_mesh(m_vertices);
+    for (auto tetrahedron : tetrahedra) {
+        init_tetrahedron(&tetrahedron);
     }
 
     m_tetrahedra_vertices_gpu_buffer.BufferData(m_tetrahedra_vertices);
@@ -507,7 +510,7 @@ void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
         m_tetrahedra_vertices.push_back({vert, m_octree_color});
     }
 
-    auto indices = std::vector<int> {
+    auto indices = std::vector<int>{
         0, 1, 2,
         1, 0, 3,
         2, 1, 3,
