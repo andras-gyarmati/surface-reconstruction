@@ -81,7 +81,7 @@ public:
         }
 
         bool contains_face(const face& face) {
-            for (const auto& f : m_faces) {
+            for (const delaunay::face& f : m_faces) {
                 if (f == face) {
                     return true;
                 }
@@ -99,7 +99,7 @@ public:
 
             init_faces();
 
-            for (auto& child : m_children) {
+            for (const tetrahedron* child : m_children) {
                 child = nullptr;
             }
         }
@@ -109,7 +109,7 @@ public:
             m_vertices[1] = b;
             m_vertices[2] = c;
             m_vertices[3] = d;
-            for (auto& child : m_children) {
+            for (const tetrahedron* child : m_children) {
                 child = nullptr;
             }
         }
@@ -130,22 +130,6 @@ public:
                 (std::signbit(d0) == std::signbit(d2)) &&
                 (std::signbit(d0) == std::signbit(d3)) &&
                 (std::signbit(d0) == std::signbit(d4));
-        }
-
-        void insert(const glm::vec3& point) {
-            if (is_point_in_tetrahedron(point)) {
-                if (m_children[0] == nullptr) {
-                    m_children[0] = new tetrahedron(m_vertices[0], m_vertices[1], m_vertices[2], point);
-                    m_children[1] = new tetrahedron(m_vertices[1], m_vertices[0], m_vertices[3], point);
-                    m_children[2] = new tetrahedron(m_vertices[2], m_vertices[1], m_vertices[3], point);
-                    m_children[3] = new tetrahedron(m_vertices[0], m_vertices[2], m_vertices[3], point);
-                } else {
-                    m_children[0]->insert(point);
-                    m_children[1]->insert(point);
-                    m_children[2]->insert(point);
-                    m_children[3]->insert(point);
-                }
-            }
         }
 
         glm::vec3 get_circumcenter() const {
@@ -183,19 +167,19 @@ public:
             const float circ_y = (len_ba * cross_cd_y + len_ca * cross_db_y + len_da * cross_bc_y) * denominator;
             const float circ_z = (len_ba * cross_cd_z + len_ca * cross_db_z + len_da * cross_bc_z) * denominator;
 
-            const auto circumcenter = glm::vec3(circ_x, circ_y, circ_z);
+            const glm::vec3 circumcenter = glm::vec3(circ_x, circ_y, circ_z);
             return circumcenter;
         }
 
         bool is_point_inside_circumsphere(const glm::vec3 point) const {
-            const auto circumcenter = get_circumcenter();
-            const auto radius = glm::distance(circumcenter, m_vertices[0]);
-            const auto distance = glm::distance(point, circumcenter);
+            const glm::vec3 circumcenter = get_circumcenter();
+            const float radius = glm::distance(circumcenter, m_vertices[0]);
+            const float distance = glm::distance(point, circumcenter);
             return distance < radius;
         }
 
-        bool is_face_shared_by_any_other_tetrahedra_in(const std::vector<tetrahedron>& bad_tetrahedra, const face& face) const {
-            for (auto tetrahedron : bad_tetrahedra) {
+        bool is_face_shared_by_any_other_tetrahedra_in(std::vector<tetrahedron>& bad_tetrahedra, const face& face) const {
+            for (tetrahedron& tetrahedron : bad_tetrahedra) {
                 if (tetrahedron != *this && tetrahedron.contains_face(face)) {
                     return true;
                 }
@@ -204,7 +188,7 @@ public:
         }
 
         bool contains_a_vertex_from_original_super_tetrahedron(const tetrahedron& root) const {
-            for (auto vertex : m_vertices) {
+            for (const glm::vec3& vertex : m_vertices) {
                 if (vertex == root.m_vertices[0] || vertex == root.m_vertices[1] || vertex == root.m_vertices[2] || vertex == root.m_vertices[3]) {
                     return true;
                 }
@@ -215,51 +199,61 @@ public:
 
     std::vector<tetrahedron> m_tetrahedra;
     tetrahedron m_root;
+    std::vector<tetrahedron> m_bad_tetrahedra;
+    std::vector<face> m_poly_body;
 
     explicit delaunay(const float side_length, glm::vec3 center = glm::vec3(0, 0, 0)) {
         m_root = tetrahedron(side_length, center);
         m_tetrahedra.push_back(m_root);
     }
 
-    void insert(const glm::vec3& point) {
-        m_root.insert(point);
-    }
-
-    std::vector<tetrahedron> create_mesh(std::vector<file_loader::vertex> vertices) {
-        for (auto point : vertices) {
-            // add all the points one at a time to the m_tetrahedra
-            std::vector<tetrahedron> bad_tetrahedra;
-            for (auto tetrahedron : m_tetrahedra) {
-                // first find all the _tetrahedra that are no longer valid due to the insertion
-                if (tetrahedron.is_point_inside_circumsphere(point.position)) {
-                    bad_tetrahedra.push_back(tetrahedron);
-                }
-            }
-            std::vector<face> poly_body;
-            for (auto tetrahedron : bad_tetrahedra) {
-                // find the boundary of the polygonal hole
-                for (auto face : tetrahedron.m_faces) {
-                    if (!tetrahedron.is_face_shared_by_any_other_tetrahedra_in(bad_tetrahedra, face)) {
-                        poly_body.push_back(face);
-                    }
-                }
-            }
-            for (auto tetrahedron : bad_tetrahedra) {
-                // remove them from the data structure
-                m_tetrahedra.erase(std::remove(m_tetrahedra.begin(), m_tetrahedra.end(), tetrahedron), m_tetrahedra.end());
-            }
-            for (auto face : poly_body) {
-                // re-triangulate the polygonal hole
-                auto new_tetrahedron = tetrahedron(face.a, face.b, face.c, point.position);
-                m_tetrahedra.push_back(new_tetrahedron);
-            }
-        }
-        for (auto tetrahedron : m_tetrahedra) {
+    void cleanup_super_tetrahedron() {
+        for (tetrahedron& tetrahedron : m_tetrahedra) {
             // done inserting points, now clean up
             if (tetrahedron.contains_a_vertex_from_original_super_tetrahedron(m_root)) {
                 m_tetrahedra.erase(std::remove(m_tetrahedra.begin(), m_tetrahedra.end(), tetrahedron), m_tetrahedra.end());
             }
         }
+    }
+
+    void insert_point(const file_loader::vertex& point) {
+        if (!m_root.is_point_in_tetrahedron(point.position)) {
+            return;
+        }
+
+        // add all the points one at a time to the m_tetrahedra
+        m_bad_tetrahedra.clear();
+        for (tetrahedron& tetrahedron : m_tetrahedra) {
+            // first find all the _tetrahedra that are no longer valid due to the insertion
+            if (tetrahedron.is_point_inside_circumsphere(point.position)) {
+                m_bad_tetrahedra.push_back(tetrahedron);
+            }
+        }
+        m_poly_body.clear();
+        for (tetrahedron& tetrahedron : m_bad_tetrahedra) {
+            // find the boundary of the polygonal hole
+            for (face& face : tetrahedron.m_faces) {
+                if (!tetrahedron.is_face_shared_by_any_other_tetrahedra_in(m_bad_tetrahedra, face)) {
+                    m_poly_body.push_back(face);
+                }
+            }
+        }
+        for (tetrahedron& tetrahedron : m_bad_tetrahedra) {
+            // remove them from the data structure
+            m_tetrahedra.erase(std::remove(m_tetrahedra.begin(), m_tetrahedra.end(), tetrahedron), m_tetrahedra.end());
+        }
+        for (const face& face : m_poly_body) {
+            // re-triangulate the polygonal hole
+            tetrahedron new_tetrahedron = tetrahedron(face.a, face.b, face.c, point.position);
+            m_tetrahedra.push_back(new_tetrahedron);
+        }
+    }
+
+    std::vector<tetrahedron> create_mesh(const std::vector<file_loader::vertex>& vertices) {
+        for (const file_loader::vertex& point : vertices) {
+            insert_point(point);
+        }
+        cleanup_super_tetrahedron();
         return m_tetrahedra;
     }
 

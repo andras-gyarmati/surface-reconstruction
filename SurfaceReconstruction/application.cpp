@@ -31,7 +31,7 @@ application::application(void) {
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
     m_mesh_vertex_cut_distance = 5.0f;
     m_mesh_rendering_mode = none;
-    m_delaunay = delaunay(200.0f, glm::vec3(0, 0, 120.f));
+    m_delaunay = delaunay(4.0f, glm::vec3(0.0f, 3.0f, 0.0f));
 }
 
 void application::init_octree(const std::vector<file_loader::vertex>& vertices) {
@@ -78,11 +78,11 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     init_octree(m_vertices);
 
     // debug
-    for (int i = 0; i < m_vertices.size(); ++i) {
-        if (m_vertices[i].position != glm::vec3(0, 0, 0)) {
-            m_delaunay.insert(m_vertices[i].position);
-        }
-    }
+    // for (int i = 0; i < m_vertices.size(); ++i) {
+    //     if (m_vertices[i].position != glm::vec3(0, 0, 0)) {
+    //         m_delaunay.insert(m_vertices[i].position);
+    //     }
+    // }
     init_delaunay(&m_delaunay.m_root);
 
     init_octree_visualization(&m_octree);
@@ -241,6 +241,10 @@ void application::render_imgui() {
         ImGui::SameLine();
         if (ImGui::Button("+1")) {
             ++m_render_points_up_to_index;
+            if (m_vertices[m_render_points_up_to_index - 1].position != glm::vec3(0.0f)) {
+                m_delaunay.insert_point(m_vertices[m_render_points_up_to_index - 1]);
+                init_delaunay(&m_delaunay.m_root);
+            }
         }
         ImGui::Checkbox("show back faces", &m_show_back_faces);
         ImGui::Text("mesh rendering mode");
@@ -256,7 +260,7 @@ void application::render_imgui() {
             m_mesh_rendering_mode = solid;
         }
         ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
-        ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 20.0f);
+        ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
         ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
         ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
         ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
@@ -490,8 +494,8 @@ void application::init_delaunay(const delaunay::tetrahedron* root) {
     //     init_tetrahedron(node);
     // }
 
-    const auto tetrahedra = m_delaunay.create_mesh(m_vertices);
-    for (auto tetrahedron : tetrahedra) {
+    // const auto tetrahedra = m_delaunay.create_mesh(m_vertices);
+    for (auto tetrahedron : m_delaunay.m_tetrahedra) {
         init_tetrahedron(&tetrahedron);
     }
 
@@ -506,17 +510,18 @@ void application::init_delaunay(const delaunay::tetrahedron* root) {
 }
 
 void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
-    for (const auto vert : tetrahedron->m_vertices) {
-        m_tetrahedra_vertices.push_back({vert, m_octree_color});
+    const glm::vec3 random_color = get_random_color();
+    for (const glm::vec3 vert : tetrahedron->m_vertices) {
+        m_tetrahedra_vertices.push_back({vert + (get_random_color() * 0.1f), random_color});
     }
 
-    auto indices = std::vector<int>{
+    std::vector<int> indices = std::vector<int>{
         0, 1, 2,
         1, 0, 3,
         2, 1, 3,
         0, 2, 3
     };
-    for (auto& index : indices) {
+    for (int& index : indices) {
         index += m_tetrahedra_indices.size();
     }
     m_tetrahedra_indices.insert(m_tetrahedra_indices.end(), indices.begin(), indices.end());
