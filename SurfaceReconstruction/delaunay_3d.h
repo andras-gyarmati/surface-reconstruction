@@ -4,7 +4,7 @@
 
 #include "file_loader.h"
 
-class delaunay {
+class delaunay_3d {
 public:
     struct face {
         glm::vec3 a;
@@ -58,7 +58,7 @@ public:
         }
 
         bool contains_face(const face& face) {
-            for (const delaunay::face& f : m_faces) {
+            for (const delaunay_3d::face& f : m_faces) {
                 if (f == face) {
                     return true;
                 }
@@ -176,7 +176,7 @@ public:
     std::vector<tetrahedron> m_bad_tetrahedra;
     std::vector<face> m_poly_body;
 
-    explicit delaunay(const float side_length, glm::vec3 center = glm::vec3(0, 0, 0)) {
+    explicit delaunay_3d(const float side_length, glm::vec3 center = glm::vec3(0, 0, 0)) {
         m_root = tetrahedron(side_length, center);
         m_tetrahedra.push_back(m_root);
     }
@@ -242,5 +242,5 @@ public:
         return m_tetrahedra;
     }
 
-    delaunay(void) = default;
+    delaunay_3d(void) = default;
 };

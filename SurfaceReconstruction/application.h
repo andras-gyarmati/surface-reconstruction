@@ -8,7 +8,7 @@
 #include "Includes/gCamera.h"
 #include <vector>
 
-#include "delaunay.h"
+#include "delaunay_3d.h"
 #include "file_loader.h"
 #include "octree.h"
 
@@ -56,7 +56,7 @@ public:
     void init_sensor_rig_boundary_visualization();
     void render_sensor_rig_boundary();
     void init_delaunay_visualization();
-    void init_tetrahedron(const delaunay::tetrahedron* tetrahedron);
+    void init_tetrahedron(const delaunay_3d::tetrahedron* tetrahedron);
     void render_tetrahedra();
 
     glm::vec3 get_sphere_pos(const float u, const float v) {
@@ -139,6 +139,6 @@ protected:
     glm::vec3 m_start_up;
     bool m_show_non_shaded;
 
-    delaunay m_delaunay;
+    delaunay_3d m_delaunay;
     GLfloat m_line_width;
 };

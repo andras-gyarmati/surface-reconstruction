@@ -6,7 +6,7 @@
 #include "application.h"
 #include <glm/gtc/type_ptr.hpp>
 
-#include "delaunay.h"
+#include "delaunay_3d.h"
 #include "imgui/imgui.h"
 #include "window_utils.h"
 #include "file_loader.h"
@@ -32,7 +32,7 @@ application::application(void) {
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
     m_mesh_vertex_cut_distance = 5.0f;
     m_mesh_rendering_mode = none;
-    m_delaunay = delaunay(20.0f, glm::vec3(0.0f, 0.0f, 10.0f));
+    m_delaunay = delaunay_3d(20.0f, glm::vec3(0.0f, 0.0f, 10.0f));
     // m_delaunay = delaunay(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
 }
 
@@ -516,7 +516,7 @@ void application::init_delaunay_visualization() {
         m_tetrahedra_indices_gpu_buffer);
 }
 
-void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
+void application::init_tetrahedron(const delaunay_3d::tetrahedron* tetrahedron) {
     const glm::vec3 random_color = get_random_color();
     const int offset = m_tetrahedra_vertices.size();
     for (const glm::vec3 vert : tetrahedron->m_vertices) {
