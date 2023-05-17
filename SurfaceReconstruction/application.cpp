@@ -263,6 +263,9 @@ void application::render_imgui() {
         if (ImGui::Button("solid")) {
             m_mesh_rendering_mode = solid;
         }
+        if (ImGui::Button("delete super tetra")) {
+            m_delaunay.cleanup_super_tetrahedron();
+        }
         ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
         ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
         ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);

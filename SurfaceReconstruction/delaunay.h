@@ -186,8 +186,12 @@ public:
         }
 
         bool contains_a_vertex_from_original_super_tetrahedron(const tetrahedron& root) const {
+            const float epsilon = 0.0001f;
             for (const glm::vec3& vertex : m_vertices) {
-                if (vertex == root.m_vertices[0] || vertex == root.m_vertices[1] || vertex == root.m_vertices[2] || vertex == root.m_vertices[3]) {
+                if (glm::distance(vertex, root.m_vertices[0]) < epsilon ||
+                    glm::distance(vertex, root.m_vertices[1]) < epsilon ||
+                    glm::distance(vertex, root.m_vertices[2]) < epsilon ||
+                    glm::distance(vertex, root.m_vertices[3]) < epsilon) {
                     return true;
                 }
             }
