@@ -138,6 +138,17 @@ std::vector<file_loader::vertex> file_loader::load_xyz_file(const std::string& f
         reordered_vertices[i] = vertices[reorder_indices[i % 192] + (i / 192) * 192];
     }
 
+    const float a = 3.0f;
+    reordered_vertices.clear();
+    reordered_vertices.push_back({glm::vec3(+a, +a, +a), glm::vec3(0)});
+    reordered_vertices.push_back({glm::vec3(+a, +a, -a), glm::vec3(0)});
+    reordered_vertices.push_back({glm::vec3(+a, -a, +a), glm::vec3(0)});
+    reordered_vertices.push_back({glm::vec3(+a, -a, -a), glm::vec3(0)});
+    reordered_vertices.push_back({glm::vec3(-a, +a, +a), glm::vec3(0)});
+    reordered_vertices.push_back({glm::vec3(-a, +a, -a), glm::vec3(0)});
+    reordered_vertices.push_back({glm::vec3(-a, -a, +a), glm::vec3(0)});
+    reordered_vertices.push_back({glm::vec3(-a, -a, -a), glm::vec3(0)});
+
     return reordered_vertices;
 }
 
