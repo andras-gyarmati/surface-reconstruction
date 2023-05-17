@@ -528,7 +528,7 @@ void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
 }
 
 void application::render_tetrahedra() {
-    glDisable(GL_CULL_FACE);
+    // glDisable(GL_CULL_FACE);
     m_tetrahedra_vao.Bind();
     glPolygonMode(GL_FRONT, GL_LINE);
     m_wireframe_program.Use();

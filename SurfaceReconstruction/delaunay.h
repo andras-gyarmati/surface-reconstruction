@@ -39,7 +39,6 @@ public:
         }
     };
 
-
     struct edge {
         glm::vec3 a;
         glm::vec3 b;
@@ -216,6 +215,12 @@ public:
         }
     }
 
+    bool get_side(const glm::vec3 v1, const glm::vec3 v2, const glm::vec3 v3, const glm::vec3 point) const {
+        const auto normal = glm::cross(v2 - v1, v3 - v1);
+        const auto dot_p = glm::dot(normal, point - v1);
+        return glm::sign(dot_p) > 0;
+    }
+
     void insert_point(const file_loader::vertex& point) {
         if (!m_root.is_point_in_tetrahedron(point.position)) {
             return;
@@ -244,7 +249,12 @@ public:
         }
         for (const face& face : m_poly_body) {
             // re-triangulate the polygonal hole
-            tetrahedron new_tetrahedron = tetrahedron(face.a, face.b, face.c, point.position);
+            tetrahedron new_tetrahedron;
+            if (get_side(face.c, face.b, face.a, point.position)) {
+                new_tetrahedron = tetrahedron(face.a, face.b, face.c, point.position);
+            } else {
+                new_tetrahedron = tetrahedron(face.c, face.b, face.a, point.position);
+            }
             m_tetrahedra.push_back(new_tetrahedron);
         }
     }
