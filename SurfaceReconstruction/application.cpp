@@ -111,6 +111,8 @@ void application::init_box(const glm::vec3& top_left_front,
     glm::vec3 top_left_back(top_left_front.x, top_left_front.y, bottom_right_back.z);
     glm::vec3 bottom_right_front(bottom_right_back.x, bottom_right_back.y, top_left_front.z);
 
+    const int offset = _vertices.size();
+
     auto pos = std::vector<file_loader::vertex>{
         // back face
         {bottom_left_back, _color},
@@ -134,7 +136,7 @@ void application::init_box(const glm::vec3& top_left_front,
         0, 4, 1, 5, 2, 6, 3, 7,
     };
     for (auto& index : indices) {
-        index += _indices.size();
+        index += offset;
     }
     _indices.insert(_indices.end(), indices.begin(), indices.end());
 }
@@ -511,6 +513,7 @@ void application::init_delaunay(const delaunay::tetrahedron* root) {
 
 void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
     const glm::vec3 random_color = get_random_color();
+    const int offset = m_tetrahedra_vertices.size();
     for (const glm::vec3 vert : tetrahedron->m_vertices) {
         m_tetrahedra_vertices.push_back({vert + (get_random_color() * 0.1f), random_color});
     }
@@ -522,7 +525,7 @@ void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
         0, 2, 3
     };
     for (int& index : indices) {
-        index += m_tetrahedra_indices.size();
+        index += offset;
     }
     m_tetrahedra_indices.insert(m_tetrahedra_indices.end(), indices.begin(), indices.end());
 }
