@@ -93,11 +93,8 @@ public:
             m_vertices[1] = center + glm::vec3(0, 2.0f * side_length / sqrt(6.0f), -side_length / sqrt(2.0f));
             m_vertices[2] = center + glm::vec3((-sqrt(3.0f) / sqrt(6.0f)) * side_length, -side_length / sqrt(6.0f), -side_length / sqrt(2.0f));
             m_vertices[3] = center + glm::vec3((sqrt(3.0f) / sqrt(6.0f)) * side_length, -side_length / sqrt(6.0f), -side_length / sqrt(2.0f));
-
             init_edges();
-
             init_faces();
-
             for (const tetrahedron* child : m_children) {
                 child = nullptr;
             }
@@ -108,6 +105,8 @@ public:
             m_vertices[1] = b;
             m_vertices[2] = c;
             m_vertices[3] = d;
+            init_edges();
+            init_faces();
             for (const tetrahedron* child : m_children) {
                 child = nullptr;
             }
@@ -178,8 +177,8 @@ public:
         }
 
         bool is_face_shared_by_any_other_tetrahedra_in(std::vector<tetrahedron>& bad_tetrahedra, const face& face) const {
-            for (tetrahedron& tetrahedron : bad_tetrahedra) {
-                if (tetrahedron != *this && tetrahedron.contains_face(face)) {
+            for (tetrahedron& bad_tetrahedron : bad_tetrahedra) {
+                if (&bad_tetrahedron != this && bad_tetrahedron.contains_face(face)) {
                     return true;
                 }
             }
@@ -235,11 +234,11 @@ public:
             }
         }
         m_poly_body.clear();
-        for (tetrahedron& tetrahedron : m_bad_tetrahedra) {
+        for (tetrahedron& bad_tetrahedron : m_bad_tetrahedra) {
             // find the boundary of the polygonal hole
-            for (face& face : tetrahedron.m_faces) {
-                if (!tetrahedron.is_face_shared_by_any_other_tetrahedra_in(m_bad_tetrahedra, face)) {
-                    m_poly_body.push_back(face);
+            for (face& bad_face : bad_tetrahedron.m_faces) {
+                if (!bad_tetrahedron.is_face_shared_by_any_other_tetrahedra_in(m_bad_tetrahedra, bad_face)) {
+                    m_poly_body.push_back(bad_face);
                 }
             }
         }

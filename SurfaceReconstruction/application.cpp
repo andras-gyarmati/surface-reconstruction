@@ -515,7 +515,7 @@ void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
     const glm::vec3 random_color = get_random_color();
     const int offset = m_tetrahedra_vertices.size();
     for (const glm::vec3 vert : tetrahedron->m_vertices) {
-        m_tetrahedra_vertices.push_back({vert + (get_random_color() * 0.1f), random_color});
+        m_tetrahedra_vertices.push_back({vert, random_color});
     }
 
     std::vector<int> indices = std::vector<int>{
