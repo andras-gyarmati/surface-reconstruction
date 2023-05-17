@@ -18,13 +18,14 @@ application::application(void) {
     m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
     strncpy_s(m_input_folder, "inputs/parkolo_gomb", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
-    m_point_size = 2.f;
+    m_point_size = 6.0f;
+    m_line_width = 1.0f;
     m_show_debug_sphere = false;
     m_show_points = true;
     m_show_octree = false;
     m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
-    m_show_non_shaded = false;
+    m_show_non_shaded = true;
     m_octree_color = glm::vec3(0, 255, 0);
     m_auto_increment_rendered_point_index = false;
     m_render_points_up_to_index = 0;
@@ -66,6 +67,19 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     }
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
+
+    // debug
+    const float a = 3.0f;
+    m_vertices.clear();
+    m_vertices.push_back({glm::vec3(+a, +a, +a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(+a, +a, -a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(+a, -a, +a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(+a, -a, -a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(-a, +a, +a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(-a, +a, -a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(-a, -a, +a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(-a, -a, -a), glm::vec3(1)});
+
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
 
     m_gpu_particle_buffer.BufferData(m_vertices);
@@ -85,7 +99,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     //     }
     // }
 
-    init_delaunay(&m_delaunay.m_root);
+    init_delaunay_visualization();
 
     init_octree_visualization(&m_octree);
     init_mesh_visualization();
@@ -159,8 +173,6 @@ bool application::init(SDL_Window* window) {
 
     init_sensor_rig_boundary_visualization();
 
-    // init_delaunay(&m_delaunay.m_root);
-
     return true;
 }
 
@@ -169,6 +181,8 @@ void application::clean() {}
 void application::reset() {}
 
 void application::update() {
+    glLineWidth(m_line_width);
+
     if (m_show_back_faces) {
         glDisable(GL_CULL_FACE);
     } else {
@@ -180,13 +194,13 @@ void application::update() {
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
 
-    // if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size() - 16) {
-    //     m_render_points_up_to_index += 1;
-    //     if (m_vertices[m_render_points_up_to_index - 1].position != glm::vec3(0.0f)) {
-    //         m_delaunay.insert_point(m_vertices[m_render_points_up_to_index - 1]);
-    //         init_delaunay(&m_delaunay.m_root);
-    //     }
-    // }
+    if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
+        m_render_points_up_to_index += 1;
+        if (m_vertices[m_render_points_up_to_index - 1].position != glm::vec3(0.0f)) {
+            m_delaunay.insert_point(m_vertices[m_render_points_up_to_index - 1]);
+            init_delaunay_visualization();
+        }
+    }
 
     if (m_prev_debug_sphere_m != m_debug_sphere_m || m_prev_debug_sphere_n != m_debug_sphere_n) {
         init_debug_sphere();
@@ -238,16 +252,18 @@ void application::render_imgui() {
         ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
         ImGui::Checkbox("show non shaded", &m_show_non_shaded);
         ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
-        // ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size() - 16);
+        ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size());
         if (ImGui::Button("-1")) {
             --m_render_points_up_to_index;
         }
         ImGui::SameLine();
         if (ImGui::Button("+1")) {
-            ++m_render_points_up_to_index;
-            if (m_vertices[m_render_points_up_to_index - 1].position != glm::vec3(0.0f)) {
-                m_delaunay.insert_point(m_vertices[m_render_points_up_to_index - 1]);
-                init_delaunay(&m_delaunay.m_root);
+            if (m_render_points_up_to_index + 1 <= m_vertices.size()) {
+                ++m_render_points_up_to_index;
+                if (m_vertices[m_render_points_up_to_index - 1].position != glm::vec3(0.0f)) {
+                    m_delaunay.insert_point(m_vertices[m_render_points_up_to_index - 1]);
+                    init_delaunay_visualization();
+                }
             }
         }
         ImGui::Checkbox("show back faces", &m_show_back_faces);
@@ -265,8 +281,10 @@ void application::render_imgui() {
         }
         if (ImGui::Button("delete super tetra")) {
             m_delaunay.cleanup_super_tetrahedron();
+            init_delaunay_visualization();
         }
         ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
+        ImGui::SliderFloat("line width", &m_line_width, 0.1f, 10.0f);
         ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
         ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
         ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
@@ -357,7 +375,7 @@ void application::init_mesh_visualization() {
     // also we can filter out the long triangles that are in an odd direction, the floor triangles are good exceptions
     // as they are long but flat and almost parallel to the xy plane
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
-        if ((i % 16) != 15) {
+        if ((i % 16) != 15 && i < m_render_points_up_to_index - 16) {
             if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 1);
@@ -440,8 +458,6 @@ glm::vec3 application::get_random_color() const {
 
     // Define the range of HSL values
     std::uniform_real_distribution<float> hue_distribution(0.0f, 360.0f); // Hue range: 0° to 360°
-    std::uniform_real_distribution<float> saturation_distribution(0.0f, 1.0f); // Saturation range: 0.0 to 1.0
-    std::uniform_real_distribution<float> lightness_distribution(0.0f, 1.0f); // Lightness range: 0.0 to 1.0
 
     // Generate random HSL values
     const float h = hue_distribution(gen);
@@ -481,25 +497,9 @@ void application::render_sensor_rig_boundary() {
     m_sensor_rig_boundary_vao.Unbind();
 }
 
-void application::init_delaunay(const delaunay::tetrahedron* root) {
+void application::init_delaunay_visualization() {
     m_tetrahedra_vertices = {};
     m_tetrahedra_indices = {};
-
-    // std::stack<const delaunay::tetrahedron*> delaunay_stack;
-    // delaunay_stack.push(root);
-    //
-    // while (!delaunay_stack.empty()) {
-    //     const delaunay::tetrahedron* node = delaunay_stack.top();
-    //     delaunay_stack.pop();
-    //
-    //     for (const auto child : node->m_children) {
-    //         if (child != nullptr) {
-    //             delaunay_stack.push(child);
-    //         }
-    //     }
-    //
-    //     init_tetrahedron(node);
-    // }
 
     // const auto tetrahedra = m_delaunay.create_mesh(m_vertices);
     for (auto tetrahedron : m_delaunay.m_tetrahedra) {
@@ -520,7 +520,7 @@ void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
     const glm::vec3 random_color = get_random_color();
     const int offset = m_tetrahedra_vertices.size();
     for (const glm::vec3 vert : tetrahedron->m_vertices) {
-        m_tetrahedra_vertices.push_back({vert, random_color});
+        m_tetrahedra_vertices.push_back({vert + (get_random_color() * 0.1f), random_color});
     }
 
     std::vector<int> indices = std::vector<int>{
@@ -536,12 +536,11 @@ void application::init_tetrahedron(const delaunay::tetrahedron* tetrahedron) {
 }
 
 void application::render_tetrahedra() {
-    // glDisable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
     m_tetrahedra_vao.Bind();
     glPolygonMode(GL_FRONT, GL_LINE);
     m_wireframe_program.Use();
     m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    // glDrawElements(GL_LINES, m_tetrahedra_indices.size(), GL_UNSIGNED_INT, nullptr);
     glDrawElements(GL_TRIANGLES, m_tetrahedra_indices.size(), GL_UNSIGNED_INT, nullptr);
     m_tetrahedra_vao.Unbind();
     if (m_show_back_faces) {
@@ -572,15 +571,15 @@ void application::render() {
         render_sensor_rig_boundary();
     }
 
-    // if (m_mesh_rendering_mode != none) {
-    //     if (m_mesh_rendering_mode == solid) {
-    //         glPolygonMode(GL_FRONT, GL_FILL);
-    //     } else if (m_mesh_rendering_mode == wireframe) {
-    //         glPolygonMode(GL_FRONT, GL_LINE);
-    //     }
-    //     init_mesh_visualization();
-    //     render_mesh();
-    // }
+    if (m_mesh_rendering_mode != none) {
+        if (m_mesh_rendering_mode == solid) {
+            glPolygonMode(GL_FRONT, GL_FILL);
+        } else if (m_mesh_rendering_mode == wireframe) {
+            glPolygonMode(GL_FRONT, GL_LINE);
+        }
+        init_mesh_visualization();
+        render_mesh();
+    }
 
     render_tetrahedra();
 

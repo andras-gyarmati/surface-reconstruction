@@ -55,7 +55,7 @@ public:
     glm::vec3 get_random_color() const;
     void init_sensor_rig_boundary_visualization();
     void render_sensor_rig_boundary();
-    void init_delaunay(const delaunay::tetrahedron* root);
+    void init_delaunay_visualization();
     void init_tetrahedron(const delaunay::tetrahedron* tetrahedron);
     void render_tetrahedra();
 
@@ -140,4 +140,5 @@ protected:
     bool m_show_non_shaded;
 
     delaunay m_delaunay;
+    GLfloat m_line_width;
 };

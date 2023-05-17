@@ -11,27 +11,6 @@ public:
         glm::vec3 b;
         glm::vec3 c;
 
-        // bool operator==(const face& other) const {
-        //     auto this_face_points = std::array<glm::vec3, 3>{a, b, c};
-        //     auto other_face_points = std::array<glm::vec3, 3>{other.a, other.b, other.c};
-        //
-        //     auto point_sum = [](const glm::vec3& point) {
-        //         return point.x + point.y + point.z;
-        //     };
-        //     std::sort(this_face_points.begin(),
-        //               this_face_points.end(),
-        //               [&point_sum](const glm::vec3& lhs, const glm::vec3& rhs) {
-        //                   return point_sum(lhs) < point_sum(rhs);
-        //               });
-        //     std::sort(other_face_points.begin(),
-        //               other_face_points.end(),
-        //               [&point_sum](const glm::vec3& lhs, const glm::vec3& rhs) {
-        //                   return point_sum(lhs) < point_sum(rhs);
-        //               });
-        //
-        //     return this_face_points == other_face_points;
-        // }
-
         bool operator==(const face& other) const {
             return (a == other.a || a == other.b || a == other.c) &&
                 (b == other.a || b == other.b || b == other.c) &&
@@ -48,7 +27,6 @@ public:
         glm::vec3 m_vertices[4]{};
         face m_faces[4]{};
         edge m_edges[6]{};
-        tetrahedron* m_children[4]{};
 
         tetrahedron(void) = default;
 
@@ -95,9 +73,6 @@ public:
             m_vertices[3] = center + glm::vec3((sqrt(3.0f) / sqrt(6.0f)) * side_length, -side_length / sqrt(6.0f), -side_length / sqrt(2.0f));
             init_edges();
             init_faces();
-            for (const tetrahedron* child : m_children) {
-                child = nullptr;
-            }
         }
 
         tetrahedron(const glm::vec3 a, const glm::vec3 b, const glm::vec3 c, const glm::vec3 d) {
@@ -107,9 +82,6 @@ public:
             m_vertices[3] = d;
             init_edges();
             init_faces();
-            for (const tetrahedron* child : m_children) {
-                child = nullptr;
-            }
         }
 
         bool is_point_in_tetrahedron(const glm::vec3& point) const {
@@ -186,7 +158,7 @@ public:
         }
 
         bool contains_a_vertex_from_original_super_tetrahedron(const tetrahedron& root) const {
-            const float epsilon = 0.0001f;
+            const float epsilon = 0.001f;
             for (const glm::vec3& vertex : m_vertices) {
                 if (glm::distance(vertex, root.m_vertices[0]) < epsilon ||
                     glm::distance(vertex, root.m_vertices[1]) < epsilon ||
