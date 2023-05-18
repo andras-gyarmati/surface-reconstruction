@@ -32,8 +32,8 @@ application::application(void) {
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
     m_mesh_vertex_cut_distance = 5.0f;
     m_mesh_rendering_mode = none;
-    m_delaunay = delaunay_3d(20.0f, glm::vec3(0.0f, 0.0f, 10.0f));
-    // m_delaunay = delaunay(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
+    // m_delaunay = delaunay_3d(20.0f, glm::vec3(0.0f, 0.0f, 10.0f));
+    m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
 }
 
 void application::init_octree(const std::vector<file_loader::vertex>& vertices) {
@@ -69,16 +69,16 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     m_vertices = file_loader::load_xyz_file(xyz_file);
 
     // debug
-    const float a = 3.0f;
-    m_vertices.clear();
-    m_vertices.push_back({glm::vec3(+a, +a, +a), glm::vec3(1)});
-    m_vertices.push_back({glm::vec3(+a, +a, -a), glm::vec3(1)});
-    m_vertices.push_back({glm::vec3(+a, -a, +a), glm::vec3(1)});
-    m_vertices.push_back({glm::vec3(+a, -a, -a), glm::vec3(1)});
-    m_vertices.push_back({glm::vec3(-a, +a, +a), glm::vec3(1)});
-    m_vertices.push_back({glm::vec3(-a, +a, -a), glm::vec3(1)});
-    m_vertices.push_back({glm::vec3(-a, -a, +a), glm::vec3(1)});
-    m_vertices.push_back({glm::vec3(-a, -a, -a), glm::vec3(1)});
+    // const float a = 3.0f;
+    // m_vertices.clear();
+    // m_vertices.push_back({glm::vec3(+a, +a, +a), glm::vec3(1)});
+    // m_vertices.push_back({glm::vec3(+a, +a, -a), glm::vec3(1)});
+    // m_vertices.push_back({glm::vec3(+a, -a, +a), glm::vec3(1)});
+    // m_vertices.push_back({glm::vec3(+a, -a, -a), glm::vec3(1)});
+    // m_vertices.push_back({glm::vec3(-a, +a, +a), glm::vec3(1)});
+    // m_vertices.push_back({glm::vec3(-a, +a, -a), glm::vec3(1)});
+    // m_vertices.push_back({glm::vec3(-a, -a, +a), glm::vec3(1)});
+    // m_vertices.push_back({glm::vec3(-a, -a, -a), glm::vec3(1)});
 
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
 
@@ -99,6 +99,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     //     }
     // }
 
+    m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
     init_delaunay_visualization();
 
     init_octree_visualization(&m_octree);
@@ -498,6 +499,7 @@ void application::render_sensor_rig_boundary() {
 }
 
 void application::init_delaunay_visualization() {
+
     m_tetrahedra_vertices = {};
     m_tetrahedra_indices = {};
 
@@ -520,7 +522,7 @@ void application::init_tetrahedron(const delaunay_3d::tetrahedron* tetrahedron) 
     const glm::vec3 random_color = get_random_color();
     const int offset = m_tetrahedra_vertices.size();
     for (const glm::vec3 vert : tetrahedron->m_vertices) {
-        m_tetrahedra_vertices.push_back({vert + (get_random_color() * 0.1f), random_color});
+        m_tetrahedra_vertices.push_back({vert /*+ (get_random_color() * 0.4f)*/, random_color});
     }
 
     std::vector<int> indices = std::vector<int>{

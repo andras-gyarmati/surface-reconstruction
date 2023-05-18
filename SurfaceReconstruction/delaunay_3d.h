@@ -134,11 +134,7 @@ public:
 
         bool is_point_inside_circumsphere(const glm::vec3 point) const {
             const glm::vec3 circumcenter = get_circumcenter();
-            const float radius1 = glm::distance(circumcenter, m_vertices[0]);
-            const float radius2 = glm::distance(circumcenter, m_vertices[1]);
-            const float radius3 = glm::distance(circumcenter, m_vertices[2]);
-            const float radius4 = glm::distance(circumcenter, m_vertices[3]);
-            const float radius = (radius1 + radius2 + radius3 + radius4) / 4.0f;
+            const float radius = glm::distance(circumcenter, m_vertices[0]);
             const float distance = glm::distance(point, circumcenter);
             return distance < radius;
         }
