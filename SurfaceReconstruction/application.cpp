@@ -50,6 +50,19 @@ void application::init_octree(const std::vector<file_loader::vertex>& vertices) 
     }
 }
 
+void application::overwrite_vertices_with_debug_cube() {
+    const float a = 3.0f;
+    m_vertices.clear();
+    m_vertices.push_back({glm::vec3(+a, +a, +a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(+a, +a, -a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(+a, -a, +a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(+a, -a, -a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(-a, +a, +a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(-a, +a, -a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(-a, -a, +a), glm::vec3(1)});
+    m_vertices.push_back({glm::vec3(-a, -a, -a), glm::vec3(1)});
+}
+
 void application::load_inputs_from_folder(const std::string& folder_name) {
     const std::vector<std::string> file_paths = file_loader::get_directory_files(folder_name);
     std::string xyz_file;
@@ -68,17 +81,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
 
-    // debug
-    //const float a = 3.0f;
-    //m_vertices.clear();
-    //m_vertices.push_back({glm::vec3(+a, +a, +a), glm::vec3(1)});
-    //m_vertices.push_back({glm::vec3(+a, +a, -a), glm::vec3(1)});
-    //m_vertices.push_back({glm::vec3(+a, -a, +a), glm::vec3(1)});
-    //m_vertices.push_back({glm::vec3(+a, -a, -a), glm::vec3(1)});
-    //m_vertices.push_back({glm::vec3(-a, +a, +a), glm::vec3(1)});
-    //m_vertices.push_back({glm::vec3(-a, +a, -a), glm::vec3(1)});
-    //m_vertices.push_back({glm::vec3(-a, -a, +a), glm::vec3(1)});
-    //m_vertices.push_back({glm::vec3(-a, -a, -a), glm::vec3(1)});
+    // overwrite_vertices_with_debug_cube();
 
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
 

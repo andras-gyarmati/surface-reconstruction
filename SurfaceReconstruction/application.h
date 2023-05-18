@@ -43,6 +43,7 @@ public:
     void draw_points(VertexArrayObject& vao, size_t size);
     void render_imgui();
     void init_octree(const std::vector<file_loader::vertex>& vertices);
+    void overwrite_vertices_with_debug_cube();
     void init_octree_visualization(const octree* root);
     void render_octree_boxes();
     bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
