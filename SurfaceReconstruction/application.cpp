@@ -69,16 +69,16 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     m_vertices = file_loader::load_xyz_file(xyz_file);
 
     // debug
-    // const float a = 3.0f;
-    // m_vertices.clear();
-    // m_vertices.push_back({glm::vec3(+a, +a, +a), glm::vec3(1)});
-    // m_vertices.push_back({glm::vec3(+a, +a, -a), glm::vec3(1)});
-    // m_vertices.push_back({glm::vec3(+a, -a, +a), glm::vec3(1)});
-    // m_vertices.push_back({glm::vec3(+a, -a, -a), glm::vec3(1)});
-    // m_vertices.push_back({glm::vec3(-a, +a, +a), glm::vec3(1)});
-    // m_vertices.push_back({glm::vec3(-a, +a, -a), glm::vec3(1)});
-    // m_vertices.push_back({glm::vec3(-a, -a, +a), glm::vec3(1)});
-    // m_vertices.push_back({glm::vec3(-a, -a, -a), glm::vec3(1)});
+    //const float a = 3.0f;
+    //m_vertices.clear();
+    //m_vertices.push_back({glm::vec3(+a, +a, +a), glm::vec3(1)});
+    //m_vertices.push_back({glm::vec3(+a, +a, -a), glm::vec3(1)});
+    //m_vertices.push_back({glm::vec3(+a, -a, +a), glm::vec3(1)});
+    //m_vertices.push_back({glm::vec3(+a, -a, -a), glm::vec3(1)});
+    //m_vertices.push_back({glm::vec3(-a, +a, +a), glm::vec3(1)});
+    //m_vertices.push_back({glm::vec3(-a, +a, -a), glm::vec3(1)});
+    //m_vertices.push_back({glm::vec3(-a, -a, +a), glm::vec3(1)});
+    //m_vertices.push_back({glm::vec3(-a, -a, -a), glm::vec3(1)});
 
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
 
@@ -98,6 +98,8 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     //         m_delaunay.insert_point(m_vertices[i]);
     //     }
     // }
+
+    // todo: only use shaded points
 
     m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
     init_delaunay_visualization();
