@@ -80,15 +80,56 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     }
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
+    m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
 
     // overwrite_vertices_with_debug_cube();
 
-    m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
+    //
+
+    glm::mat3 cam_k = m_digital_camera_params.get_cam_k();
+    glm::mat3 cam_r[3];
+    glm::vec3 cam_t[3];
+    cam_r[0] = m_digital_camera_params.devices[0].r;
+    cam_r[1] = m_digital_camera_params.devices[1].r;
+    cam_r[2] = m_digital_camera_params.devices[2].r;
+    cam_t[0] = m_digital_camera_params.devices[0].t;
+    cam_t[1] = m_digital_camera_params.devices[1].t;
+    cam_t[2] = m_digital_camera_params.devices[2].t;
+
+    for (int j = 0; j < m_vertices.size(); ++j) {
+        bool is_shaded = false;
+        for (int i = 0; i < 3; ++i) {
+            glm::vec3 p_tmp = cam_r[i] * (m_vertices[j].position - cam_t[i]);
+            const float dist = p_tmp.z;
+            p_tmp /= p_tmp.z;
+            glm::vec2 p_c;
+            p_c.x = cam_k[0][0] * p_tmp.x + cam_k[0][2];
+            p_c.y = cam_k[1][1] * -p_tmp.y + cam_k[1][2];
+            if (dist > 0 && p_c.x >= 0 && p_c.x <= 960 && p_c.y >= 0 && p_c.y <= 600) {
+                is_shaded = true;
+            }
+        }
+        if (is_shaded && !m_sensor_rig_boundary.is_contains(m_vertices[j].position)) {
+            m_delaunay_vertices.push_back(m_vertices[j]);
+        }
+    }
+
+    //
 
     m_gpu_particle_buffer.BufferData(m_vertices);
     m_gpu_particle_vao.Init({
-        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_gpu_particle_buffer},
-        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_gpu_particle_buffer}
+        {
+            AttributeData{
+                0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)
+            },
+            m_gpu_particle_buffer
+        },
+        {
+            AttributeData{
+                1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)
+            },
+            m_gpu_particle_buffer
+        }
     });
 
     randomize_colors();
@@ -96,15 +137,10 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     init_octree(m_vertices);
 
     // debug
-    // for (int i = 0; i < m_vertices.size(); ++i) {
-    //     if (m_vertices[i].position != glm::vec3(0, 0, 0)) {
-    //         m_delaunay.insert_point(m_vertices[i]);
-    //     }
-    // }
-
-    // todo: only use shaded points
-
     m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
+    // for (int i = 0; i < 2000; ++i) {
+    //     m_delaunay.insert_point(m_delaunay_vertices[i]);
+    // }
     init_delaunay_visualization();
 
     init_octree_visualization(&m_octree);
@@ -115,8 +151,9 @@ void application::init_debug_sphere() {
     m_debug_sphere.resize((m_debug_sphere_m + 1) * (m_debug_sphere_n + 1));
     for (int i = 0; i <= m_debug_sphere_n; ++i)
         for (int j = 0; j <= m_debug_sphere_m; ++j)
-            m_debug_sphere[i + j * (m_debug_sphere_n + 1)] = get_sphere_pos(static_cast<float>(i) / static_cast<float>(m_debug_sphere_n),
-                                                                            static_cast<float>(j) / static_cast<float>(m_debug_sphere_m));
+            m_debug_sphere[i + j * (m_debug_sphere_n + 1)] = get_sphere_pos(
+                static_cast<float>(i) / static_cast<float>(m_debug_sphere_n),
+                static_cast<float>(j) / static_cast<float>(m_debug_sphere_m));
     m_gpu_debug_sphere_buffer.BufferData(m_debug_sphere);
     m_gpu_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_gpu_debug_sphere_buffer}});
 }
@@ -171,8 +208,10 @@ bool application::init(SDL_Window* window) {
     glEnable(GL_DEPTH_TEST);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "axes.vert"}, {GL_FRAGMENT_SHADER, "axes.frag"}});
-    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
-    m_wireframe_program.Init({{GL_VERTEX_SHADER, "wireframe.vert"}, {GL_FRAGMENT_SHADER, "wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
+    m_particle_program.Init({{GL_VERTEX_SHADER, "particle.vert"}, {GL_FRAGMENT_SHADER, "particle.frag"}},
+                            {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
+    m_wireframe_program.Init({{GL_VERTEX_SHADER, "wireframe.vert"}, {GL_FRAGMENT_SHADER, "wireframe.frag"}},
+                             {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
     load_inputs_from_folder("inputs/parkolo_gomb");
     init_debug_sphere();
@@ -202,8 +241,8 @@ void application::update() {
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
         m_render_points_up_to_index += 1;
-        if (m_vertices[m_render_points_up_to_index - 1].position != glm::vec3(0.0f)) {
-            m_delaunay.insert_point(m_vertices[m_render_points_up_to_index - 1]);
+        if (m_render_points_up_to_index < m_delaunay_vertices.size()) {
+            m_delaunay.insert_point(m_delaunay_vertices[m_render_points_up_to_index - 1]);
             init_delaunay_visualization();
         }
     }
@@ -266,8 +305,8 @@ void application::render_imgui() {
         if (ImGui::Button("+1")) {
             if (m_render_points_up_to_index + 1 <= m_vertices.size()) {
                 ++m_render_points_up_to_index;
-                if (m_vertices[m_render_points_up_to_index - 1].position != glm::vec3(0.0f)) {
-                    m_delaunay.insert_point(m_vertices[m_render_points_up_to_index - 1]);
+                if (m_render_points_up_to_index < m_delaunay_vertices.size()) {
+                    m_delaunay.insert_point(m_delaunay_vertices[m_render_points_up_to_index - 1]);
                     init_delaunay_visualization();
                 }
             }
@@ -325,16 +364,16 @@ void application::render_octree_boxes() {
     m_wireframe_vao.Unbind();
 }
 
-bool application::is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const {
+bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
     return glm::distance(m_vertices[i0].position, m_vertices[i1].position) < m_mesh_vertex_cut_distance &&
         glm::distance(m_vertices[i1].position, m_vertices[i2].position) < m_mesh_vertex_cut_distance &&
         glm::distance(m_vertices[i2].position, m_vertices[i0].position) < m_mesh_vertex_cut_distance;
 }
 
-bool application::is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const {
-    return !(m_sensor_rig_boundary.is_inside(m_vertices[i0].position) ||
-        m_sensor_rig_boundary.is_inside(m_vertices[i1].position) ||
-        m_sensor_rig_boundary.is_inside(m_vertices[i2].position));
+bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
+    return !(m_sensor_rig_boundary.is_contains(m_vertices[i0].position) ||
+        m_sensor_rig_boundary.is_contains(m_vertices[i1].position) ||
+        m_sensor_rig_boundary.is_contains(m_vertices[i2].position));
 }
 
 void application::init_octree_visualization(const octree* root) {
@@ -360,7 +399,11 @@ void application::init_octree_visualization(const octree* root) {
         }
 
         if (node->m_top_left_front != nullptr) {
-            init_box(*node->m_top_left_front, *node->m_bottom_right_back, m_wireframe_vertices, m_wireframe_indices, m_octree_color);
+            init_box(*node->m_top_left_front,
+                     *node->m_bottom_right_back,
+                     m_wireframe_vertices,
+                     m_wireframe_indices,
+                     m_octree_color);
         }
     }
 
@@ -368,8 +411,19 @@ void application::init_octree_visualization(const octree* root) {
     m_wireframe_indices_gpu_buffer.BufferData(m_wireframe_indices);
     m_wireframe_vao.Init(
         {
-            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_wireframe_vertices_gpu_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_wireframe_vertices_gpu_buffer}
+            {
+                AttributeData{
+                    0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex),
+                    (void*)offsetof(file_loader::vertex, position)
+                },
+                m_wireframe_vertices_gpu_buffer
+            },
+            {
+                AttributeData{
+                    1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)
+                },
+                m_wireframe_vertices_gpu_buffer
+            }
         },
         m_wireframe_indices_gpu_buffer);
 }
@@ -382,12 +436,16 @@ void application::init_mesh_visualization() {
     // as they are long but flat and almost parallel to the xy plane
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
         if ((i % 16) != 15 && i < m_render_points_up_to_index - 16) {
-            if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
+            if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) &&
+                is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 1);
                 m_mesh_indices.push_back(i + 17);
             }
-            if (is_outside_of_sensor_rig_boundary(i, i + 17, i + 16) && is_mesh_vertex_cut_distance_ok(i, i + 17, i + 16)) {
+            if (is_outside_of_sensor_rig_boundary(i, i + 17, i + 16) && is_mesh_vertex_cut_distance_ok(
+                i,
+                i + 17,
+                i + 16)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 17);
                 m_mesh_indices.push_back(i + 16);
@@ -398,8 +456,19 @@ void application::init_mesh_visualization() {
     m_mesh_indices_gpu_buffer.BufferData(m_mesh_indices);
     m_mesh_vao.Init(
         {
-            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_mesh_pos_gpu_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_mesh_pos_gpu_buffer}
+            {
+                AttributeData{
+                    0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex),
+                    (void*)offsetof(file_loader::vertex, position)
+                },
+                m_mesh_pos_gpu_buffer
+            },
+            {
+                AttributeData{
+                    1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)
+                },
+                m_mesh_pos_gpu_buffer
+            }
         },
         m_mesh_indices_gpu_buffer);
 }
@@ -488,8 +557,19 @@ void application::init_sensor_rig_boundary_visualization() {
     m_sensor_rig_boundary_indices_gpu_buffer.BufferData(m_sensor_rig_boundary_indices);
     m_sensor_rig_boundary_vao.Init(
         {
-            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_sensor_rig_boundary_vertices_gpu_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_sensor_rig_boundary_vertices_gpu_buffer}
+            {
+                AttributeData{
+                    0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex),
+                    (void*)offsetof(file_loader::vertex, position)
+                },
+                m_sensor_rig_boundary_vertices_gpu_buffer
+            },
+            {
+                AttributeData{
+                    1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)
+                },
+                m_sensor_rig_boundary_vertices_gpu_buffer
+            }
         },
         m_sensor_rig_boundary_indices_gpu_buffer);
 }
@@ -504,7 +584,6 @@ void application::render_sensor_rig_boundary() {
 }
 
 void application::init_delaunay_visualization() {
-
     m_tetrahedra_vertices = {};
     m_tetrahedra_indices = {};
 
@@ -517,8 +596,19 @@ void application::init_delaunay_visualization() {
     m_tetrahedra_indices_gpu_buffer.BufferData(m_tetrahedra_indices);
     m_tetrahedra_vao.Init(
         {
-            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_tetrahedra_vertices_gpu_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_tetrahedra_vertices_gpu_buffer}
+            {
+                AttributeData{
+                    0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex),
+                    (void*)offsetof(file_loader::vertex, position)
+                },
+                m_tetrahedra_vertices_gpu_buffer
+            },
+            {
+                AttributeData{
+                    1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)
+                },
+                m_tetrahedra_vertices_gpu_buffer
+            }
         },
         m_tetrahedra_indices_gpu_buffer);
 }

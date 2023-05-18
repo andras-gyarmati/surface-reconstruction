@@ -62,10 +62,14 @@ public:
             return;
         }
 
-        if (point_to_insert.x < m_top_left_front->x || point_to_insert.x > m_bottom_right_back->x || point_to_insert.y < m_top_left_front->y ||
-            point_to_insert.y > m_bottom_right_back->y || point_to_insert.z < m_top_left_front->z || point_to_insert.z > m_bottom_right_back->z) {
-            std::cout << "Point is out of bounds." << " pos: " << glm::to_string(point_to_insert) << " m_top_left_front: "
-                << glm::to_string(*m_top_left_front) << " m_bottom_right_back: " << glm::to_string(*m_bottom_right_back) << std::endl;
+        if (point_to_insert.x < m_top_left_front->x || point_to_insert.x > m_bottom_right_back->x || point_to_insert.y <
+            m_top_left_front->y ||
+            point_to_insert.y > m_bottom_right_back->y || point_to_insert.z < m_top_left_front->z || point_to_insert.z >
+            m_bottom_right_back->z) {
+            std::cout << "Point is out of bounds." << " pos: " << glm::to_string(point_to_insert) <<
+                " m_top_left_front: "
+                << glm::to_string(*m_top_left_front) << " m_bottom_right_back: " << glm::to_string(*m_bottom_right_back)
+                << std::endl;
             return;
         }
 
@@ -86,21 +90,31 @@ public:
         delete m_children[octant];
         m_children[octant] = nullptr;
         if (octant == top_left_front) {
-            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, m_top_left_front->y, m_top_left_front->z), glm::vec3(mid.x, mid.y, mid.z));
+            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, m_top_left_front->y, m_top_left_front->z),
+                                            glm::vec3(mid.x, mid.y, mid.z));
         } else if (octant == top_right_front) {
-            m_children[octant] = new octree(glm::vec3(mid.x, m_top_left_front->y, m_top_left_front->z), glm::vec3(m_bottom_right_back->x, mid.y, mid.z));
+            m_children[octant] = new octree(glm::vec3(mid.x, m_top_left_front->y, m_top_left_front->z),
+                                            glm::vec3(m_bottom_right_back->x, mid.y, mid.z));
         } else if (octant == bottom_right_front) {
-            m_children[octant] = new octree(glm::vec3(mid.x, mid.y, m_top_left_front->z), glm::vec3(m_bottom_right_back->x, m_bottom_right_back->y, mid.z));
+            m_children[octant] = new octree(glm::vec3(mid.x, mid.y, m_top_left_front->z),
+                                            glm::vec3(m_bottom_right_back->x, m_bottom_right_back->y, mid.z));
         } else if (octant == bottom_left_front) {
-            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, mid.y, m_top_left_front->z), glm::vec3(mid.x, m_bottom_right_back->y, mid.z));
+            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, mid.y, m_top_left_front->z),
+                                            glm::vec3(mid.x, m_bottom_right_back->y, mid.z));
         } else if (octant == top_left_bottom) {
-            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, m_top_left_front->y, mid.z), glm::vec3(mid.x, mid.y, m_bottom_right_back->z));
+            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, m_top_left_front->y, mid.z),
+                                            glm::vec3(mid.x, mid.y, m_bottom_right_back->z));
         } else if (octant == top_right_bottom) {
-            m_children[octant] = new octree(glm::vec3(mid.x, m_top_left_front->y, mid.z), glm::vec3(m_bottom_right_back->x, mid.y, m_bottom_right_back->z));
+            m_children[octant] = new octree(glm::vec3(mid.x, m_top_left_front->y, mid.z),
+                                            glm::vec3(m_bottom_right_back->x, mid.y, m_bottom_right_back->z));
         } else if (octant == bottom_right_back) {
-            m_children[octant] = new octree(glm::vec3(mid.x, mid.y, mid.z), glm::vec3(m_bottom_right_back->x, m_bottom_right_back->y, m_bottom_right_back->z));
+            m_children[octant] = new octree(glm::vec3(mid.x, mid.y, mid.z),
+                                            glm::vec3(m_bottom_right_back->x,
+                                                      m_bottom_right_back->y,
+                                                      m_bottom_right_back->z));
         } else if (octant == bottom_left_back) {
-            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, mid.y, mid.z), glm::vec3(mid.x, m_bottom_right_back->y, m_bottom_right_back->z));
+            m_children[octant] = new octree(glm::vec3(m_top_left_front->x, mid.y, mid.z),
+                                            glm::vec3(mid.x, m_bottom_right_back->y, m_bottom_right_back->z));
         }
         m_children[octant]->insert(already_stored_point);
         m_children[octant]->insert(point_to_insert);
@@ -161,9 +175,10 @@ public:
         glm::vec3 m_top_left_front;
         glm::vec3 m_bottom_right_back;
 
-        bool is_inside(const glm::vec3& point) const {
-            return point.x >= m_top_left_front.x && point.x <= m_bottom_right_back.x && point.y >= m_top_left_front.y &&
-                   point.y <= m_bottom_right_back.y && point.z >= m_top_left_front.z && point.z <= m_bottom_right_back.z;
+        bool is_contains(const glm::vec3& point) const {
+            return point.x >= m_top_left_front.x && point.x <= m_bottom_right_back.x &&
+                point.y >= m_top_left_front.y && point.y <= m_bottom_right_back.y &&
+                point.z >= m_top_left_front.z && point.z <= m_bottom_right_back.z;
         }
     };
 

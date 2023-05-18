@@ -81,6 +81,7 @@ protected:
 
     ProgramObject m_particle_program;
     std::vector<file_loader::vertex> m_vertices;
+    std::vector<file_loader::vertex> m_delaunay_vertices;
     VertexArrayObject m_gpu_particle_vao;
     ArrayBuffer m_gpu_particle_buffer;
     int m_render_points_up_to_index;
