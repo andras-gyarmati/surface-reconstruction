@@ -81,7 +81,25 @@
     <ClInclude Include="Includes\json.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="App.h">
+    <ClInclude Include="delaunay_3d.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="parametric_surface.cpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="parametric_surface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="window_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="file_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="application.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="octree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -123,7 +141,13 @@
     <ClCompile Include="Includes\GLDebugMessageCallback.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="App.cpp">
+    <ClCompile Include="window_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="file_loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="application.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -151,12 +175,6 @@
     </None>
     <None Include="Includes\VertexArrayObject.inl">
       <Filter>GL utilities</Filter>
-    </None>
-    <None Include="mesh.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="mesh.vert">
-      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

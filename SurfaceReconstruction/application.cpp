@@ -138,10 +138,10 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     // debug
     m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
-    // for (int i = 0; i < 2000; ++i) {
-    //     m_delaunay.insert_point(m_delaunay_vertices[i]);
-    // }
-    init_delaunay_visualization();
+    for (int i = 0; i < 1200; ++i) {
+        m_delaunay.insert_point(m_delaunay_vertices[i]);
+    }
+    // init_delaunay_visualization();
 
     init_octree_visualization(&m_octree);
     init_mesh_visualization();
@@ -241,10 +241,10 @@ void application::update() {
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
         m_render_points_up_to_index += 1;
-        if (m_render_points_up_to_index < m_delaunay_vertices.size()) {
-            m_delaunay.insert_point(m_delaunay_vertices[m_render_points_up_to_index - 1]);
-            init_delaunay_visualization();
-        }
+        // if (m_render_points_up_to_index < m_delaunay_vertices.size()) {
+        //     m_delaunay.insert_point(m_delaunay_vertices[m_render_points_up_to_index - 1]);
+        //     init_delaunay_visualization();
+        // }
     }
 
     if (m_prev_debug_sphere_m != m_debug_sphere_m || m_prev_debug_sphere_n != m_debug_sphere_n) {
@@ -305,10 +305,10 @@ void application::render_imgui() {
         if (ImGui::Button("+1")) {
             if (m_render_points_up_to_index + 1 <= m_vertices.size()) {
                 ++m_render_points_up_to_index;
-                if (m_render_points_up_to_index < m_delaunay_vertices.size()) {
-                    m_delaunay.insert_point(m_delaunay_vertices[m_render_points_up_to_index - 1]);
-                    init_delaunay_visualization();
-                }
+                // if (m_render_points_up_to_index < m_delaunay_vertices.size()) {
+                //     m_delaunay.insert_point(m_delaunay_vertices[m_render_points_up_to_index - 1]);
+                //     init_delaunay_visualization();
+                // }
             }
         }
         ImGui::Checkbox("show back faces", &m_show_back_faces);

@@ -18,15 +18,9 @@ public:
         }
     };
 
-    struct edge {
-        glm::vec3 a;
-        glm::vec3 b;
-    };
-
     struct tetrahedron {
         glm::vec3 m_vertices[4]{};
         face m_faces[4]{};
-        edge m_edges[6]{};
 
         tetrahedron(void) = default;
 
@@ -39,15 +33,6 @@ public:
 
         bool operator!=(const tetrahedron& tetrahedron) const {
             return !(*this == tetrahedron);
-        }
-
-        void init_edges() {
-            m_edges[0] = {m_vertices[0], m_vertices[1]};
-            m_edges[1] = {m_vertices[0], m_vertices[2]};
-            m_edges[2] = {m_vertices[0], m_vertices[3]};
-            m_edges[3] = {m_vertices[1], m_vertices[2]};
-            m_edges[4] = {m_vertices[1], m_vertices[3]};
-            m_edges[5] = {m_vertices[2], m_vertices[3]};
         }
 
         void init_faces() {
@@ -71,7 +56,6 @@ public:
             m_vertices[1] = center + glm::vec3(0, 2.0f * side_length / sqrt(6.0f), -side_length / sqrt(2.0f));
             m_vertices[2] = center + glm::vec3((-sqrt(3.0f) / sqrt(6.0f)) * side_length, -side_length / sqrt(6.0f), -side_length / sqrt(2.0f));
             m_vertices[3] = center + glm::vec3((sqrt(3.0f) / sqrt(6.0f)) * side_length, -side_length / sqrt(6.0f), -side_length / sqrt(2.0f));
-            init_edges();
             init_faces();
         }
 
@@ -80,7 +64,6 @@ public:
             m_vertices[1] = b;
             m_vertices[2] = c;
             m_vertices[3] = d;
-            init_edges();
             init_faces();
         }
 
