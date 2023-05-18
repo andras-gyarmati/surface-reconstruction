@@ -102,48 +102,43 @@ public:
                 (std::signbit(d0) == std::signbit(d4));
         }
 
+        static float length2(const glm::vec3 v) {
+            return v.x * v.x + v.y * v.y + v.z * v.z;
+        }
+
         glm::vec3 get_circumcenter() const {
-            // Use coordinates relative to point 'a' of the tetrahedron.
+            glm::vec3 center;
 
-            const glm::vec3 ba = m_vertices[1] - m_vertices[0];
-            const glm::vec3 ca = m_vertices[2] - m_vertices[0];
-            const glm::vec3 da = m_vertices[3] - m_vertices[0];
+            //Create the rows of our "unrolled" 3x3 matrix
+            const glm::vec3 row1 = m_vertices[1] - m_vertices[0];
+            const float sq_len_1 = length2(row1);
+            const glm::vec3 row2 = m_vertices[2] - m_vertices[0];
+            const float sq_len_2 = length2(row2);
+            const glm::vec3 row3 = m_vertices[3] - m_vertices[0];
+            const float sq_len_3 = length2(row3);
 
-            // Squares of lengths of the edges incident to 'a'.
-            const float len_ba = ba.x * ba.x + ba.y * ba.y + ba.z * ba.z;
-            const float len_ca = ca.x * ca.x + ca.y * ca.y + ca.z * ca.z;
-            const float len_da = da.x * da.x + da.y * da.y + da.z * da.z;
+            //Compute the determinant of said matrix
+            const float determinant = row1.x * (row2.y * row3.z - row3.y * row2.z)
+                - row2.x * (row1.y * row3.z - row3.y * row1.z)
+                + row3.x * (row1.y * row2.z - row2.y * row1.z);
 
-            // c cross d
-            const float cross_cd_x = ca.y * da.z - da.y * ca.z;
-            const float cross_cd_y = ca.z * da.x - da.z * ca.x;
-            const float cross_cd_z = ca.x * da.y - da.x * ca.y;
+            // Compute the volume of the tetrahedron, and precompute a scalar quantity for re-use in the formula
+            const float volume = determinant / 6.f;
+            const float i12 = 1.f / (volume * 12.f);
 
-            // d cross b
-            const float cross_db_x = da.y * ba.z - ba.y * da.z;
-            const float cross_db_y = da.z * ba.x - ba.z * da.x;
-            const float cross_db_z = da.x * ba.y - ba.x * da.y;
-
-            // b cross c
-            const float cross_bc_x = ba.y * ca.z - ca.y * ba.z;
-            const float cross_bc_y = ba.z * ca.x - ca.z * ba.x;
-            const float cross_bc_z = ba.x * ca.y - ca.x * ba.y;
-
-            // Calculate the denominator of the formula.
-            const float denominator = 0.5f / (ba.x * cross_cd_x + ba.y * cross_cd_y + ba.z * cross_cd_z);
-
-            // Calculate offset (from 'a') of circumcenter.
-            const float circ_x = (len_ba * cross_cd_x + len_ca * cross_db_x + len_da * cross_bc_x) * denominator;
-            const float circ_y = (len_ba * cross_cd_y + len_ca * cross_db_y + len_da * cross_bc_y) * denominator;
-            const float circ_z = (len_ba * cross_cd_z + len_ca * cross_db_z + len_da * cross_bc_z) * denominator;
-
-            const glm::vec3 circumcenter = glm::vec3(circ_x, circ_y, circ_z);
-            return circumcenter;
+            center.x = m_vertices[0].x + i12 * ((row2.y * row3.z - row3.y * row2.z) * sq_len_1 - (row1.y * row3.z - row3.y * row1.z) * sq_len_2 + (row1.y * row2.z - row2.y * row1.z) * sq_len_3);
+            center.y = m_vertices[0].y + i12 * (-(row2.x * row3.z - row3.x * row2.z) * sq_len_1 + (row1.x * row3.z - row3.x * row1.z) * sq_len_2 - (row1.x * row2.z - row2.x * row1.z) * sq_len_3);
+            center.z = m_vertices[0].z + i12 * ((row2.x * row3.y - row3.x * row2.y) * sq_len_1 - (row1.x * row3.y - row3.x * row1.y) * sq_len_2 + (row1.x * row2.y - row2.x * row1.y) * sq_len_3);
+            return center;
         }
 
         bool is_point_inside_circumsphere(const glm::vec3 point) const {
             const glm::vec3 circumcenter = get_circumcenter();
-            const float radius = glm::distance(circumcenter, m_vertices[0]);
+            const float radius1 = glm::distance(circumcenter, m_vertices[0]);
+            const float radius2 = glm::distance(circumcenter, m_vertices[1]);
+            const float radius3 = glm::distance(circumcenter, m_vertices[2]);
+            const float radius4 = glm::distance(circumcenter, m_vertices[3]);
+            const float radius = (radius1 + radius2 + radius3 + radius4) / 4.0f;
             const float distance = glm::distance(point, circumcenter);
             return distance < radius;
         }
