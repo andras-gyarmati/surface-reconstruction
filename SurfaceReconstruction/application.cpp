@@ -25,6 +25,7 @@ application::application(void) {
     m_show_octree = false;
     m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
+    m_show_tetrahedra = true;
     m_show_non_shaded = true;
     m_octree_color = glm::vec3(0, 255, 0);
     m_auto_increment_rendered_point_index = false;
@@ -141,7 +142,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     for (int i = 0; i < 1200; ++i) {
         m_delaunay.insert_point(m_delaunay_vertices[i]);
     }
-    // init_delaunay_visualization();
+    init_delaunay_visualization();
 
     init_octree_visualization(&m_octree);
     init_mesh_visualization();
@@ -296,6 +297,7 @@ void application::render_imgui() {
         ImGui::Checkbox("show octree", &m_show_octree);
         ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
         ImGui::Checkbox("show non shaded", &m_show_non_shaded);
+        ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
         ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
         ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size());
         if (ImGui::Button("-1")) {
@@ -677,8 +679,8 @@ void application::render() {
         init_mesh_visualization();
         render_mesh();
     }
-
-    render_tetrahedra();
+    if (m_show_tetrahedra)
+        render_tetrahedra();
 
     render_imgui();
 }
