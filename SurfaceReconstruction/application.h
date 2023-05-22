@@ -112,17 +112,17 @@ protected:
     bool m_show_non_shaded_points;
     bool m_show_non_shaded_mesh;
     bool m_auto_increment_rendered_point_index;
-
+    // numeric values
     int m_render_points_up_to_index;
     int m_debug_sphere_n = 959;
     int m_prev_debug_sphere_n = 959;
     int m_debug_sphere_m = 959;
     int m_prev_debug_sphere_m = 959;
-
-    SDL_Window* m_window{};
     float m_point_size;
     float m_mesh_vertex_cut_distance;
-    GLfloat m_line_width;
+    float m_line_width;
+
+    SDL_Window* m_window{};
     gCamera m_virtual_camera;
     glm::vec3 m_start_eye;
     glm::vec3 m_start_at;
