@@ -175,7 +175,7 @@ public:
         glm::vec3 m_top_left_front;
         glm::vec3 m_bottom_right_back;
 
-        bool is_contains(const glm::vec3& point) const {
+        bool contains(const glm::vec3& point) const {
             return point.x >= m_top_left_front.x && point.x <= m_bottom_right_back.x &&
                 point.y >= m_top_left_front.y && point.y <= m_bottom_right_back.y &&
                 point.z >= m_top_left_front.z && point.z <= m_bottom_right_back.z;

@@ -576,7 +576,7 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
                 is_shaded = true;
             }
         }
-        if (is_shaded && !m_sensor_rig_boundary.is_contains(point.position)) {
+        if (is_shaded && !m_sensor_rig_boundary.contains(point.position)) {
             shaded_points.push_back(point);
         }
     }
@@ -590,9 +590,9 @@ bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, con
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
-    return !(m_sensor_rig_boundary.is_contains(m_vertices[i0].position) ||
-        m_sensor_rig_boundary.is_contains(m_vertices[i1].position) ||
-        m_sensor_rig_boundary.is_contains(m_vertices[i2].position));
+    return !(m_sensor_rig_boundary.contains(m_vertices[i0].position) ||
+        m_sensor_rig_boundary.contains(m_vertices[i1].position) ||
+        m_sensor_rig_boundary.contains(m_vertices[i2].position));
 }
 
 void application::set_particle_program_uniforms(bool show_non_shaded) {
