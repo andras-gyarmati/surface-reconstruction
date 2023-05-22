@@ -6,8 +6,6 @@
 #include <random>
 #include <string>
 
-// todo: create digital camera and point cloud classes
-
 class file_loader {
 public:
     struct vertex {

@@ -7,7 +7,6 @@
 #include "Includes/TextureObject.h"
 #include "Includes/gCamera.h"
 #include <vector>
-
 #include "delaunay_3d.h"
 #include "file_loader.h"
 #include "octree.h"
@@ -25,8 +24,7 @@ public:
 
     bool init(SDL_Window* window);
     void clean();
-    auto reset() -> void;
-
+    void reset();
     void update();
     void render();
 
@@ -37,112 +35,105 @@ public:
     void mouse_up(const SDL_MouseButtonEvent&);
     void mouse_wheel(const SDL_MouseWheelEvent&);
     void resize(int, int);
+
     void load_inputs_from_folder(const std::string& folder_name);
+
     void init_debug_sphere();
-    void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back, std::vector<file_loader::vertex>& _vertices, std::vector<int>& _indices, glm::vec3 _color);
-    void draw_points(VertexArrayObject& vao, size_t size);
-    void render_imgui();
     void init_octree(const std::vector<file_loader::vertex>& vertices);
-    void overwrite_vertices_with_debug_cube();
+    static void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back,
+                         std::vector<file_loader::vertex>& _vertices, std::vector<int>& _indices, glm::vec3 _color);
     void init_octree_visualization(const octree* root);
-    void render_octree_boxes();
-    bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
-    bool is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const;
     void init_mesh_visualization();
-    void set_particle_program_uniforms(bool show_non_shaded);
-    void render_mesh();
-    void randomize_colors();
-    glm::vec3 hsl_to_rgb(float h, float s, float l) const;
-    glm::vec3 get_random_color() const;
     void init_sensor_rig_boundary_visualization();
-    void render_sensor_rig_boundary();
+    void init_delaunay();
     void init_delaunay_visualization();
     void init_tetrahedron(const delaunay_3d::tetrahedron* tetrahedron);
+
+    void render_imgui();
+    void render_points(VertexArrayObject& vao, size_t size);
+    void render_octree_boxes();
+    void render_mesh();
+    void render_sensor_rig_boundary();
     void render_tetrahedra();
 
-    glm::vec3 get_sphere_pos(const float u, const float v) {
-        const float th = u * 2.0f * static_cast<float>(M_PI);
-        const float fi = v * 2.0f * static_cast<float>(M_PI);
-        constexpr float r = 2.0f;
-
-        return {
-            r * sin(th) * cos(fi),
-            r * sin(th) * sin(fi),
-            r * cos(th)
-        };
-    }
+    static std::vector<file_loader::vertex> get_cube_vertices(float side_len);
+    std::vector<file_loader::vertex> filter_shaded_points(const std::vector<file_loader::vertex>& shaded_points);
+    bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
+    bool is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const;
+    void set_particle_program_uniforms(bool show_non_shaded);
+    void randomize_vertex_colors(std::vector<file_loader::vertex>& vertices) const;
+    glm::vec3 hsl_to_rgb(float h, float s, float l) const;
+    glm::vec3 get_random_color() const;
+    glm::vec3 get_sphere_pos(float u, float v) const;
+    static void toggle_fullscreen(SDL_Window* win);
 
 protected:
+    // shader programs
     ProgramObject m_axes_program;
-
-    file_loader::digital_camera_params m_digital_camera_params;
-    Texture2D m_digital_camera_textures[3];
-    gCamera m_virtual_camera;
-
     ProgramObject m_particle_program;
+    ProgramObject m_wireframe_program;
+    // VAOs
+    VertexArrayObject m_particle_vao;
+    VertexArrayObject m_debug_sphere_vao;
+    VertexArrayObject m_wireframe_vao;
+    VertexArrayObject m_sensor_rig_boundary_vao;
+    VertexArrayObject m_tetrahedra_vao;
+    VertexArrayObject m_mesh_vao;
+    // array buffers
+    ArrayBuffer m_particle_buffer;
+    ArrayBuffer m_debug_sphere_buffer;
+    ArrayBuffer m_wireframe_vertices_buffer;
+    ArrayBuffer m_sensor_rig_boundary_vertices_buffer;
+    ArrayBuffer m_tetrahedra_vertices_buffer;
+    ArrayBuffer m_mesh_pos_buffer;
+    // index buffers
+    IndexBuffer m_wireframe_indices_buffer;
+    IndexBuffer m_sensor_rig_boundary_indices_buffer;
+    IndexBuffer m_tetrahedra_indices_buffer;
+    IndexBuffer m_mesh_indices_buffer;
+    // index vectors
+    std::vector<int> m_wireframe_indices;
+    std::vector<int> m_sensor_rig_boundary_indices;
+    std::vector<int> m_tetrahedra_indices;
+    std::vector<int> m_mesh_indices;
+    // vertex vectors
     std::vector<file_loader::vertex> m_vertices;
     std::vector<file_loader::vertex> m_delaunay_vertices;
-    VertexArrayObject m_gpu_particle_vao;
-    ArrayBuffer m_gpu_particle_buffer;
-    int m_render_points_up_to_index;
+    std::vector<file_loader::vertex> m_wireframe_vertices;
+    std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
+    std::vector<file_loader::vertex> m_tetrahedra_vertices;
+    // flags
     bool m_show_points;
+    bool m_show_debug_sphere;
+    bool m_show_octree;
+    bool m_show_sensor_rig_boundary;
+    bool m_show_tetrahedra;
+    bool m_show_back_faces;
+    bool m_show_non_shaded_points;
+    bool m_show_non_shaded_mesh;
+    bool m_auto_increment_rendered_point_index;
 
+    int m_render_points_up_to_index;
     int m_debug_sphere_n = 959;
     int m_prev_debug_sphere_n = 959;
     int m_debug_sphere_m = 959;
     int m_prev_debug_sphere_m = 959;
-    bool m_show_debug_sphere;
-    std::vector<glm::vec3> m_debug_sphere;
-    VertexArrayObject m_gpu_debug_sphere_vao;
-    ArrayBuffer m_gpu_debug_sphere_buffer;
 
-    bool m_show_octree;
-    octree m_octree;
-    int m_points_to_add_index{};
-    int m_points_added_index{};
-    std::vector<file_loader::vertex> m_wireframe_vertices;
-    std::vector<int> m_wireframe_indices;
-    ProgramObject m_wireframe_program;
-    VertexArrayObject m_wireframe_vao;
-    IndexBuffer m_wireframe_indices_gpu_buffer;
-    ArrayBuffer m_wireframe_vertices_gpu_buffer;
-    glm::vec3 m_octree_color;
-
-    bool m_show_sensor_rig_boundary;
-    octree::boundary m_sensor_rig_boundary;
-    std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
-    std::vector<int> m_sensor_rig_boundary_indices;
-    VertexArrayObject m_sensor_rig_boundary_vao;
-    IndexBuffer m_sensor_rig_boundary_indices_gpu_buffer;
-    ArrayBuffer m_sensor_rig_boundary_vertices_gpu_buffer;
-
-    bool m_show_tetrahedra;
-    octree::boundary m_tetrahedra;
-    std::vector<file_loader::vertex> m_tetrahedra_vertices;
-    std::vector<int> m_tetrahedra_indices;
-    VertexArrayObject m_tetrahedra_vao;
-    IndexBuffer m_tetrahedra_indices_gpu_buffer;
-    ArrayBuffer m_tetrahedra_vertices_gpu_buffer;
-
-    bool m_show_back_faces;
-    std::vector<int> m_mesh_indices;
-    VertexArrayObject m_mesh_vao;
-    IndexBuffer m_mesh_indices_gpu_buffer;
-    ArrayBuffer m_mesh_pos_gpu_buffer;
-
-    bool m_auto_increment_rendered_point_index;
-    float m_point_size;
     SDL_Window* m_window{};
-    char m_input_folder[256]{};
+    float m_point_size;
     float m_mesh_vertex_cut_distance;
-    int m_mesh_rendering_mode;
+    GLfloat m_line_width;
+    gCamera m_virtual_camera;
     glm::vec3 m_start_eye;
     glm::vec3 m_start_at;
     glm::vec3 m_start_up;
-
-    bool m_show_non_shaded_points;
-    bool m_show_non_shaded_mesh;
-
+    glm::vec3 m_octree_color;
+    octree m_octree;
     delaunay_3d m_delaunay;
-    GLfloat m_line_width;
+    octree::boundary m_sensor_rig_boundary;
+    mesh_rendering_mode m_mesh_rendering_mode;
+    file_loader::digital_camera_params m_digital_camera_params;
+    char m_input_folder[256]{};
+    Texture2D m_digital_camera_textures[3];
+    std::vector<glm::vec3> m_debug_sphere;
 };

@@ -155,9 +155,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="delaunay_3d.h" />
-    <ClInclude Include="parametric_surface.cpp" />
-    <ClInclude Include="parametric_surface.h" />
-    <ClInclude Include="window_utils.h" />
     <ClInclude Include="file_loader.h" />
     <ClInclude Include="Includes\BufferObject.h" />
     <ClInclude Include="Includes\gCamera.h" />
@@ -182,7 +179,6 @@
     <ClInclude Include="T:\OGLPack\include\imgui\stb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="window_utils.cpp" />
     <ClCompile Include="file_loader.cpp" />
     <ClCompile Include="Includes\gCamera.cpp" />
     <ClCompile Include="Includes\GLconversions.cpp" />
@@ -194,22 +190,24 @@
     <ClCompile Include="Includes\VertexArrayObject.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="application.cpp" />
-    <None Include="axes.frag" />
-    <None Include="axes.vert" />
     <None Include="Includes\BufferObject.inl" />
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />
     <None Include="Includes\VertexArrayObject.inl" />
-    <None Include="particle.frag" />
-    <None Include="particle.vert" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_demo.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_draw.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_impl_sdl_gl3.cpp" />
+    <None Include="shaders\axes.frag" />
+    <None Include="shaders\axes.vert" />
+    <None Include="shaders\particle.frag" />
+    <None Include="shaders\particle.vert" />
+    <None Include="shaders\wireframe.frag" />
+    <None Include="shaders\wireframe.vert" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="wireframe.frag" />
-    <Content Include="wireframe.vert" />
+    <Content Include="shaders\wireframe.frag" />
+    <Content Include="shaders\wireframe.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

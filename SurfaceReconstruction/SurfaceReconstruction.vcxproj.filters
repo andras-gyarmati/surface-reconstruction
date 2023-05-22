@@ -84,15 +84,6 @@
     <ClInclude Include="delaunay_3d.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="parametric_surface.cpp">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="parametric_surface.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="window_utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="file_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -141,9 +132,6 @@
     <ClCompile Include="Includes\GLDebugMessageCallback.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="window_utils.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="file_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -152,18 +140,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="axes.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="axes.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="particle.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="particle.vert">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Includes\BufferObject.inl">
       <Filter>GL utilities</Filter>
     </None>
@@ -175,6 +151,24 @@
     </None>
     <None Include="Includes\VertexArrayObject.inl">
       <Filter>GL utilities</Filter>
+    </None>
+    <None Include="shaders\wireframe.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\wireframe.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\axes.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\axes.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\particle.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\particle.vert">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>
