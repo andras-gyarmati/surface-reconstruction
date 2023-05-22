@@ -172,7 +172,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     });
     randomize_vertex_colors(m_vertices);
     init_octree(m_vertices);
-    //init_delaunay();
+    init_delaunay();
     init_octree_visualization(&m_octree);
     init_mesh_visualization();
 }
@@ -333,8 +333,11 @@ void application::init_delaunay() {
     // m_delaunay_vertices = get_cube_vertices(3.0f);
     m_delaunay_vertices = filter_shaded_points(m_vertices);
     m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
-    for (int i = 0; i < 1200; ++i) {
+    for (int i = 0; i < 500; ++i) {
         m_delaunay.insert_point(m_delaunay_vertices[i]);
+    }
+    for (int i = 0; i < 4; ++i) {
+        m_delaunay.cleanup_super_tetrahedron();
     }
     init_delaunay_visualization();
 }
@@ -461,10 +464,10 @@ void application::render_imgui() {
             }
         }
         if (ImGui::CollapsingHeader("delaunay")) {
-            if (ImGui::Button("delete super tetra")) {
-                m_delaunay.cleanup_super_tetrahedron();
-                init_delaunay_visualization();
-            }
+            // if (ImGui::Button("delete super tetra")) {
+            //     m_delaunay.cleanup_super_tetrahedron();
+            //     init_delaunay_visualization();
+            // }
             ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
         }
         if (ImGui::CollapsingHeader("camera")) {
