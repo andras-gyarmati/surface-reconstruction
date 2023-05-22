@@ -57,7 +57,7 @@ public:
     void render_tetrahedra();
 
     static std::vector<file_loader::vertex> get_cube_vertices(float side_len);
-    std::vector<file_loader::vertex> filter_shaded_points(const std::vector<file_loader::vertex>& shaded_points);
+    std::vector<file_loader::vertex> filter_shaded_points(const std::vector<file_loader::vertex>& points);
     bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
     bool is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const;
     void set_particle_program_uniforms(bool show_non_shaded);
