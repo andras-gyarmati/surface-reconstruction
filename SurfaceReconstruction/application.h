@@ -49,7 +49,7 @@ public:
     bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
     bool is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const;
     void init_mesh_visualization();
-    void set_particle_program_uniforms();
+    void set_particle_program_uniforms(bool show_non_shaded);
     void render_mesh();
     void randomize_colors();
     glm::vec3 hsl_to_rgb(float h, float s, float l) const;
@@ -139,7 +139,9 @@ protected:
     glm::vec3 m_start_eye;
     glm::vec3 m_start_at;
     glm::vec3 m_start_up;
-    bool m_show_non_shaded;
+
+    bool m_show_non_shaded_points;
+    bool m_show_non_shaded_mesh;
 
     delaunay_3d m_delaunay;
     GLfloat m_line_width;

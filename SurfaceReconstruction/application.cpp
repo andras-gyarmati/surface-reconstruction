@@ -25,9 +25,10 @@ application::application(void) {
     m_show_octree = false;
     m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
-    m_show_tetrahedra = true;
-    m_show_non_shaded = true;
-    m_octree_color = glm::vec3(0, 255, 0);
+    m_show_tetrahedra = false;
+    m_show_non_shaded_points = false;
+    m_show_non_shaded_mesh = false;
+    m_octree_color = glm::vec3(0, 1.f, 0);
     m_auto_increment_rendered_point_index = false;
     m_render_points_up_to_index = 0;
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
@@ -138,11 +139,11 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     init_octree(m_vertices);
 
     // debug
-    m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
-    for (int i = 0; i < 1200; ++i) {
-        m_delaunay.insert_point(m_delaunay_vertices[i]);
-    }
-    init_delaunay_visualization();
+    // m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
+    // for (int i = 0; i < 1200; ++i) {
+    //     m_delaunay.insert_point(m_delaunay_vertices[i]);
+    // }
+    // init_delaunay_visualization();
 
     init_octree_visualization(&m_octree);
     init_mesh_visualization();
@@ -257,7 +258,7 @@ void application::update() {
 
 void application::draw_points(VertexArrayObject& vao, const size_t size) {
     vao.Bind();
-    set_particle_program_uniforms();
+    set_particle_program_uniforms(m_show_non_shaded_points);
     glEnable(GL_PROGRAM_POINT_SIZE);
     m_particle_program.SetUniform("point_size", m_point_size);
     glDrawArrays(GL_POINTS, 0, size);
@@ -270,86 +271,103 @@ void application::render_imgui() {
     glm::vec3 at = m_virtual_camera.GetAt();
     glm::vec3 up = m_virtual_camera.GetUp();
     float cam_speed = m_virtual_camera.GetSpeed();
-    if (ImGui::Begin("settings")) {
-        if (ImGui::Button("toggle Fullscreen")) {
+    if (ImGui::Begin("menu")) {
+        if (ImGui::Button("toggle fullscreen")) {
             toggle_fullscreen(m_window);
         }
-        if (ImGui::Button("load garazs_kijarat")) {
-            load_inputs_from_folder("inputs/garazs_kijarat");
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("load elte_logo")) {
-            load_inputs_from_folder("inputs/elte_logo");
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("load parkolo_gomb")) {
-            load_inputs_from_folder("inputs/parkolo_gomb");
-        }
-        ImGui::InputText("folder path", m_input_folder, sizeof(m_input_folder));
-        if (ImGui::Button("Load points")) {
-            load_inputs_from_folder(m_input_folder);
-        }
-        ImGui::Text("properties");
-        ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
-        ImGui::SliderInt("debug sphere m", &m_debug_sphere_m, 1, 959);
-        ImGui::SliderInt("debug sphere n", &m_debug_sphere_n, 1, 959);
-        ImGui::Checkbox("show points", &m_show_points);
-        ImGui::Checkbox("show octree", &m_show_octree);
-        ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
-        ImGui::Checkbox("show non shaded", &m_show_non_shaded);
-        ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
-        ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
-        ImGui::SliderInt("points index", &m_render_points_up_to_index, 0, m_vertices.size());
-        if (ImGui::Button("-1")) {
-            --m_render_points_up_to_index;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("+1")) {
-            if (m_render_points_up_to_index + 1 <= m_vertices.size()) {
-                ++m_render_points_up_to_index;
-                // if (m_render_points_up_to_index < m_delaunay_vertices.size()) {
-                //     m_delaunay.insert_point(m_delaunay_vertices[m_render_points_up_to_index - 1]);
-                //     init_delaunay_visualization();
-                // }
+        if (ImGui::CollapsingHeader("loading")) {
+            if (ImGui::Button("load garazs_kijarat")) {
+                load_inputs_from_folder("inputs/garazs_kijarat");
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("load elte_logo")) {
+                load_inputs_from_folder("inputs/elte_logo");
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("load parkolo_gomb")) {
+                load_inputs_from_folder("inputs/parkolo_gomb");
+            }
+            ImGui::PushID("m_input_folder");
+            ImGui::InputText("", m_input_folder, sizeof(m_input_folder));
+            ImGui::PopID();
+            if (ImGui::Button("load folder")) {
+                load_inputs_from_folder(m_input_folder);
             }
         }
-        ImGui::Checkbox("show back faces", &m_show_back_faces);
-        ImGui::Text("mesh rendering mode");
-        if (ImGui::Button("none")) {
-            m_mesh_rendering_mode = none;
+        if (ImGui::CollapsingHeader("points")) {
+            ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
+            ImGui::SameLine();
+            ImGui::Checkbox("show points", &m_show_points);
+            ImGui::SameLine();
+            ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points);
+            ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
+            ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
+            if (ImGui::Button("-1")) {
+                if (m_render_points_up_to_index > 0) {
+                    --m_render_points_up_to_index;
+                }
+            }
+            ImGui::SameLine();
+            ImGui::PushID("m_render_points_up_to_index");
+            ImGui::SliderInt("", &m_render_points_up_to_index, 0, m_vertices.size());
+            ImGui::PopID();
+            ImGui::SameLine();
+            if (ImGui::Button("+1")) {
+                if (m_render_points_up_to_index + 1 <= m_vertices.size()) {
+                    ++m_render_points_up_to_index;
+                }
+            }
         }
-        ImGui::SameLine();
-        if (ImGui::Button("wireframe")) {
-            m_mesh_rendering_mode = wireframe;
+        if (ImGui::CollapsingHeader("mesh")) {
+            ImGui::Checkbox("show non shaded mesh", &m_show_non_shaded_mesh);
+            ImGui::SameLine();
+            ImGui::Checkbox("show back faces", &m_show_back_faces);
+            ImGui::Text("mesh rendering mode");
+            if (ImGui::Button("none")) {
+                m_mesh_rendering_mode = none;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("wireframe")) {
+                m_mesh_rendering_mode = wireframe;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("solid")) {
+                m_mesh_rendering_mode = solid;
+            }
+            ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
         }
-        ImGui::SameLine();
-        if (ImGui::Button("solid")) {
-            m_mesh_rendering_mode = solid;
+        if (ImGui::CollapsingHeader("sensor rig")) {
+            ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
+            ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
+            ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
         }
-        if (ImGui::Button("delete super tetra")) {
-            m_delaunay.cleanup_super_tetrahedron();
-            init_delaunay_visualization();
+        if (ImGui::CollapsingHeader("octree")) {
+            ImGui::Checkbox("show octree", &m_show_octree);
+            ImGui::ColorEdit3("octree color", &m_octree_color[0]);
+            if (ImGui::Button("apply octree color")) {
+                init_octree_visualization(&m_octree);
+            }
         }
-        ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
-        ImGui::SliderFloat("line width", &m_line_width, 0.1f, 10.0f);
-        ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
-        ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
-        ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
-        ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
-        if (ImGui::Button("reset camera")) {
-            eye = m_start_eye;
-            at = m_start_at;
-            up = m_start_up;
+        if (ImGui::CollapsingHeader("delaunay")) {
+            if (ImGui::Button("delete super tetra")) {
+                m_delaunay.cleanup_super_tetrahedron();
+                init_delaunay_visualization();
+            }
+            ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
         }
-        ImGui::SameLine();
-        if (ImGui::Button("set camera far")) {
-            eye = glm::vec3(100, 100, 100);
-            at = glm::vec3(0, 0, 0);
-            up = glm::vec3(0, 0, 1);
-        }
-        ImGui::ColorEdit3("octree color", &m_octree_color[0]);
-        if (ImGui::Button("apply octree color")) {
-            init_octree_visualization(&m_octree);
+        if (ImGui::CollapsingHeader("camera")) {
+            ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
+            if (ImGui::Button("reset camera")) {
+                eye = m_start_eye;
+                at = m_start_at;
+                up = m_start_up;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("set camera far")) {
+                eye = glm::vec3(100, 100, 100);
+                at = glm::vec3(0, 0, 0);
+                up = glm::vec3(0, 0, 1);
+            }
         }
     }
     ImGui::End();
@@ -475,7 +493,7 @@ void application::init_mesh_visualization() {
         m_mesh_indices_gpu_buffer);
 }
 
-void application::set_particle_program_uniforms() {
+void application::set_particle_program_uniforms(bool show_non_shaded) {
     m_particle_program.Use();
     m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     m_particle_program.SetUniform("world", glm::mat4(1));
@@ -489,12 +507,12 @@ void application::set_particle_program_uniforms() {
     m_particle_program.SetTexture("tex_image[0]", 0, m_digital_camera_textures[0]);
     m_particle_program.SetTexture("tex_image[1]", 1, m_digital_camera_textures[1]);
     m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
-    m_particle_program.SetUniform("show_non_shaded", (int)m_show_non_shaded);
+    m_particle_program.SetUniform("show_non_shaded", (int)show_non_shaded);
 }
 
 void application::render_mesh() {
     m_mesh_vao.Bind();
-    set_particle_program_uniforms();
+    set_particle_program_uniforms(m_show_non_shaded_mesh);
     glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
     m_mesh_vao.Unbind();
 }
