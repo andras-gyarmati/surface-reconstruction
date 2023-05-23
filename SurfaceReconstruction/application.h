@@ -45,8 +45,7 @@ public:
     // init methods
     void init_debug_sphere();
     void init_octree(const std::vector<file_loader::vertex>& vertices);
-    static void init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back,
-                         std::vector<file_loader::vertex>& _vertices, std::vector<int>& _indices, glm::vec3 _color);
+    static void init_box(const glm::vec3& tlf, const glm::vec3& brb, std::vector<file_loader::vertex>& vertices, std::vector<int>& indices, glm::vec3 color);
     void init_octree_visualization(const octree* root);
     void init_mesh_visualization();
     void init_sensor_rig_boundary_visualization();

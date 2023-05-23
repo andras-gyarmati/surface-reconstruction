@@ -200,31 +200,31 @@ void application::init_octree(const std::vector<file_loader::vertex>& vertices) 
     }
 }
 
-void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bottom_right_back, std::vector<file_loader::vertex>& _vertices, std::vector<int>& _indices, glm::vec3 _color) {
-    glm::vec3 bottom_left_front(top_left_front.x, bottom_right_back.y, top_left_front.z);
-    glm::vec3 top_right_back(bottom_right_back.x, top_left_front.y, bottom_right_back.z);
-    glm::vec3 bottom_left_back(top_left_front.x, bottom_right_back.y, bottom_right_back.z);
-    glm::vec3 top_right_front(bottom_right_back.x, top_left_front.y, top_left_front.z);
-    glm::vec3 top_left_back(top_left_front.x, top_left_front.y, bottom_right_back.z);
-    glm::vec3 bottom_right_front(bottom_right_back.x, bottom_right_back.y, top_left_front.z);
+void application::init_box(const glm::vec3& tlf, const glm::vec3& brb, std::vector<file_loader::vertex>& vertices, std::vector<int>& indices, glm::vec3 color) {
+    glm::vec3 bottom_left_front(tlf.x, brb.y, tlf.z);
+    glm::vec3 top_right_back(brb.x, tlf.y, brb.z);
+    glm::vec3 bottom_left_back(tlf.x, brb.y, brb.z);
+    glm::vec3 top_right_front(brb.x, tlf.y, tlf.z);
+    glm::vec3 top_left_back(tlf.x, tlf.y, brb.z);
+    glm::vec3 bottom_right_front(brb.x, brb.y, tlf.z);
 
-    const int offset = _vertices.size();
+    const int offset = vertices.size();
 
     auto pos = std::vector<file_loader::vertex>{
         // back face
-        {bottom_left_back, _color},
-        {bottom_right_back, _color},
-        {top_right_back, _color},
-        {top_left_back, _color},
+        {bottom_left_back, color},
+        {brb, color},
+        {top_right_back, color},
+        {top_left_back, color},
         // front face
-        {bottom_left_front, _color},
-        {bottom_right_front, _color},
-        {top_right_front, _color},
-        {top_left_front, _color},
+        {bottom_left_front, color},
+        {bottom_right_front, color},
+        {top_right_front, color},
+        {tlf, color},
     };
-    _vertices.insert(_vertices.end(), pos.begin(), pos.end());
+    vertices.insert(vertices.end(), pos.begin(), pos.end());
 
-    auto indices = std::vector<int>{
+    std::vector<int> local_indices = std::vector<int>{
         // back face
         0, 1, 1, 2, 2, 3, 3, 0,
         // front face
@@ -232,10 +232,10 @@ void application::init_box(const glm::vec3& top_left_front, const glm::vec3& bot
         // connecting edges
         0, 4, 1, 5, 2, 6, 3, 7,
     };
-    for (auto& index : indices) {
+    for (auto& index : local_indices) {
         index += offset;
     }
-    _indices.insert(_indices.end(), indices.begin(), indices.end());
+    indices.insert(indices.end(), local_indices.begin(), local_indices.end());
 }
 
 void application::init_octree_visualization(const octree* root) {
