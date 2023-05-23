@@ -96,6 +96,7 @@ void application::render() {
 
     if (m_show_points)
         render_points(m_particle_vao, m_render_points_up_to_index);
+
     if (m_show_debug_sphere)
         render_points(m_debug_sphere_vao, m_debug_sphere.size());
 
@@ -116,6 +117,7 @@ void application::render() {
         init_mesh_visualization();
         render_mesh();
     }
+
     if (m_show_tetrahedra)
         render_tetrahedra();
 
