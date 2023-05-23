@@ -43,6 +43,7 @@ public:
     void load_inputs_from_folder(const std::string& folder_name);
 
     // init methods
+    void init_point_visualization();
     void init_debug_sphere();
     void init_octree(const std::vector<file_loader::vertex>& vertices);
     static void init_box(const glm::vec3& tlf, const glm::vec3& brb, std::vector<file_loader::vertex>& vertices, std::vector<int>& indices, glm::vec3 color);

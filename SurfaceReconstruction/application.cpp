@@ -167,16 +167,20 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     m_render_points_up_to_index = m_vertices.size() - 16;
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
 
-    m_particle_buffer.BufferData(m_vertices);
-    m_particle_vao.Init({
-        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_particle_buffer},
-        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_particle_buffer}
-    });
+    init_point_visualization();
     randomize_vertex_colors(m_vertices);
     init_octree(m_vertices);
     init_delaunay_shaded_points_segment();
     init_octree_visualization(&m_octree);
     init_mesh_visualization();
+}
+
+void application::init_point_visualization() {
+    m_particle_buffer.BufferData(m_vertices);
+    m_particle_vao.Init({
+        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_particle_buffer},
+        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_particle_buffer}
+    });
 }
 
 void application::init_debug_sphere() {
