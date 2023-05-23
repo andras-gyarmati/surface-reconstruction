@@ -190,6 +190,7 @@
     <ClCompile Include="Includes\VertexArrayObject.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="application.cpp" />
+    <None Include="ClassDiagram.cd" />
     <None Include="Includes\BufferObject.inl" />
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />
