@@ -23,6 +23,7 @@ application::application(void) {
     m_render_points_up_to_index = 0;
     m_mesh_vertex_cut_distance = 6.0f;
 
+    m_show_axes = true;
     m_show_points = true;
     m_show_debug_sphere = false;
     m_show_octree = false;
@@ -90,9 +91,11 @@ void application::update() {
 void application::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    m_axes_program.Use();
-    m_axes_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    glDrawArrays(GL_LINES, 0, 6);
+    if (m_show_axes) {
+        m_axes_program.Use();
+        m_axes_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
+        glDrawArrays(GL_LINES, 0, 6);
+    }
 
     if (m_show_points)
         render_points(m_particle_vao, m_render_points_up_to_index);
@@ -403,6 +406,8 @@ void application::render_imgui() {
         if (ImGui::Button("toggle fullscreen")) {
             toggle_fullscreen(m_window);
         }
+        ImGui::SameLine();
+        ImGui::Checkbox("show axes", &m_show_axes);
         if (ImGui::CollapsingHeader("loading")) {
             if (ImGui::Button("load garazs_kijarat")) {
                 load_inputs_from_folder("inputs/garazs_kijarat");

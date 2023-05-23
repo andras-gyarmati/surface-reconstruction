@@ -118,6 +118,7 @@ protected:
     std::vector<file_loader::vertex> m_tetrahedra_vertices;
 
     // flags
+    bool m_show_axes;
     bool m_show_points;
     bool m_show_debug_sphere;
     bool m_show_octree;
