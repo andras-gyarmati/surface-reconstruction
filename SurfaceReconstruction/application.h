@@ -50,6 +50,8 @@ public:
     void init_octree_visualization(const octree* root);
     void init_mesh_visualization();
     void init_sensor_rig_boundary_visualization();
+    void init_delaunay_shaded_points_segment();
+    void init_delaunay_cube();
     void init_delaunay();
     void init_delaunay_visualization();
     void init_tetrahedron(const delaunay_3d::tetrahedron* tetrahedron);

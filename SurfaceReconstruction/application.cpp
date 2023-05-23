@@ -96,6 +96,7 @@ void application::render() {
 
     if (m_show_points)
         render_points(m_particle_vao, m_render_points_up_to_index);
+
     if (m_show_debug_sphere)
         render_points(m_debug_sphere_vao, m_debug_sphere.size());
 
@@ -116,6 +117,7 @@ void application::render() {
         init_mesh_visualization();
         render_mesh();
     }
+
     if (m_show_tetrahedra)
         render_tetrahedra();
 
@@ -172,7 +174,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     });
     randomize_vertex_colors(m_vertices);
     init_octree(m_vertices);
-    init_delaunay();
+    init_delaunay_shaded_points_segment();
     init_octree_visualization(&m_octree);
     init_mesh_visualization();
 }
@@ -329,11 +331,19 @@ void application::init_sensor_rig_boundary_visualization() {
         m_sensor_rig_boundary_indices_buffer);
 }
 
-void application::init_delaunay() {
-    // m_delaunay_vertices = get_cube_vertices(3.0f);
+void application::init_delaunay_shaded_points_segment() {
     m_delaunay_vertices = filter_shaded_points(m_vertices);
+    init_delaunay();
+}
+
+void application::init_delaunay_cube() {
+    m_delaunay_vertices = get_cube_vertices(3.0f);
+    init_delaunay();
+}
+
+void application::init_delaunay() {
     m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < std::min((int)m_delaunay_vertices.size(), 200); ++i) {
         m_delaunay.insert_point(m_delaunay_vertices[i]);
     }
     for (int i = 0; i < 4; ++i) {
@@ -464,10 +474,12 @@ void application::render_imgui() {
             }
         }
         if (ImGui::CollapsingHeader("delaunay")) {
-            // if (ImGui::Button("delete super tetra")) {
-            //     m_delaunay.cleanup_super_tetrahedron();
-            //     init_delaunay_visualization();
-            // }
+            if (ImGui::Button("init delaunay cube")) {
+                init_delaunay_cube();
+            }
+            if (ImGui::Button("init delaunay shaded points segment")) {
+                init_delaunay_shaded_points_segment();
+            }
             ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
         }
         if (ImGui::CollapsingHeader("camera")) {
