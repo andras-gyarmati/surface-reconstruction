@@ -18,8 +18,8 @@ class octree {
 
     enum node_state {
         empty = 0,
-        point = 1,
-        internal = 2
+        internal = 1,
+        leaf = 2
     };
 
     glm::vec3* m_point = nullptr;
@@ -37,7 +37,7 @@ public:
 
     octree(const glm::vec3 pos) {
         m_point = new glm::vec3(pos);
-        m_state = point;
+        m_state = leaf;
     }
 
     octree(const glm::vec3 tlf, const glm::vec3 brb) {
