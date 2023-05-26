@@ -168,7 +168,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
     m_render_points_up_to_index = m_vertices.size() - 16;
-    m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParameters_minimal.txt");
+    m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParametersMinimal.txt");
 
     init_point_visualization();
     randomize_vertex_colors(m_vertices);
