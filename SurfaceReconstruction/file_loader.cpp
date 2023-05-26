@@ -51,11 +51,11 @@ file_loader::digital_camera_params file_loader::load_digital_camera_params(const
     return camera_params;
 }
 
-std::vector<file_loader::vertex> file_loader::read_vertices_from_file(std::ifstream* file, const int num_vertices) {
+std::vector<file_loader::vertex> file_loader::read_vertices_from_file(std::ifstream* file, const int vertex_count) {
     std::vector<vertex> vertices;
-    vertices.resize(num_vertices);
+    vertices.resize(vertex_count);
 
-    for (int i = 0; i < num_vertices; ++i) {
+    for (int i = 0; i < vertex_count; ++i) {
         *file >> vertices[i].position.x >> vertices[i].position.y >> vertices[i].position.z;
         *file >> vertices[i].color.r >> vertices[i].color.g >> vertices[i].color.b;
         if (i % 2 == 1)
