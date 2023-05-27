@@ -15,7 +15,7 @@ application::application(void) {
     m_start_up = glm::vec3(0, 0, 1);
     m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
 
-    strncpy_s(m_input_folder, "inputs/garazs_kijarat", sizeof(m_input_folder));
+    strncpy_s(m_input_folder, "inputs\\garazs_kijarat", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
 
     m_point_size = 6.0f;
@@ -51,7 +51,7 @@ bool application::init(SDL_Window* window) {
     m_particle_program.Init({{GL_VERTEX_SHADER, "shaders/particle.vert"}, {GL_FRAGMENT_SHADER, "shaders/particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
     m_wireframe_program.Init({{GL_VERTEX_SHADER, "shaders/wireframe.vert"}, {GL_FRAGMENT_SHADER, "shaders/wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
-    load_inputs_from_folder("inputs/garazs_kijarat");
+    load_inputs_from_folder("inputs\\garazs_kijarat");
     init_debug_sphere();
 
     init_sensor_rig_boundary_visualization();
@@ -157,18 +157,23 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     for (const auto& file : file_paths) {
         if (file.find("Dev0") != std::string::npos) {
             m_digital_camera_textures[0].FromFile(file);
+            std::cout << "Loaded texture from " << file << std::endl;
         } else if (file.find("Dev1") != std::string::npos) {
             m_digital_camera_textures[1].FromFile(file);
+            std::cout << "Loaded texture from " << file << std::endl;
         } else if (file.find("Dev2") != std::string::npos) {
             m_digital_camera_textures[2].FromFile(file);
+            std::cout << "Loaded texture from " << file << std::endl;
         } else if (file.find(".xyz") != std::string::npos) {
             xyz_file = file;
         }
     }
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
+    std::cout << "Loaded " << m_vertices.size() << " points from " << xyz_file << std::endl;
     m_render_points_up_to_index = m_vertices.size() - 16;
-    m_digital_camera_params = file_loader::load_digital_camera_params("inputs/CameraParametersMinimal.txt");
+    m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
+    std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
 
     init_point_visualization();
     randomize_vertex_colors(m_vertices);
@@ -410,15 +415,15 @@ void application::render_imgui() {
         ImGui::Checkbox("show axes", &m_show_axes);
         if (ImGui::CollapsingHeader("loading")) {
             if (ImGui::Button("load garazs_kijarat")) {
-                load_inputs_from_folder("inputs/garazs_kijarat");
+                load_inputs_from_folder("inputs\\garazs_kijarat");
             }
             ImGui::SameLine();
             if (ImGui::Button("load elte_logo")) {
-                load_inputs_from_folder("inputs/elte_logo");
+                load_inputs_from_folder("inputs\\elte_logo");
             }
             ImGui::SameLine();
             if (ImGui::Button("load parkolo_gomb")) {
-                load_inputs_from_folder("inputs/parkolo_gomb");
+                load_inputs_from_folder("inputs\\parkolo_gomb");
             }
             ImGui::PushID("m_input_folder");
             ImGui::InputText("", m_input_folder, sizeof(m_input_folder));
