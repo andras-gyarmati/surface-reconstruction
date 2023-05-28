@@ -26,10 +26,12 @@ void main()
 
     for (int i = 0; i < 3; ++i)
     {
+        // lidar to camera transform
         vec3 p_tmp = cam_r[i] * (vs_in_pos - cam_t[i]);
         float dist = p_tmp.z;
         p_tmp /= p_tmp.z;
         vec2 p_c;
+        // get the uv coordinate
         p_c.x = cam_k[0][0] * p_tmp.x + cam_k[0][2];
         p_c.y = cam_k[1][1] * -p_tmp.y + cam_k[1][2];
         if (dist > 0 && p_c.x >= 0 && p_c.x <= 960 && p_c.y >= 0 && p_c.y <= 600)

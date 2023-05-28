@@ -73,18 +73,12 @@ void application::update() {
         glCullFace(GL_BACK);
     }
     static Uint32 last_time = SDL_GetTicks();
-    const float delta_time = static_cast<float>(SDL_GetTicks() - last_time) / 1000.0f;
+    const float delta_time = (float)(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
         m_render_points_up_to_index += 1;
-    }
-
-    if (m_prev_debug_sphere_m != m_debug_sphere_m || m_prev_debug_sphere_n != m_debug_sphere_n) {
-        init_debug_sphere();
-        m_prev_debug_sphere_m = m_debug_sphere_m;
-        m_prev_debug_sphere_n = m_debug_sphere_n;
     }
 }
 
@@ -178,8 +172,8 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     init_point_visualization();
     randomize_vertex_colors(m_vertices);
     init_octree(m_vertices);
-    init_delaunay_shaded_points_segment();
     init_octree_visualization(&m_octree);
+    init_delaunay_shaded_points_segment();
     init_mesh_visualization();
 }
 
@@ -196,8 +190,8 @@ void application::init_debug_sphere() {
     for (int i = 0; i <= m_debug_sphere_n; ++i)
         for (int j = 0; j <= m_debug_sphere_m; ++j)
             m_debug_sphere[i + j * (m_debug_sphere_n + 1)] = get_sphere_pos(
-                static_cast<float>(i) / static_cast<float>(m_debug_sphere_n),
-                static_cast<float>(j) / static_cast<float>(m_debug_sphere_m));
+                (float)(i) / (float)(m_debug_sphere_n),
+                (float)(j) / (float)(m_debug_sphere_m));
     m_debug_sphere_buffer.BufferData(m_debug_sphere);
     m_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_debug_sphere_buffer}});
 }
@@ -413,6 +407,7 @@ void application::render_imgui() {
         }
         ImGui::SameLine();
         ImGui::Checkbox("show axes", &m_show_axes);
+        ImGui::SliderFloat("line width", &m_line_width, 1.0f, 10.0f);
         if (ImGui::CollapsingHeader("loading")) {
             if (ImGui::Button("load garazs_kijarat")) {
                 load_inputs_from_folder("inputs\\garazs_kijarat");
@@ -681,8 +676,8 @@ glm::vec3 application::get_random_color() const {
 }
 
 glm::vec3 application::get_sphere_pos(const float u, const float v) const {
-    const float th = u * 2.0f * static_cast<float>(M_PI);
-    const float fi = v * 2.0f * static_cast<float>(M_PI);
+    const float th = u * 2.0f * (float)(M_PI);
+    const float fi = v * 2.0f * (float)(M_PI);
     constexpr float r = 2.0f;
 
     return {
