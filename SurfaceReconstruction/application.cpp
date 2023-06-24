@@ -10,34 +10,7 @@
 #include "file_loader.h"
 
 application::application(void) {
-    m_start_eye = glm::vec3(0, 0, 0);
-    m_start_at = glm::vec3(0, 1, 0);
-    m_start_up = glm::vec3(0, 0, 1);
-    m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
-
-    strncpy_s(m_input_folder, "inputs\\garazs_kijarat", sizeof(m_input_folder));
-    m_input_folder[sizeof(m_input_folder) - 1] = '\0';
-
-    m_point_size = 6.0f;
-    m_line_width = 1.0f;
-    m_render_points_up_to_index = 0;
-    m_mesh_vertex_cut_distance = 6.0f;
-
-    m_show_axes = true;
-    m_show_points = true;
-    m_show_debug_sphere = false;
-    m_show_octree = false;
-    m_show_back_faces = false;
-    m_show_sensor_rig_boundary = false;
-    m_show_tetrahedra = false;
-    m_show_non_shaded_points = false;
-    m_show_non_shaded_mesh = false;
-    m_auto_increment_rendered_point_index = false;
-
-    m_mesh_rendering_mode = none;
-    m_octree_color = glm::vec3(0, 1.f, 0);
-    m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
-    m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
+    reset();
 }
 
 bool application::init(SDL_Window* window) {
@@ -61,10 +34,150 @@ bool application::init(SDL_Window* window) {
 
 void application::clean() {}
 
-void application::reset() {}
+void application::reset() {
+    m_start_eye = glm::vec3(0, 0, 0);
+    m_start_at = glm::vec3(0, 1, 0);
+    m_start_up = glm::vec3(0, 0, 1);
+    m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
+    m_virtual_camera.SetView(glm::vec3(50, -50, 50), m_start_at, m_start_up);
+
+    strncpy_s(m_input_folder, "inputs\\garazs_kijarat", sizeof(m_input_folder));
+    m_input_folder[sizeof(m_input_folder) - 1] = '\0';
+
+    m_point_size = 2;
+    m_line_width = 1;
+    m_render_points_up_to_index = 0;
+    m_mesh_vertex_cut_distance = 6.0f;
+    m_virtual_camera.SetSpeed(16);
+
+    m_show_axes = true;
+    m_show_points = true;
+    m_show_debug_sphere = false;
+    m_show_octree = false;
+    m_show_back_faces = false;
+    m_show_sensor_rig_boundary = false;
+    m_show_tetrahedra = false;
+    m_show_non_shaded_points = true;
+    m_show_non_shaded_mesh = true;
+    m_auto_increment_rendered_point_index = false;
+    m_last_action_time = 0;
+    m_demo_start_time = 0;
+    m_is_demo_running = false;
+
+    m_mesh_rendering_mode = none;
+    m_octree_color = glm::vec3(0, 1.f, 0);
+    m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
+    m_sensor_rig_boundary = octree::boundary{ glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f) };
+}
+
+void application::demo(int time) {
+    if (!m_is_demo_running) {
+        return;
+    }
+
+    int cumulative_offset = 0;
+
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        load_inputs_from_folder("inputs\\elte_logo");
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        load_inputs_from_folder("inputs\\parkolo_gomb");
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_show_octree = true;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        load_inputs_from_folder("inputs\\elte_logo");
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        load_inputs_from_folder("inputs\\garazs_kijarat");
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_show_octree = false;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_show_tetrahedra = true;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_virtual_camera.SetView(glm::vec3(20, -20, 20), m_start_at, m_start_up);
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_virtual_camera.SetView(glm::vec3(10, -10, 10), m_start_at, m_start_up);
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_virtual_camera.SetView(glm::vec3(9, 8.5, 1), m_start_at, m_start_up);
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        load_inputs_from_folder("inputs\\parkolo_gomb");
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_virtual_camera.SetView(glm::vec3(10, -10, 10), m_start_at, m_start_up);
+        m_show_tetrahedra = false;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_mesh_rendering_mode = wireframe;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_mesh_rendering_mode = solid;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_show_non_shaded_mesh = false;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_show_non_shaded_points = false;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
+        m_show_axes = false;
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_virtual_camera.SetView(glm::vec3(0, -9, 0), m_start_at, m_start_up);
+    }
+    cumulative_offset += 2000;
+    if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
+        m_last_action_time = time;
+        m_virtual_camera.SetView(glm::vec3(0, -9, 3), m_start_at, m_start_up);
+    }
+}
 
 void application::update() {
-    glLineWidth(m_line_width);
+    glLineWidth((float)m_line_width);
 
     if (m_show_back_faces) {
         glDisable(GL_CULL_FACE);
@@ -74,6 +187,7 @@ void application::update() {
     }
     static Uint32 last_time = SDL_GetTicks();
     const float delta_time = (float)(SDL_GetTicks() - last_time) / 1000.0f;
+    demo(last_time);
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
 
@@ -406,9 +520,23 @@ void application::render_imgui() {
             toggle_fullscreen(m_window);
         }
         ImGui::SameLine();
+        if (ImGui::Button("start demo")) {
+            m_is_demo_running = true;
+            m_demo_start_time = SDL_GetTicks();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("reset")) {
+            reset();
+            init(m_window);
+            eye = glm::vec3(50, -50, 50);
+            at = glm::vec3(0, 0, 0);
+            up = glm::vec3(0, 0, 1);
+            cam_speed = 16;
+        }
+        ImGui::SameLine();
         ImGui::Checkbox("show axes", &m_show_axes);
-        ImGui::SliderFloat("line width", &m_line_width, 1.0f, 10.0f);
-        if (ImGui::CollapsingHeader("loading")) {
+        ImGui::SliderInt("line width", &m_line_width, 1, 10);
+        if (ImGui::CollapsingHeader("loading"), ImGuiTreeNodeFlags_DefaultOpen) {
             if (ImGui::Button("load garazs_kijarat")) {
                 load_inputs_from_folder("inputs\\garazs_kijarat");
             }
@@ -428,13 +556,13 @@ void application::render_imgui() {
                 load_inputs_from_folder(m_input_folder);
             }
         }
-        if (ImGui::CollapsingHeader("points")) {
+        if (ImGui::CollapsingHeader("points"), ImGuiTreeNodeFlags_DefaultOpen) {
             ImGui::Checkbox("show points", &m_show_points);
             ImGui::SameLine();
             ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points);
             ImGui::SameLine();
             ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
-            ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
+            ImGui::SliderInt("point size", &m_point_size, 1, 30);
             ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
             if (ImGui::Button("-1")) {
                 if (m_render_points_up_to_index > 0) {
@@ -452,7 +580,7 @@ void application::render_imgui() {
                 }
             }
         }
-        if (ImGui::CollapsingHeader("mesh")) {
+        if (ImGui::CollapsingHeader("mesh"), ImGuiTreeNodeFlags_DefaultOpen) {
             ImGui::Checkbox("show non shaded mesh", &m_show_non_shaded_mesh);
             ImGui::SameLine();
             ImGui::Checkbox("show back faces", &m_show_back_faces);
@@ -470,19 +598,19 @@ void application::render_imgui() {
             }
             ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
         }
-        if (ImGui::CollapsingHeader("sensor rig")) {
+        if (ImGui::CollapsingHeader("sensor rig"), ImGuiTreeNodeFlags_DefaultOpen) {
             ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
             ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
             ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
         }
-        if (ImGui::CollapsingHeader("octree")) {
+        if (ImGui::CollapsingHeader("octree"), ImGuiTreeNodeFlags_DefaultOpen) {
             ImGui::Checkbox("show octree", &m_show_octree);
             ImGui::ColorEdit3("octree color", &m_octree_color[0]);
             if (ImGui::Button("apply octree color")) {
                 init_octree_visualization(&m_octree);
             }
         }
-        if (ImGui::CollapsingHeader("delaunay")) {
+        if (ImGui::CollapsingHeader("delaunay"), ImGuiTreeNodeFlags_DefaultOpen) {
             if (ImGui::Button("init delaunay cube")) {
                 init_delaunay_cube();
             }
@@ -491,18 +619,21 @@ void application::render_imgui() {
             }
             ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
         }
-        if (ImGui::CollapsingHeader("camera")) {
+        if (ImGui::CollapsingHeader("camera"), ImGuiTreeNodeFlags_DefaultOpen) {
+            ImGui::SliderFloat3("eye", &eye[0], -1.f, 1.0f);
             ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
             if (ImGui::Button("reset camera")) {
                 eye = m_start_eye;
                 at = m_start_at;
                 up = m_start_up;
+                cam_speed = 4;
             }
             ImGui::SameLine();
             if (ImGui::Button("set camera far")) {
-                eye = glm::vec3(100, 100, 100);
+                eye = glm::vec3(50, -50, 50);
                 at = glm::vec3(0, 0, 0);
                 up = glm::vec3(0, 0, 1);
+                cam_speed = 16;
             }
         }
     }
@@ -515,7 +646,7 @@ void application::render_points(VertexArrayObject& vao, const size_t size) {
     vao.Bind();
     set_particle_program_uniforms(m_show_non_shaded_points);
     glEnable(GL_PROGRAM_POINT_SIZE);
-    m_particle_program.SetUniform("point_size", m_point_size);
+    m_particle_program.SetUniform("point_size", (float)m_point_size);
     glDrawArrays(GL_POINTS, 0, size);
     glDisable(GL_PROGRAM_POINT_SIZE);
     vao.Unbind();

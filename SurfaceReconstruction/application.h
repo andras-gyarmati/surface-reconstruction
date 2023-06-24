@@ -76,6 +76,8 @@ public:
     glm::vec3 get_sphere_pos(float u, float v) const;
     static void toggle_fullscreen(SDL_Window* win);
 
+    void demo(int time);
+
 protected:
     // shader programs
     ProgramObject m_axes_program;
@@ -128,14 +130,17 @@ protected:
     bool m_show_non_shaded_points;
     bool m_show_non_shaded_mesh;
     bool m_auto_increment_rendered_point_index;
+    bool m_is_demo_running;
 
     // numeric values
     int m_render_points_up_to_index;
     int m_debug_sphere_n = 959;
     int m_debug_sphere_m = 959;
-    float m_point_size;
+    int m_point_size;
     float m_mesh_vertex_cut_distance;
-    float m_line_width;
+    int m_line_width;
+    int m_last_action_time;
+    int m_demo_start_time;
 
     // other objects
     SDL_Window* m_window{};
