@@ -60,14 +60,15 @@ void application::reset() {
     m_show_non_shaded_points = true;
     m_show_non_shaded_mesh = true;
     m_auto_increment_rendered_point_index = false;
+    m_is_demo_running = false;
     m_last_action_time = 0;
     m_demo_start_time = 0;
-    m_is_demo_running = false;
+    m_demo_step_index = 0;
 
     m_mesh_rendering_mode = none;
     m_octree_color = glm::vec3(0, 1.f, 0);
     m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
-    m_sensor_rig_boundary = octree::boundary{ glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f) };
+    m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
 }
 
 void application::demo(int time) {
@@ -81,36 +82,43 @@ void application::demo(int time) {
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         load_inputs_from_folder("inputs\\elte_logo");
+        m_demo_step_index = 1;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         load_inputs_from_folder("inputs\\parkolo_gomb");
+        m_demo_step_index = 2;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_show_octree = true;
+        m_demo_step_index = 3;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         load_inputs_from_folder("inputs\\elte_logo");
+        m_demo_step_index = 4;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         load_inputs_from_folder("inputs\\garazs_kijarat");
+        m_demo_step_index = 5;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_show_octree = false;
+        m_demo_step_index = 6;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_show_tetrahedra = true;
+        m_demo_step_index = 7;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
@@ -131,38 +139,45 @@ void application::demo(int time) {
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         load_inputs_from_folder("inputs\\parkolo_gomb");
+        m_demo_step_index = 8;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_virtual_camera.SetView(glm::vec3(10, -10, 10), m_start_at, m_start_up);
         m_show_tetrahedra = false;
+        m_demo_step_index = 9;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_mesh_rendering_mode = wireframe;
+        m_demo_step_index = 10;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_mesh_rendering_mode = solid;
+        m_demo_step_index = 11;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_show_non_shaded_mesh = false;
+        m_demo_step_index = 12;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_show_non_shaded_points = false;
+        m_demo_step_index = 13;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
         m_last_action_time = time;
         m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
         m_show_axes = false;
+        m_demo_step_index = 14;
     }
     cumulative_offset += 2000;
     if (m_demo_start_time + cumulative_offset <= time && m_last_action_time < m_demo_start_time + cumulative_offset) {
@@ -511,6 +526,9 @@ void application::init_tetrahedron(const delaunay_3d::tetrahedron* tetrahedron) 
 }
 
 void application::render_imgui() {
+    ImU32 highlight_color = ImGui::GetColorU32(ImVec4(0.7f, 0.7f, 0.4f, 0.7f));
+    ImU32 default_color = ImGui::GetColorU32(ImVec4(0.7f, 0.7f, 1.0f, 0.5f));
+
     glm::vec3 eye = m_virtual_camera.GetEye();
     glm::vec3 at = m_virtual_camera.GetAt();
     glm::vec3 up = m_virtual_camera.GetUp();
@@ -534,20 +552,57 @@ void application::render_imgui() {
             cam_speed = 16;
         }
         ImGui::SameLine();
-        ImGui::Checkbox("show axes", &m_show_axes);
+        if (m_demo_step_index == 13) {
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, highlight_color);
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, default_color);
+        }
+        if (ImGui::Checkbox("show axes", &m_show_axes)) {
+            if (m_demo_step_index == 13) {
+                m_demo_step_index++;
+            }
+        }
+        ImGui::PopStyleColor();
         ImGui::SliderInt("line width", &m_line_width, 1, 10);
-        if (ImGui::CollapsingHeader("loading"), ImGuiTreeNodeFlags_DefaultOpen) {
+        if (ImGui::CollapsingHeader("loading", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (m_demo_step_index == 4) {
+                ImGui::PushStyleColor(ImGuiCol_Button, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, default_color);
+            }
             if (ImGui::Button("load garazs_kijarat")) {
                 load_inputs_from_folder("inputs\\garazs_kijarat");
+                if (m_demo_step_index == 4) {
+                    m_demo_step_index++;
+                }
             }
+            ImGui::PopStyleColor();
             ImGui::SameLine();
+            if (m_demo_step_index == 0 || m_demo_step_index == 3) {
+                ImGui::PushStyleColor(ImGuiCol_Button, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, default_color);
+            }
             if (ImGui::Button("load elte_logo")) {
                 load_inputs_from_folder("inputs\\elte_logo");
+                if (m_demo_step_index == 0 || m_demo_step_index == 3) {
+                    m_demo_step_index++;
+                }
             }
+            ImGui::PopStyleColor();
             ImGui::SameLine();
+            if (m_demo_step_index == 1 || m_demo_step_index == 7) {
+                ImGui::PushStyleColor(ImGuiCol_Button, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, default_color);
+            }
             if (ImGui::Button("load parkolo_gomb")) {
                 load_inputs_from_folder("inputs\\parkolo_gomb");
+                if (m_demo_step_index == 1 || m_demo_step_index == 7) {
+                    m_demo_step_index++;
+                }
             }
+            ImGui::PopStyleColor();
             ImGui::PushID("m_input_folder");
             ImGui::InputText("", m_input_folder, sizeof(m_input_folder));
             ImGui::PopID();
@@ -556,10 +611,20 @@ void application::render_imgui() {
                 load_inputs_from_folder(m_input_folder);
             }
         }
-        if (ImGui::CollapsingHeader("points"), ImGuiTreeNodeFlags_DefaultOpen) {
+        if (ImGui::CollapsingHeader("points", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("show points", &m_show_points);
             ImGui::SameLine();
-            ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points);
+            if (m_demo_step_index == 12) {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, default_color);
+            }
+            if (ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points)) {
+                if (m_demo_step_index == 12) {
+                    m_demo_step_index++;
+                }
+            }
+            ImGui::PopStyleColor();
             ImGui::SameLine();
             ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
             ImGui::SliderInt("point size", &m_point_size, 1, 30);
@@ -580,8 +645,18 @@ void application::render_imgui() {
                 }
             }
         }
-        if (ImGui::CollapsingHeader("mesh"), ImGuiTreeNodeFlags_DefaultOpen) {
-            ImGui::Checkbox("show non shaded mesh", &m_show_non_shaded_mesh);
+        if (ImGui::CollapsingHeader("mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (m_demo_step_index == 11) {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, default_color);
+            }
+            if (ImGui::Checkbox("show non shaded mesh", &m_show_non_shaded_mesh)) {
+                if (m_demo_step_index == 11) {
+                    m_demo_step_index++;
+                }
+            }
+            ImGui::PopStyleColor();
             ImGui::SameLine();
             ImGui::Checkbox("show back faces", &m_show_back_faces);
             ImGui::Text("mesh rendering mode");
@@ -589,37 +664,75 @@ void application::render_imgui() {
                 m_mesh_rendering_mode = none;
             }
             ImGui::SameLine();
+            if (m_demo_step_index == 9) {
+                ImGui::PushStyleColor(ImGuiCol_Button, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, default_color);
+            }
             if (ImGui::Button("wireframe")) {
                 m_mesh_rendering_mode = wireframe;
+                if (m_demo_step_index == 9) {
+                    m_demo_step_index++;
+                }
             }
+            ImGui::PopStyleColor();
             ImGui::SameLine();
+            if (m_demo_step_index == 10) {
+                ImGui::PushStyleColor(ImGuiCol_Button, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, default_color);
+            }
             if (ImGui::Button("solid")) {
                 m_mesh_rendering_mode = solid;
+                if (m_demo_step_index == 10) {
+                    m_demo_step_index++;
+                }
             }
+            ImGui::PopStyleColor();
             ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
         }
-        if (ImGui::CollapsingHeader("sensor rig"), ImGuiTreeNodeFlags_DefaultOpen) {
+        if (ImGui::CollapsingHeader("sensor rig", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
             ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
             ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
         }
-        if (ImGui::CollapsingHeader("octree"), ImGuiTreeNodeFlags_DefaultOpen) {
-            ImGui::Checkbox("show octree", &m_show_octree);
+        if (ImGui::CollapsingHeader("octree", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (m_demo_step_index == 2 || m_demo_step_index == 5) {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, default_color);
+            }
+            if (ImGui::Checkbox("show octree", &m_show_octree)) {
+                if (m_demo_step_index == 2 || m_demo_step_index == 5) {
+                    m_demo_step_index++;
+                }
+            }
+            ImGui::PopStyleColor();
             ImGui::ColorEdit3("octree color", &m_octree_color[0]);
             if (ImGui::Button("apply octree color")) {
                 init_octree_visualization(&m_octree);
             }
         }
-        if (ImGui::CollapsingHeader("delaunay"), ImGuiTreeNodeFlags_DefaultOpen) {
+        if (ImGui::CollapsingHeader("delaunay", ImGuiTreeNodeFlags_DefaultOpen)) {
             if (ImGui::Button("init delaunay cube")) {
                 init_delaunay_cube();
             }
             if (ImGui::Button("init delaunay shaded points segment")) {
                 init_delaunay_shaded_points_segment();
             }
-            ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
+            if (m_demo_step_index == 6 || m_demo_step_index == 8) {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, highlight_color);
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_FrameBg, default_color);
+            }
+            if (ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra)) {
+                if (m_demo_step_index == 6 || m_demo_step_index == 8) {
+                    m_demo_step_index++;
+                }
+            }
+            ImGui::PopStyleColor();
         }
-        if (ImGui::CollapsingHeader("camera"), ImGuiTreeNodeFlags_DefaultOpen) {
+        if (ImGui::CollapsingHeader("camera", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::SliderFloat3("eye", &eye[0], -1.f, 1.0f);
             ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
             if (ImGui::Button("reset camera")) {

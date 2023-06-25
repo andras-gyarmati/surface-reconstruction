@@ -141,6 +141,7 @@ protected:
     int m_line_width;
     int m_last_action_time;
     int m_demo_start_time;
+    int m_demo_step_index = 0;
 
     // other objects
     SDL_Window* m_window{};
