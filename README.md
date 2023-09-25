@@ -4,8 +4,8 @@ This repository focuses on the creation of 3D surfaces from point clouds capture
 
 ## Files in Repository
 
-- **OGLPack.zip**: Required OGLPack package for setting up the development environment.
-- **Szakdolgozat_UY18CX.pdf**: The PDF of the thesis containing detailed explanations, algorithms, and figures.
+- **[OGLPack.zip](OGLPack.zip)**: Required OGLPack package for setting up the development environment.
+- **[Szakdolgozat_UY18CX.pdf](Szakdolgozat_UY18CX.pdf)**: The PDF of the thesis containing detailed explanations, algorithms, and figures.
 
 ## Overview
 
@@ -21,4 +21,4 @@ The Graphical User Interface (GUI) is implemented using the ImGui package.
 
 ## Installation Guide
 
-The program can be run within the Visual Studio development environment and requires the OGLPack package to be placed in the system root directory. The package can be obtained from the repository or ELTE's graphics course webpage at [http://cg.elte.hu/~bsc_cg/resources/OGLPack.zip](http://cg.elte.hu/~bsc_cg/resources/OGLPack.zip). Afterwards, the drive must be virtually cloned using the `subst t: c:\` command for easy setup of external library references in Visual Studio.
+The program can be run within the Visual Studio development environment and requires the OGLPack package to be placed in the system root directory. The [package](OGLPack.zip) can be obtained from the repository or ELTE's graphics course webpage at [http://cg.elte.hu/~bsc_cg/resources/OGLPack.zip](http://cg.elte.hu/~bsc_cg/resources/OGLPack.zip). Afterwards, the drive must be virtually cloned using the `subst t: c:\` command for easy setup of external library references in Visual Studio.
