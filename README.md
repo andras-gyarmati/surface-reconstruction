@@ -2,6 +2,11 @@
 
 This repository focuses on the creation of 3D surfaces from point clouds captured by a university-used LiDAR sensor. For coloring the surfaces, images from cameras positioned alongside the sensor are used.
 
+## Files in Repository
+
+- **OGLPack.zip**: Required OGLPack package for setting up the development environment.
+- **Szakdolgozat_UY18CX.pdf**: The PDF of the thesis containing detailed explanations, algorithms, and figures.
+
 ## Overview
 
 The point clouds and images are loaded from files and prepared for rendering. After loading, OpenGL natively supports point rendering. For surface drawing, the points are connected through indexed triangles.
@@ -16,4 +21,4 @@ The Graphical User Interface (GUI) is implemented using the ImGui package.
 
 ## Installation Guide
 
-The program can be run within the Visual Studio development environment and requires the OGLPack package to be placed in the system root directory. The package can be obtained from ELTE's graphics course webpage at [cg.elte.hu](http://cg.elte.hu/). Afterwards, the drive must be virtually cloned using the `subst t: c:\` command for easy setup of external library references in Visual Studio.
+The program can be run within the Visual Studio development environment and requires the OGLPack package to be placed in the system root directory. The package can be obtained from the repository or ELTE's graphics course webpage at [http://cg.elte.hu/~bsc_cg/resources/OGLPack.zip](http://cg.elte.hu/~bsc_cg/resources/OGLPack.zip). Afterwards, the drive must be virtually cloned using the `subst t: c:\` command for easy setup of external library references in Visual Studio.
