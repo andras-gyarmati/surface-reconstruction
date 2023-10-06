@@ -10,6 +10,7 @@
 #include "delaunay_3d.h"
 #include "file_loader.h"
 #include "octree.h"
+#include <cstdlib>
 
 enum mesh_rendering_mode {
     none = 0,
@@ -75,6 +76,196 @@ public:
     glm::vec3 get_random_color() const;
     glm::vec3 get_sphere_pos(float u, float v) const;
     static void toggle_fullscreen(SDL_Window* win);
+
+    float* EstimatePlaneImplicit(const std::vector<glm::vec3>& pts) {
+        int num = pts.size();
+
+        glm::mat4 Cfs(0.0f);
+
+        for (const auto& pt : pts) {
+            glm::vec4 row(pt.x, pt.y, pt.z, 1.0f);
+            Cfs += glm::outerProduct(row, row);
+        }
+
+        glm::vec4 guess(0.0f, 0.0f, 0.0f, 1.0f);
+        glm::vec4 eigvec(1.0f, 1.0f, 1.0f, 1.0f);
+
+        for (int iter = 0; iter < 100; ++iter) {
+            eigvec = Cfs * guess;
+            guess = glm::normalize(eigvec);
+        }
+
+        float A = guess.x;
+        float B = guess.y;
+        float C = guess.z;
+        float D = guess.w;
+
+        float norm = std::sqrt(A * A + B * B + C * C);
+
+        float* ret = new float[4];
+        ret[0] = A / norm;
+        ret[1] = B / norm;
+        ret[2] = C / norm;
+        ret[3] = D / norm;
+
+        return ret;
+    }
+
+
+    struct RANSACDiffs {
+        int inliersNum;
+        std::vector<bool> isInliers;
+        std::vector<float> distances;
+    };
+
+
+    RANSACDiffs PlanePointRANSACDifferences(const std::vector<glm::vec3>& pts, float* plane, float threshold) {
+        int num = pts.size();
+
+        float A = plane[0];
+        float B = plane[1];
+        float C = plane[2];
+        float D = plane[3];
+
+        RANSACDiffs ret;
+
+        std::vector<bool> isInliers;
+        std::vector<float> distances;
+
+        int inlierCounter = 0;
+        for (int idx = 0; idx < num; idx++) {
+            glm::vec3 pt = pts.at(idx);
+            float diff = std::fabs(A * pt.x + B * pt.y + C * pt.z + D);
+            distances.push_back(diff);
+            if (diff < threshold) {
+                isInliers.push_back(true);
+                ++inlierCounter;
+            } else {
+                isInliers.push_back(false);
+            }
+        }
+
+        ret.distances = distances;
+        ret.isInliers = isInliers;
+        ret.inliersNum = inlierCounter;
+
+        return ret;
+    }
+
+    float* EstimatePlaneRANSAC(const std::vector<glm::vec3>& pts, float threshold, int iterNum) {
+        int num = pts.size();
+
+        int bestSampleInlierNum = 0;
+        float bestPlane[4];
+
+        for (int iter = 0; iter < iterNum; iter++) {
+            float rand1 = static_cast<float>(rand()) / RAND_MAX;
+            float rand2 = static_cast<float>(rand()) / RAND_MAX;
+            float rand3 = static_cast<float>(rand()) / RAND_MAX;
+
+            int index1 = static_cast<int>(rand1 * num);
+            int index2 = static_cast<int>(rand2 * num);
+            while (index2 == index1) {
+                rand2 = static_cast<float>(rand()) / RAND_MAX;
+                index2 = static_cast<int>(rand2 * num);
+            }
+            int index3 = static_cast<int>(rand3 * num);
+            while (index3 == index1 || index3 == index2) {
+                rand3 = static_cast<float>(rand()) / RAND_MAX;
+                index3 = static_cast<int>(rand3 * num);
+            }
+
+            glm::vec3 pt1 = pts.at(index1);
+            glm::vec3 pt2 = pts.at(index2);
+            glm::vec3 pt3 = pts.at(index3);
+
+            std::vector<glm::vec3> minimalSample;
+            minimalSample.push_back(pt1);
+            minimalSample.push_back(pt2);
+            minimalSample.push_back(pt3);
+
+            float* samplePlane = EstimatePlaneImplicit(minimalSample);
+
+            RANSACDiffs sampleResult = PlanePointRANSACDifferences(pts, samplePlane, threshold);
+
+            if (sampleResult.inliersNum > bestSampleInlierNum) {
+                bestSampleInlierNum = sampleResult.inliersNum;
+                for (int i = 0; i < 4; ++i) {
+                    bestPlane[i] = samplePlane[i];
+                }
+            }
+
+            delete[] samplePlane;
+        }
+
+        RANSACDiffs bestResult = PlanePointRANSACDifferences(pts, bestPlane, threshold);
+
+        std::vector<glm::vec3> inlierPts;
+        for (int idx = 0; idx < num; idx++) {
+            if (bestResult.isInliers.at(idx)) {
+                inlierPts.push_back(pts.at(idx));
+            }
+        }
+
+        float* finalPlane = EstimatePlaneImplicit(inlierPts);
+        return finalPlane;
+    }
+
+
+    void RunRANSAC(const std::vector<glm::vec3>& points) {
+        // Constants, replace them as needed
+        const float FILTER_LOWEST_DISTANCE = 0.1f;
+        const float THERSHOLD = 0.5f;
+        const int RANSAC_ITER = 100;
+
+        std::vector<glm::vec3> filteredPoints = points;
+
+        // for (const auto& point : points) {
+        //     float distFromOrigo = glm::length(point);
+        //
+        //     if (distFromOrigo > FILTER_LOWEST_DISTANCE) {
+        //         filteredPoints.push_back(point);
+        //     }
+        // }
+
+        int num = filteredPoints.size();
+
+        float* plane = EstimatePlaneImplicit(filteredPoints);
+
+        std::cout << "Plane fitting results from the whole data:" << std::endl;
+        std::cout << "A:" << plane[0] << " B:" << plane[1]
+            << " C:" << plane[2] << " D:" << plane[3] << std::endl;
+
+        delete[] plane;
+
+        float* planeParams = EstimatePlaneRANSAC(filteredPoints, THERSHOLD, RANSAC_ITER);
+
+        std::cout << "Plane params RANSAC:" << std::endl;
+        std::cout << "A:" << planeParams[0] << " B:" << planeParams[1]
+            << " C:" << planeParams[2] << " D:" << planeParams[3] << std::endl;
+
+        RANSACDiffs differences = PlanePointRANSACDifferences(filteredPoints, planeParams, THERSHOLD);
+
+        delete[] planeParams;
+
+        // Assuming you have a WritePLY function that accepts glm::vec3 and glm::ivec3
+        std::vector<glm::ivec3> colorsRANSAC;
+
+        for (int idx = 0; idx < num; ++idx) {
+            glm::ivec3 newColor;
+
+            if (differences.isInliers.at(idx)) {
+                newColor = glm::ivec3(0, 255, 0);
+            } else {
+                newColor = glm::ivec3(255, 0, 0);
+            }
+
+            colorsRANSAC.push_back(newColor);
+        }
+
+        // Replace with your own function to write the results
+        // WritePLY("output.ply", filteredPoints, colorsRANSAC);
+    }
 
 protected:
     // shader programs
