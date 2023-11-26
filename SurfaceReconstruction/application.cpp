@@ -23,8 +23,8 @@ application::application(void) {
     m_render_points_up_to_index = 0;
     m_mesh_vertex_cut_distance = 6.0f;
 
-    m_show_axes = true;
-    m_show_points = true;
+    m_show_axes = false;
+    m_show_points = false;
     m_show_debug_sphere = false;
     m_show_octree = false;
     m_show_back_faces = false;
@@ -34,7 +34,7 @@ application::application(void) {
     m_show_non_shaded_mesh = false;
     m_auto_increment_rendered_point_index = false;
 
-    m_mesh_rendering_mode = none;
+    m_mesh_rendering_mode = wireframe;
     m_octree_color = glm::vec3(0, 1.f, 0);
     m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
@@ -309,8 +309,23 @@ void application::init_mesh_visualization() {
             }
         }
     }
+
     for (int i = 0; i < m_vertices.size(); i++) {
-        m_vertices[i].color = hsl_to_rgb(m_cuts[i].dist / m_max_dist * 360.0f, 0.5f, 0.5f);
+        const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
+        if (v_dist_from_center > m_max_dist_from_center) {
+            m_max_dist_from_center = v_dist_from_center;
+        }
+    }
+
+    for (int i = 0; i < m_vertices.size(); i++) {
+        float v_dist_norm = m_cuts[i].dist / m_max_dist;
+        float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+        float v_dist_corrected = v_dist_norm * v_dist_from_center_norm * m_mesh_vertex_cut_distance;
+        // log values to console
+        // std::cout << "v_dist_norm: " << v_dist_norm << std::endl;
+        // std::cout << "v_dist_from_center_norm: " << v_dist_from_center_norm << std::endl;
+        // std::cout << "v_dist_corrected: " << v_dist_corrected << std::endl << std::endl;
+        m_vertices[i].color = hsl_to_rgb(v_dist_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
     }
     m_mesh_pos_buffer.BufferData(m_vertices);
     m_mesh_indices_buffer.BufferData(m_mesh_indices);
@@ -473,7 +488,7 @@ void application::render_imgui() {
             if (ImGui::Button("solid")) {
                 m_mesh_rendering_mode = solid;
             }
-            ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
+            ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.01f, 50.0f);
         }
         if (ImGui::CollapsingHeader("sensor rig")) {
             ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
@@ -613,6 +628,7 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
+    return true;
     return glm::distance(m_vertices[i0].position, m_vertices[i1].position) < m_mesh_vertex_cut_distance &&
         glm::distance(m_vertices[i1].position, m_vertices[i2].position) < m_mesh_vertex_cut_distance &&
         glm::distance(m_vertices[i2].position, m_vertices[i0].position) < m_mesh_vertex_cut_distance;

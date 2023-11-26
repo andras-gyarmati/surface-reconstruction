@@ -189,6 +189,7 @@ protected:
     std::vector<cut> m_cuts;
     float m_min_dist = std::numeric_limits<float>::max();
     float m_max_dist = std::numeric_limits<float>::min();
+    float m_max_dist_from_center = std::numeric_limits<float>::min();
     std::vector<file_loader::vertex> m_delaunay_vertices;
     std::vector<file_loader::vertex> m_wireframe_vertices;
     std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
