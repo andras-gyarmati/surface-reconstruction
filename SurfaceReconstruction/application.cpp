@@ -164,6 +164,7 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     }
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
+    m_cuts = std::vector<cut>(m_vertices.size());
     std::cout << "Loaded " << m_vertices.size() << " points from " << xyz_file << std::endl;
     m_render_points_up_to_index = m_vertices.size() - 16;
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
@@ -171,9 +172,10 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     init_point_visualization();
     randomize_vertex_colors(m_vertices);
-    init_octree(m_vertices);
-    init_octree_visualization(&m_octree);
-    init_delaunay_shaded_points_segment();
+    set_uvs(m_vertices);
+    // init_octree(m_vertices);
+    // init_octree_visualization(&m_octree);
+    // init_delaunay_shaded_points_segment();
     init_mesh_visualization();
 }
 
@@ -295,17 +297,20 @@ void application::init_mesh_visualization() {
     m_mesh_indices.clear();
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
         if ((i % 16) != 15 && i < m_render_points_up_to_index - 16) {
-            if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
+            if (!is_triangle_should_be_excluded(i, i + 1, i + 17) && is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 1);
                 m_mesh_indices.push_back(i + 17);
             }
-            if (is_outside_of_sensor_rig_boundary(i, i + 17, i + 16) && is_mesh_vertex_cut_distance_ok(i, i + 17, i + 16)) {
+            if (!is_triangle_should_be_excluded(i, i + 17, i + 16) && is_outside_of_sensor_rig_boundary(i, i + 17, i + 16) && is_mesh_vertex_cut_distance_ok(i, i + 17, i + 16)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 17);
                 m_mesh_indices.push_back(i + 16);
             }
         }
+    }
+    for (int i = 0; i < m_vertices.size(); i++) {
+        m_vertices[i].color = hsl_to_rgb(m_cuts[i].dist / m_max_dist * 360.0f, 0.5f, 0.5f);
     }
     m_mesh_pos_buffer.BufferData(m_vertices);
     m_mesh_indices_buffer.BufferData(m_mesh_indices);
@@ -475,22 +480,22 @@ void application::render_imgui() {
             ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
             ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
         }
-        if (ImGui::CollapsingHeader("octree")) {
-            ImGui::Checkbox("show octree", &m_show_octree);
-            ImGui::ColorEdit3("octree color", &m_octree_color[0]);
-            if (ImGui::Button("apply octree color")) {
-                init_octree_visualization(&m_octree);
-            }
-        }
-        if (ImGui::CollapsingHeader("delaunay")) {
-            if (ImGui::Button("init delaunay cube")) {
-                init_delaunay_cube();
-            }
-            if (ImGui::Button("init delaunay shaded points segment")) {
-                init_delaunay_shaded_points_segment();
-            }
-            ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
-        }
+        // if (ImGui::CollapsingHeader("octree")) {
+        //     ImGui::Checkbox("show octree", &m_show_octree);
+        //     ImGui::ColorEdit3("octree color", &m_octree_color[0]);
+        //     if (ImGui::Button("apply octree color")) {
+        //         init_octree_visualization(&m_octree);
+        //     }
+        // }
+        // if (ImGui::CollapsingHeader("delaunay")) {
+        //     if (ImGui::Button("init delaunay cube")) {
+        //         init_delaunay_cube();
+        //     }
+        //     if (ImGui::Button("init delaunay shaded points segment")) {
+        //         init_delaunay_shaded_points_segment();
+        //     }
+        //     ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
+        // }
         if (ImGui::CollapsingHeader("camera")) {
             ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
             if (ImGui::Button("reset camera")) {

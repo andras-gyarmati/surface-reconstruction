@@ -12,6 +12,9 @@ uniform int show_non_shaded;
 
 void main()
 {
+    // debug bypass texture
+    fs_out_col = vec4(vs_out_col, 1);
+    return;
     if (!any(equal(vs_out_tex[1], vec2(-1, -1)))) {
         fs_out_col = texture(tex_image[1], vs_out_tex[1]);
     } else if (!any(equal(vs_out_tex[0], vec2(-1, -1)))) {

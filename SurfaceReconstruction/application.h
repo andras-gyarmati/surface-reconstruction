@@ -17,6 +17,11 @@ enum mesh_rendering_mode {
     solid = 2
 };
 
+struct cut {
+    glm::vec2 uv;
+    float dist = std::numeric_limits<float>::min();
+};
+
 class application {
 public:
     // constructor destructor
@@ -76,6 +81,75 @@ public:
     glm::vec3 get_sphere_pos(float u, float v) const;
     static void toggle_fullscreen(SDL_Window* win);
 
+    std::vector<file_loader::vertex> set_uvs(std::vector<file_loader::vertex>& points) {
+        std::vector<file_loader::vertex> shaded_points;
+        glm::mat3 cam_k = m_digital_camera_params.get_cam_k();
+        glm::mat3 cam_r[3];
+        glm::vec3 cam_t[3];
+        cam_r[0] = m_digital_camera_params.devices[0].r;
+        cam_r[1] = m_digital_camera_params.devices[1].r;
+        cam_r[2] = m_digital_camera_params.devices[2].r;
+        cam_t[0] = m_digital_camera_params.devices[0].t;
+        cam_t[1] = m_digital_camera_params.devices[1].t;
+        cam_t[2] = m_digital_camera_params.devices[2].t;
+
+        for (int j = 0; j < points.size(); ++j) {
+            auto& point = points[j];
+            bool is_shaded = false;
+            for (int i = 0; i < 3; ++i) {
+                glm::vec3 p_tmp = cam_r[i] * (point.position - cam_t[i]);
+                const float dist = p_tmp.z;
+                p_tmp /= p_tmp.z;
+                glm::vec2 p_c;
+                p_c.x = cam_k[0][0] * p_tmp.x + cam_k[0][2];
+                p_c.y = cam_k[1][1] * -p_tmp.y + cam_k[1][2];
+                // todo: get triangles uv coords and check if triangle is too stretched
+                // based on distance we can map the triangle sizes and orientations
+                // to a lower dimension and check for outliers
+                if (dist > 0 && p_c.x >= 0 && p_c.x <= 960 && p_c.y >= 0 && p_c.y <= 600) {
+                    is_shaded = true;
+                    // put uv into point
+                    m_cuts[j].uv = p_c; // todo: compensate for the 3 different cameras
+                }
+            }
+            if (is_shaded && !m_sensor_rig_boundary.contains(point.position)) {
+                shaded_points.push_back(point);
+            }
+        }
+        return shaded_points;
+    }
+
+    // if triangle is too stretched, it is probably a bad triangle
+    bool is_triangle_should_be_excluded(const int a, const int b, const int c) {
+        float dist_a_b = glm::distance(m_vertices[a].position, m_vertices[b].position);
+        float dist_b_c = glm::distance(m_vertices[b].position, m_vertices[c].position);
+        float dist_c_a = glm::distance(m_vertices[c].position, m_vertices[a].position);
+        float uv_dist_a_b = glm::distance(m_cuts[a].uv, m_cuts[b].uv);
+        float uv_dist_b_c = glm::distance(m_cuts[b].uv, m_cuts[c].uv);
+        float uv_dist_c_a = glm::distance(m_cuts[c].uv, m_cuts[a].uv);
+        if (dist_a_b < m_min_dist) m_min_dist = dist_a_b;
+        if (dist_a_b > m_max_dist) m_max_dist = dist_a_b;
+        if (dist_b_c < m_min_dist) m_min_dist = dist_b_c;
+        if (dist_b_c > m_max_dist) m_max_dist = dist_b_c;
+        if (dist_c_a < m_min_dist) m_min_dist = dist_c_a;
+        if (dist_c_a > m_max_dist) m_max_dist = dist_c_a;
+        if (m_cuts[a].dist < dist_a_b) m_cuts[a].dist = dist_a_b;
+        if (m_cuts[b].dist < dist_a_b) m_cuts[b].dist = dist_a_b;
+        if (m_cuts[b].dist < dist_b_c) m_cuts[b].dist = dist_b_c;
+        if (m_cuts[c].dist < dist_b_c) m_cuts[c].dist = dist_b_c;
+        if (m_cuts[c].dist < dist_c_a) m_cuts[c].dist = dist_c_a;
+        if (m_cuts[a].dist < dist_c_a) m_cuts[a].dist = dist_c_a;
+        // write values to console
+        // std::cout << "dist_a_b: " << dist_a_b << std::endl;
+        // std::cout << "dist_b_c: " << dist_b_c << std::endl;
+        // std::cout << "dist_c_a: " << dist_c_a << std::endl;
+        // std::cout << "uv_dist_a_b: " << uv_dist_a_b << std::endl;
+        // std::cout << "uv_dist_b_c: " << uv_dist_b_c << std::endl;
+        // std::cout << "uv_dist_c_a: " << uv_dist_c_a << std::endl << std::endl;
+        return dist_a_b > 0.0f && dist_b_c > 0.0f && dist_c_a > 0.0f &&
+            uv_dist_a_b == 0.0f && uv_dist_b_c == 0.0f && uv_dist_c_a == 0.0f;
+    }
+
 protected:
     // shader programs
     ProgramObject m_axes_program;
@@ -112,6 +186,9 @@ protected:
 
     // vertex vectors
     std::vector<file_loader::vertex> m_vertices;
+    std::vector<cut> m_cuts;
+    float m_min_dist = std::numeric_limits<float>::max();
+    float m_max_dist = std::numeric_limits<float>::min();
     std::vector<file_loader::vertex> m_delaunay_vertices;
     std::vector<file_loader::vertex> m_wireframe_vertices;
     std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
