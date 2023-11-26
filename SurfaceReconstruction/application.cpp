@@ -8,6 +8,7 @@
 #include "delaunay_3d.h"
 #include "imgui/imgui.h"
 #include "file_loader.h"
+#include <Eigen/Dense>
 
 application::application(void) {
     m_start_eye = glm::vec3(0, 0, 0);
@@ -31,6 +32,7 @@ application::application(void) {
     m_show_sensor_rig_boundary = false;
     m_show_tetrahedra = false;
     m_show_non_shaded_points = false;
+    m_show_texture = true;
     m_show_non_shaded_mesh = false;
     m_auto_increment_rendered_point_index = false;
 
@@ -169,8 +171,9 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
 
+    RunRANSAC(m_vertices, 4);
     init_point_visualization();
-    randomize_vertex_colors(m_vertices);
+    //randomize_vertex_colors(m_vertices);
     init_octree(m_vertices);
     init_octree_visualization(&m_octree);
     init_delaunay_shaded_points_segment();
@@ -431,8 +434,9 @@ void application::render_imgui() {
         if (ImGui::CollapsingHeader("points")) {
             ImGui::Checkbox("show points", &m_show_points);
             ImGui::SameLine();
-            ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points);
+            ImGui::Checkbox("show texture", &m_show_texture);
             ImGui::SameLine();
+            ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points);
             ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
             ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
             ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
@@ -514,6 +518,7 @@ void application::render_imgui() {
 void application::render_points(VertexArrayObject& vao, const size_t size) {
     vao.Bind();
     set_particle_program_uniforms(m_show_non_shaded_points);
+    m_particle_program.SetUniform("show_texture", (int)m_show_texture);
     glEnable(GL_PROGRAM_POINT_SIZE);
     m_particle_program.SetUniform("point_size", m_point_size);
     glDrawArrays(GL_POINTS, 0, size);
@@ -697,5 +702,177 @@ void application::toggle_fullscreen(SDL_Window* win) {
     } else {
         SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP);
         SDL_SetWindowResizable(win, SDL_FALSE);
+    }
+}
+
+float* application::EstimatePlaneImplicit(const std::vector<file_loader::vertex*>& pts) {
+    const int num = pts.size();
+
+    Eigen::MatrixXf Cfs(num, 4);
+
+    for (int i = 0; i < num; i++) {
+        file_loader::vertex* pt = pts.at(i);
+        Cfs(i, 0) = pt->position.x;
+        Cfs(i, 1) = pt->position.y;
+        Cfs(i, 2) = pt->position.z;
+        Cfs(i, 3) = 1.0f;
+    }
+
+    Eigen::MatrixXf mtx = Cfs.transpose() * Cfs;
+    Eigen::EigenSolver<Eigen::MatrixXf> es(mtx);
+
+    const int lowestEigenValueIndex = std::min({0,1,2,3},
+        [&es](int v1, int v2) {
+            return es.eigenvalues()[v1].real() < es.eigenvalues()[v2].real();
+        });
+
+    float A = es.eigenvectors().col(lowestEigenValueIndex)(0).real();
+    float B = es.eigenvectors().col(lowestEigenValueIndex)(1).real();
+    float C = es.eigenvectors().col(lowestEigenValueIndex)(2).real();
+    float D = es.eigenvectors().col(lowestEigenValueIndex)(3).real();
+
+    float norm = std::sqrt(A * A + B * B + C * C);
+
+    float* ret = new float[4];
+    ret[0] = A / norm;
+    ret[1] = B / norm;
+    ret[2] = C / norm;
+    ret[3] = D / norm;
+
+    return ret;
+}
+
+application::RANSACDiffs application::PlanePointRANSACDifferences(const std::vector<file_loader::vertex*>& pts, float* plane, float threshold) {
+    size_t num = pts.size();
+
+    float A = plane[0];
+    float B = plane[1];
+    float C = plane[2];
+    float D = plane[3];
+
+    RANSACDiffs ret;
+
+    std::vector<bool> isInliers;
+    std::vector<float> distances;
+
+    int inlierCounter = 0;
+    for (int idx = 0; idx < num; idx++) {
+        file_loader::vertex* pt = pts.at(idx);
+        float diff = fabs(A * pt->position.x + B * pt->position.y + C * pt->position.z + D);
+        distances.push_back(diff);
+        if (diff < threshold) {
+            isInliers.push_back(true);
+            ++inlierCounter;
+        }
+        else {
+            isInliers.push_back(false);
+        }
+    }
+
+    ret.distances = distances;
+    ret.isInliers = isInliers;
+    ret.inliersNum = inlierCounter;
+
+    return ret;
+}
+
+float* application::EstimatePlaneRANSAC(std::vector<file_loader::vertex*>& pts, float threshold, int iterNum) {
+    size_t num = pts.size();
+
+    int bestSampleInlierNum = 0;
+    float bestPlane[4];
+
+    for (int iter = 0; iter < iterNum; iter++) {
+        int index1 = rand() % num;
+        int index2 = rand() % num;
+
+        while (index2 == index1) {
+            index2 = rand() % num;
+        }
+        int index3 = rand() % num;
+        while (index3 == index1 || index3 == index2) {
+            index3 = rand() % num;
+        }
+
+        file_loader::vertex* pt1 = pts.at(index1);
+        file_loader::vertex* pt2 = pts.at(index2);
+        file_loader::vertex* pt3 = pts.at(index3);
+
+        std::vector<file_loader::vertex*> minimalSample;
+        minimalSample.push_back(pt1);
+        minimalSample.push_back(pt2);
+        minimalSample.push_back(pt3);
+
+        float* samplePlane = EstimatePlaneImplicit(minimalSample);
+
+        RANSACDiffs sampleResult = PlanePointRANSACDifferences(pts, samplePlane, threshold);
+
+        if (sampleResult.inliersNum > bestSampleInlierNum) {
+            bestSampleInlierNum = sampleResult.inliersNum;
+            for (int i = 0; i < 4; ++i) {
+                bestPlane[i] = samplePlane[i];
+            }
+        }
+
+        delete[] samplePlane;
+    }
+
+    RANSACDiffs bestResult = PlanePointRANSACDifferences(pts, bestPlane, threshold);
+    std::cout << "Best plane params: " << bestPlane[0] << " " << bestPlane[1] << " " << bestPlane[2] << "\n";
+
+    std::vector<file_loader::vertex*> inlierPts;
+
+    for (int idx = 0; idx < num; idx++) {
+        if (bestResult.isInliers.at(idx)) {
+            inlierPts.push_back(pts.at(idx));
+        }
+    }
+
+    float* finalPlane = EstimatePlaneImplicit(inlierPts);
+    return finalPlane;
+}
+
+
+void application::RunRANSAC(std::vector<file_loader::vertex>& points,const int iterations) {
+    // Constants, replace them as needed
+    const float FILTER_LOWEST_DISTANCE = 1.5f;
+    const float THERSHOLD = 0.05f;
+    const int RANSAC_ITER = 1000;
+
+    std::vector<file_loader::vertex*> filteredPoints;
+    float hValue = 0.0f;
+
+    for (int i = 0; i < iterations; i++) {
+        filteredPoints.clear();
+        glm::vec3 iterColor = hsl_to_rgb(hValue, 0.5f, 0.5f);
+
+        for (auto& point : points) {
+            float distFromOrigo = glm::length(glm::vec3(point.position.x, point.position.y, point.position.z));
+
+            if (distFromOrigo > FILTER_LOWEST_DISTANCE && point.color == glm::vec3(0,0,0)) {
+                filteredPoints.push_back(&point);
+            }
+        }
+
+        size_t num = filteredPoints.size();
+        std::cout << "Point num: " << num << "\n";
+    
+        //parameters of best fitting plane determined by RANSAC
+        float* planeParams = EstimatePlaneRANSAC(filteredPoints, THERSHOLD, RANSAC_ITER);
+
+        std::cout << "Plane params RANSAC:" << std::endl;
+        std::cout << "A:" << planeParams[0] << " B:" << planeParams[1]
+            << " C:" << planeParams[2] << " D:" << planeParams[3] << std::endl;
+
+        //Color inlier points
+        RANSACDiffs differences = PlanePointRANSACDifferences(filteredPoints, planeParams, THERSHOLD);
+        for (int idx = 0; idx < num; idx++) {
+            if (differences.isInliers.at(idx)) {
+                filteredPoints.at(idx)->color = iterColor;
+            }
+        }
+        hValue += 360.0 / iterations;
+
+        delete[] planeParams;
     }
 }

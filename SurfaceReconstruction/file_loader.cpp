@@ -58,8 +58,7 @@ std::vector<file_loader::vertex> file_loader::read_vertices_from_file(std::ifstr
     for (int i = 0; i < vertex_count; ++i) {
         *file >> vertices[i].position.x >> vertices[i].position.y >> vertices[i].position.z;
         *file >> vertices[i].color.r >> vertices[i].color.g >> vertices[i].color.b;
-        if (i % 2 == 1)
-            vertices[i].color = {1, 0, 0};
+        vertices[i].color = {0, 0, 0};
     }
     file->close();
 
