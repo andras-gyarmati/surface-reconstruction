@@ -16,7 +16,7 @@ application::application(void) {
     m_start_at = glm::vec3(0, 1, 0);
     m_start_up = glm::vec3(0, 0, 1);
     m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
-
+       
     strncpy_s(m_input_folder, "inputs\\garazs_kijarat", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
 
@@ -94,8 +94,11 @@ void application::render() {
         glDrawArrays(GL_LINES, 0, 6);
     }
 
-    if (m_show_points)
-        render_points(m_particle_vao, m_render_points_up_to_index);
+    if (m_show_points) {
+        for (int i = 0; i < m_vertex_groups.size(); i++) {
+            render_points(*(m_particle_group_vaos[i]), m_vertex_groups[i].size());
+        }
+    }
 
     if (m_show_debug_sphere)
         render_points(m_debug_sphere_vao, m_debug_sphere.size());
@@ -167,14 +170,12 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     }
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
-    m_vertex_groups.push_back(m_vertices);
     std::cout << "Loaded " << m_vertices.size() << " points from " << xyz_file << std::endl;
     m_render_points_up_to_index = m_vertices.size() - 16;
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
 
-    //RunRANSAC(m_vertices, 2);
-    RunRANSAC(m_vertex_groups, 2);
+    RunRANSAC(m_vertices, m_vertex_groups, 0);
     init_point_visualization();
     //randomize_vertex_colors(m_vertices);
     init_octree(m_vertices);
@@ -184,12 +185,32 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 }
 
 void application::init_point_visualization() {
-    //m_particle_buffer.BufferData(m_vertices);
-    m_particle_buffer.BufferData(m_vertex_groups);
+    m_particle_buffer.BufferData(m_vertices);
     m_particle_vao.Init({
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_particle_buffer},
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_particle_buffer}
     });
+
+    for(std::vector<file_loader::vertex*> group : m_vertex_groups)
+    {
+        std::shared_ptr<ArrayBuffer> buffer_p = std::make_shared<ArrayBuffer>();
+        std::shared_ptr<VertexArrayObject> vao_p = std::make_shared<VertexArrayObject>();
+        m_particle_group_buffers.push_back(buffer_p);
+        m_particle_group_vaos.push_back(vao_p);
+
+        std::vector<file_loader::vertex> tmp_vect;
+        for each (file_loader::vertex* vr in group)
+        {
+            tmp_vect.push_back(*vr);
+        }
+        
+        buffer_p->BufferData(tmp_vect);
+
+        vao_p->Init({
+            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, *buffer_p},
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, *buffer_p}
+        });
+    }
 }
 
 void application::init_debug_sphere() {
@@ -781,7 +802,7 @@ application::RANSACDiffs application::PlanePointRANSACDifferences(const std::vec
     return ret;
 }
 
-float* application::EstimatePlaneRANSAC(std::vector<file_loader::vertex*>& pts, float threshold, int iterNum) {
+float* application::EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>& pts, float threshold, int iterNum) {
     size_t num = pts.size();
 
     int bestSampleInlierNum = 0;
@@ -841,12 +862,13 @@ bool operator==(const file_loader::vertex& l, const file_loader::vertex& r) {
     return l.position.x == r.position.x && l.position.y == r.position.y && l.position.z == r.position.z;
 }
 
-void application::RunRANSAC(std::vector<std::vector<file_loader::vertex>>& points,const int iterations) {
+void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vector<std::vector<file_loader::vertex*>>& dest, const int iterations) {
     // Constants, replace them as needed
     const float FILTER_LOWEST_DISTANCE = 1.5f;
     const float THERSHOLD = 0.15f;
     const int RANSAC_ITER = 1000;
 
+    dest.clear();
     std::vector<file_loader::vertex*> filteredPoints;
     float hValue = 0.0f;
 
@@ -854,10 +876,10 @@ void application::RunRANSAC(std::vector<std::vector<file_loader::vertex>>& point
         filteredPoints.clear();
         glm::vec3 iterColor = hsl_to_rgb(hValue, 0.5f, 0.5f);
 
-        for (auto& point : points[0]) {
+        for (auto& point : points) {
             float distFromOrigo = glm::length(glm::vec3(point.position.x, point.position.y, point.position.z));
 
-            if (distFromOrigo > FILTER_LOWEST_DISTANCE) {
+            if (distFromOrigo > FILTER_LOWEST_DISTANCE && point.color == glm::vec3(0,0,0)) {
                 filteredPoints.push_back(&point);
             }
         }
@@ -874,17 +896,27 @@ void application::RunRANSAC(std::vector<std::vector<file_loader::vertex>>& point
 
         //Color inlier points
         RANSACDiffs differences = PlanePointRANSACDifferences(filteredPoints, planeParams, THERSHOLD);
-        std::vector<file_loader::vertex> points_to_group;
+        std::cout << differences.inliersNum << std::endl;
+        std::vector<file_loader::vertex*> points_to_group;
         for (int idx = 0; idx < num; idx++) {
             if (differences.isInliers.at(idx)) {
                 filteredPoints.at(idx)->color = iterColor;
-                points_to_group.push_back(*filteredPoints.at(idx));
-                points[0].erase(std::remove(points[0].begin(), points[0].end(), *(filteredPoints.at(idx))), points[0].end());
+                points_to_group.push_back(filteredPoints.at(idx));
             }
         }
+        dest.push_back(points_to_group);
         hValue += 360.0 / iterations;
-        points.push_back(points_to_group);
+        std::cout << points_to_group.size() << "\n";
 
         delete[] planeParams;
     }
+
+    std::vector<file_loader::vertex*> remaining;
+    for (auto& v : points) {
+        if (v.color == glm::vec3(0, 0, 0)) {
+            remaining.push_back(&v);
+        }
+    }
+
+    dest.push_back(remaining);
 }

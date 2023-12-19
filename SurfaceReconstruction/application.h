@@ -84,9 +84,9 @@ public:
         std::vector<float> distances;
     };
     float* EstimatePlaneImplicit(const std::vector<file_loader::vertex*>& pts);
-    float* EstimatePlaneRANSAC(std::vector<file_loader::vertex*>& pts, float threshold, int iterNum);
+    float* EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>& pts, float threshold, int iterNum);
     RANSACDiffs PlanePointRANSACDifferences(const std::vector<file_loader::vertex*>& pts, float* plane, float threshold);
-    void RunRANSAC(std::vector<std::vector<file_loader::vertex>>& points, int iterations);
+    void RunRANSAC(std::vector<file_loader::vertex>& points, std::vector<std::vector<file_loader::vertex*>>& dest, int iterations);
 
 protected:
     // shader programs
@@ -96,6 +96,7 @@ protected:
 
     // VAOs
     VertexArrayObject m_particle_vao;
+    std::vector<std::shared_ptr<VertexArrayObject>> m_particle_group_vaos;
     VertexArrayObject m_debug_sphere_vao;
     VertexArrayObject m_wireframe_vao;
     VertexArrayObject m_sensor_rig_boundary_vao;
@@ -104,6 +105,7 @@ protected:
 
     // array buffers
     ArrayBuffer m_particle_buffer;
+    std::vector<std::shared_ptr<ArrayBuffer>> m_particle_group_buffers;
     ArrayBuffer m_debug_sphere_buffer;
     ArrayBuffer m_wireframe_vertices_buffer;
     ArrayBuffer m_sensor_rig_boundary_vertices_buffer;
@@ -124,7 +126,7 @@ protected:
 
     // vertex vectors
     std::vector<file_loader::vertex> m_vertices;
-    std::vector <std::vector<file_loader::vertex>> m_vertex_groups;
+    std::vector <std::vector<file_loader::vertex*>> m_vertex_groups;
     std::vector<file_loader::vertex> m_delaunay_vertices;
     std::vector<file_loader::vertex> m_wireframe_vertices;
     std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
