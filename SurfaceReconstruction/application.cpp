@@ -309,17 +309,30 @@ void application::init_mesh_visualization() {
             m_max_dist_from_center = v_dist_from_center;
         }
     }
+    //
+    // for (int i = 0; i < m_vertices.size(); i++) {
+    //     float v_dist_norm = m_cuts[i].dist / m_max_dist;
+    //     float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+    //     float v_dist_corrected = v_dist_norm * v_dist_from_center_norm * m_mesh_vertex_cut_distance;
+    //     // log values to console
+    //     // std::cout << "v_dist_norm: " << v_dist_norm << std::endl;
+    //     // std::cout << "v_dist_from_center_norm: " << v_dist_from_center_norm << std::endl;
+    //     // std::cout << "v_dist_corrected: " << v_dist_corrected << std::endl << std::endl;
+    //     m_vertices[i].color = hsl_to_rgb(v_dist_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
+    // }
 
     for (int i = 0; i < m_vertices.size(); i++) {
-        float v_dist_norm = m_cuts[i].dist / m_max_dist;
+        float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
         float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
-        float v_dist_corrected = v_dist_norm * v_dist_from_center_norm * m_mesh_vertex_cut_distance;
+        float v_dist_uv_dist_ratio_corrected = v_dist_uv_dist_ratio_norm * v_dist_from_center_norm * m_mesh_vertex_cut_distance;
         // log values to console
         // std::cout << "v_dist_norm: " << v_dist_norm << std::endl;
         // std::cout << "v_dist_from_center_norm: " << v_dist_from_center_norm << std::endl;
         // std::cout << "v_dist_corrected: " << v_dist_corrected << std::endl << std::endl;
-        m_vertices[i].color = hsl_to_rgb(v_dist_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
+        m_vertices[i].color = hsl_to_rgb(v_dist_uv_dist_ratio_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
+        // m_vertices[i].color = hsl_to_rgb(m_cuts[i].ratio * m_mesh_vertex_cut_distance * 360.0f / 2.0f, 0.5f, 0.5f);
     }
+
     m_mesh_pos_buffer.BufferData(m_vertices);
     m_mesh_indices_buffer.BufferData(m_mesh_indices);
     m_mesh_vao.Init(
@@ -423,7 +436,7 @@ void application::render_imgui() {
             if (ImGui::Button("solid")) {
                 m_mesh_rendering_mode = solid;
             }
-            ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.01f, 50.0f);
+            ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.001f, 1.0f);
         }
         if (ImGui::CollapsingHeader("sensor rig")) {
             ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);

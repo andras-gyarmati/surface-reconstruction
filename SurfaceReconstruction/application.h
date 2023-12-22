@@ -19,6 +19,8 @@ enum mesh_rendering_mode {
 struct cut {
     glm::vec2 uv;
     float dist = std::numeric_limits<float>::min();
+    float uv_dist;
+    float ratio;
 };
 
 class application {
@@ -126,12 +128,21 @@ public:
         if (dist_b_c > m_max_dist) m_max_dist = dist_b_c;
         if (dist_c_a < m_min_dist) m_min_dist = dist_c_a;
         if (dist_c_a > m_max_dist) m_max_dist = dist_c_a;
-        if (m_cuts[a].dist < dist_a_b) m_cuts[a].dist = dist_a_b;
-        if (m_cuts[b].dist < dist_a_b) m_cuts[b].dist = dist_a_b;
-        if (m_cuts[b].dist < dist_b_c) m_cuts[b].dist = dist_b_c;
-        if (m_cuts[c].dist < dist_b_c) m_cuts[c].dist = dist_b_c;
-        if (m_cuts[c].dist < dist_c_a) m_cuts[c].dist = dist_c_a;
-        if (m_cuts[a].dist < dist_c_a) m_cuts[a].dist = dist_c_a;
+        float dist_a_b_uv_dist_ratio = uv_dist_a_b / dist_a_b;
+        if (dist_a_b_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_a_b_uv_dist_ratio;
+        if (dist_a_b_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_a_b_uv_dist_ratio;
+        float dist_b_c_uv_dist_ratio = uv_dist_b_c / dist_b_c;
+        if (dist_b_c_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_b_c_uv_dist_ratio;
+        if (dist_b_c_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_b_c_uv_dist_ratio;
+        float dist_c_a_uv_dist_ratio = uv_dist_c_a / dist_c_a;
+        if (dist_c_a_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_c_a_uv_dist_ratio;
+        if (dist_c_a_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_c_a_uv_dist_ratio;
+        if (m_cuts[a].dist < dist_a_b) { m_cuts[a].dist = dist_a_b; m_cuts[a].uv_dist = uv_dist_a_b; m_cuts[a].ratio = dist_a_b_uv_dist_ratio; }
+        if (m_cuts[b].dist < dist_a_b) { m_cuts[b].dist = dist_a_b; m_cuts[b].uv_dist = uv_dist_a_b; m_cuts[b].ratio = dist_a_b_uv_dist_ratio; }
+        if (m_cuts[b].dist < dist_b_c) { m_cuts[b].dist = dist_b_c; m_cuts[b].uv_dist = uv_dist_b_c; m_cuts[b].ratio = dist_b_c_uv_dist_ratio; }
+        if (m_cuts[c].dist < dist_b_c) { m_cuts[c].dist = dist_b_c; m_cuts[c].uv_dist = uv_dist_b_c; m_cuts[c].ratio = dist_b_c_uv_dist_ratio; }
+        if (m_cuts[c].dist < dist_c_a) { m_cuts[c].dist = dist_c_a; m_cuts[c].uv_dist = uv_dist_c_a; m_cuts[c].ratio = dist_c_a_uv_dist_ratio; }
+        if (m_cuts[a].dist < dist_c_a) { m_cuts[a].dist = dist_c_a; m_cuts[a].uv_dist = uv_dist_c_a; m_cuts[a].ratio = dist_c_a_uv_dist_ratio; }
         // write values to console
         // std::cout << "dist_a_b: " << dist_a_b << std::endl;
         // std::cout << "dist_b_c: " << dist_b_c << std::endl;
@@ -139,8 +150,7 @@ public:
         // std::cout << "uv_dist_a_b: " << uv_dist_a_b << std::endl;
         // std::cout << "uv_dist_b_c: " << uv_dist_b_c << std::endl;
         // std::cout << "uv_dist_c_a: " << uv_dist_c_a << std::endl << std::endl;
-        return dist_a_b > 0.0f && dist_b_c > 0.0f && dist_c_a > 0.0f &&
-            uv_dist_a_b == 0.0f && uv_dist_b_c == 0.0f && uv_dist_c_a == 0.0f;
+        return false; //dist_a_b > 0.0f && dist_b_c > 0.0f && dist_c_a > 0.0f && uv_dist_a_b == 0.0f && uv_dist_b_c == 0.0f && uv_dist_c_a == 0.0f;
     }
 
 protected:
@@ -178,6 +188,8 @@ protected:
     std::vector<cut> m_cuts;
     float m_min_dist = std::numeric_limits<float>::max();
     float m_max_dist = std::numeric_limits<float>::min();
+    float m_min_v_dist_uv_dist_ratio = std::numeric_limits<float>::max();
+    float m_max_v_dist_uv_dist_ratio = std::numeric_limits<float>::min();
     float m_max_dist_from_center = std::numeric_limits<float>::min();
     std::vector<file_loader::vertex> m_wireframe_vertices;
     std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
