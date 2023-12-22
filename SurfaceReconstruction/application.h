@@ -211,7 +211,8 @@ protected:
     int m_debug_sphere_n = 959;
     int m_debug_sphere_m = 959;
     float m_point_size;
-    float m_mesh_vertex_cut_distance;
+    float m_cut_scalar;
+    float m_cut_scalar2;
     float m_line_width;
 
     // other objects
