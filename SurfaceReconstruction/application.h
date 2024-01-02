@@ -21,6 +21,7 @@ struct cut {
     float dist = std::numeric_limits<float>::min();
     float uv_dist;
     float ratio;
+    float x;
 };
 
 class application {

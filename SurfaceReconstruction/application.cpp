@@ -19,7 +19,7 @@ application::application(void) {
     m_line_width = 1.0f;
     m_render_points_up_to_index = 0;
     m_cut_scalar = 0.003f;
-    m_cut_scalar2 = 1.0f;
+    m_cut_scalar2 = 0.003f;
 
     m_show_axes = false;
     m_show_points = false;
@@ -288,6 +288,21 @@ void application::init_octree_visualization(const octree* root) {
 }
 
 void application::init_mesh_visualization() {
+    for (int i = 0; i < m_vertices.size(); i++) {
+        const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
+        if (v_dist_from_center > m_max_dist_from_center) {
+            m_max_dist_from_center = v_dist_from_center;
+        }
+    }
+
+    for (int i = 0; i < m_vertices.size(); i++) {
+        const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
+        const float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+        float x = m_cuts[i].dist / v_dist_from_center_norm * m_cut_scalar;
+        m_cuts[i].x = x;
+        m_vertices[i].color = hsl_to_rgb(x * 360.0f / 2.0f, 0.5f, 0.5f);
+    }
+
     m_mesh_indices.clear();
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
         if ((i % 16) != 15 && i < m_render_points_up_to_index - 16) {
@@ -304,13 +319,6 @@ void application::init_mesh_visualization() {
         }
     }
 
-    for (int i = 0; i < m_vertices.size(); i++) {
-        const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
-        if (v_dist_from_center > m_max_dist_from_center) {
-            m_max_dist_from_center = v_dist_from_center;
-        }
-    }
-
     // for (int i = 0; i < m_vertices.size(); i++) {
     //     float v_dist_norm = m_cuts[i].dist / m_max_dist;
     //     float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
@@ -321,12 +329,6 @@ void application::init_mesh_visualization() {
     //     // std::cout << "v_dist_corrected: " << v_dist_corrected << std::endl << std::endl;
     //     m_vertices[i].color = hsl_to_rgb(v_dist_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
     // }
-
-    for (int i = 0; i < m_vertices.size(); i++) {
-        float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
-        float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
-        m_vertices[i].color = hsl_to_rgb(m_cuts[i].dist / v_dist_from_center_norm * m_cut_scalar * m_cut_scalar2 * 360.0f / 2.0f, 0.5f, 0.5f);
-    }
 
     m_mesh_pos_buffer.BufferData(m_vertices);
     m_mesh_indices_buffer.BufferData(m_mesh_indices);
@@ -431,8 +433,8 @@ void application::render_imgui() {
             if (ImGui::Button("solid")) {
                 m_mesh_rendering_mode = solid;
             }
-            ImGui::SliderFloat("cut scalar", &m_cut_scalar, 0.00001f, 1.f);
-            ImGui::SliderFloat("cut scalar 2", &m_cut_scalar2, 1.f, 1000.f);
+            ImGui::SliderFloat("cut scalar", &m_cut_scalar, 0.00001f, 0.01f);
+            ImGui::SliderFloat("cut scalar 2", &m_cut_scalar2, 0.00001f, 1.f);
         }
         if (ImGui::CollapsingHeader("sensor rig")) {
             ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
@@ -540,10 +542,9 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
-    return true;
-    return glm::distance(m_vertices[i0].position, m_vertices[i1].position) < m_cut_scalar &&
-        glm::distance(m_vertices[i1].position, m_vertices[i2].position) < m_cut_scalar &&
-        glm::distance(m_vertices[i2].position, m_vertices[i0].position) < m_cut_scalar;
+    return m_cuts[i0].x < m_cut_scalar2 &&
+           m_cuts[i1].x < m_cut_scalar2 &&
+           m_cuts[i2].x < m_cut_scalar2;
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
