@@ -22,6 +22,7 @@ struct cut {
     float uv_dist;
     float ratio;
     float x;
+    glm::vec3 normal;
 };
 
 class application {
@@ -123,6 +124,16 @@ public:
         float uv_dist_a_b = glm::distance(m_cuts[a].uv, m_cuts[b].uv);
         float uv_dist_b_c = glm::distance(m_cuts[b].uv, m_cuts[c].uv);
         float uv_dist_c_a = glm::distance(m_cuts[c].uv, m_cuts[a].uv);
+        glm::vec3 normal_a = glm::normalize(glm::cross(m_vertices[b].position - m_vertices[a].position, m_vertices[c].position - m_vertices[a].position));
+        glm::vec3 normal_b = glm::normalize(glm::cross(m_vertices[c].position - m_vertices[b].position, m_vertices[a].position - m_vertices[b].position));
+        glm::vec3 normal_c = glm::normalize(glm::cross(m_vertices[a].position - m_vertices[c].position, m_vertices[b].position - m_vertices[c].position));
+        m_cuts[a].normal = normal_a;
+        m_cuts[b].normal = normal_b;
+        m_cuts[c].normal = normal_c;
+        // set colors by normals byt transform it so there is no negative values
+        m_vertices[a].color = glm::vec3(normal_a.x, normal_a.y, normal_a.z) * 0.5f + 0.5f;
+        m_vertices[b].color = glm::vec3(normal_b.x, normal_b.y, normal_b.z) * 0.5f + 0.5f;
+        m_vertices[c].color = glm::vec3(normal_c.x, normal_c.y, normal_c.z) * 0.5f + 0.5f;
         if (dist_a_b < m_min_dist) m_min_dist = dist_a_b;
         if (dist_a_b > m_max_dist) m_max_dist = dist_a_b;
         if (dist_b_c < m_min_dist) m_min_dist = dist_b_c;

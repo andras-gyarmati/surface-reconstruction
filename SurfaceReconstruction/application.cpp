@@ -300,7 +300,7 @@ void application::init_mesh_visualization() {
         const float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
         float x = m_cuts[i].dist / v_dist_from_center_norm * m_cut_scalar;
         m_cuts[i].x = x;
-        m_vertices[i].color = hsl_to_rgb(x * 360.0f / 2.0f, 0.5f, 0.5f);
+        // m_vertices[i].color = hsl_to_rgb(x * 360.0f / 2.0f, 0.5f, 0.5f);
     }
 
     m_mesh_indices.clear();
@@ -483,7 +483,7 @@ void application::render_octree_boxes() {
 void application::render_mesh() {
     m_mesh_vao.Bind();
     set_particle_program_uniforms(m_show_non_shaded_mesh, m_show_uv_heatmap);
-    glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, nullptr);
     m_mesh_vao.Unbind();
 }
 
@@ -542,9 +542,10 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
-    return m_cuts[i0].x < m_cut_scalar2 &&
-           m_cuts[i1].x < m_cut_scalar2 &&
-           m_cuts[i2].x < m_cut_scalar2;
+    // ok if m_cuts[i].normal is not perpendicular to m_vertices[i].position in absolute value
+    return fabs(glm::dot(m_cuts[i0].normal, m_vertices[i0].position)) > m_cut_scalar2 &&
+        fabs(glm::dot(m_cuts[i1].normal, m_vertices[i1].position)) > m_cut_scalar2 &&
+        fabs(glm::dot(m_cuts[i2].normal, m_vertices[i2].position)) > m_cut_scalar2;
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
