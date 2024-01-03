@@ -21,14 +21,18 @@ application::application(void) {
     m_cut_scalar = 0.003f;
     m_cut_scalar2 = 0.003f;
 
+    m_bfs_paint_animation_speed = 0.01f;
+    m_time_since_last_bfs_paint = 0.0f;
+    m_bfs_epsilon = 0.85f;
+
     m_show_axes = false;
     m_show_points = false;
     m_show_debug_sphere = false;
     m_show_octree = false;
     m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
-    m_show_normal = true;
-    m_show_color = false;
+    m_show_normal = false;
+    m_show_color = true;
     m_show_non_shaded_points = false;
     m_show_non_shaded_mesh = false;
     m_auto_increment_rendered_point_index = false;
@@ -74,6 +78,35 @@ void application::update() {
     const float delta_time = (float)(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
+    m_time_since_last_bfs_paint += delta_time;
+    // std::cout << "m_time_since_last_bfs_paint: " << m_time_since_last_bfs_paint << std::endl;
+
+    const std::vector neighbors = {-1, +1, -16, +16, -17, -15, +15, +17};
+    // if time elapsed since last bfs paint is greater than m_bfs_paint_animation_speed then we get the next vertex from the queue and paint it
+    // and put its neighbors in the queue if the neighbor is not painted yet and if the normal of the neighbor is similar by and epsilon to the normal of the current vertex
+    // all vertexes are in m_vertices the queue is m_vertices_queue and we dont have to use m_cuts
+    for (int j = 0; j < 1000; ++j) {
+        if (/*m_time_since_last_bfs_paint > m_bfs_paint_animation_speed && */!m_vertices_queue.empty()) {
+            // m_time_since_last_bfs_paint = 0.0f;
+            const int i = m_vertices_queue.front();
+            m_vertices_queue.pop();
+            m_vertices[i].color = glm::vec3(0, 0, 1);
+            if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
+                for (const int neighbor : neighbors) {
+                    const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
+                    // std::cout << "i: " << i << " i + neighbor: " << i + neighbor << " dot: " << dot << '\n';
+                    if ((m_vertices[i + neighbor].color == glm::vec3(1) || m_vertices[i + neighbor].color == glm::vec3(1, 0, 0)) && dot > m_bfs_epsilon) {
+                        // std::cout << "pushing " << i + neighbor << " to m_vertices_queue\n";
+                        m_vertices_queue.push(i + neighbor);
+                        // color the neighbor in the queue to red
+                        m_vertices[i + neighbor].color = glm::vec3(1, 0, 0);
+                    }
+                }
+            }
+        } else {
+            std::cout << "m_vertices_queue is empty\n";
+        }
+    }
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
         m_render_points_up_to_index += 1;
@@ -166,12 +199,27 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
 
     init_point_visualization();
-    randomize_vertex_colors(m_vertices);
+    // randomize_vertex_colors(m_vertices);
     set_uvs(m_vertices);
     // init_octree(m_vertices);
     // init_octree_visualization(&m_octree);
     // init_delaunay_shaded_points_segment();
     init_mesh_visualization();
+
+    // set all vertices color to white for bfs painting algo
+    for (auto& [position, color, normal] : m_vertices) {
+        color = glm::vec3(1);
+    }
+
+    // select a random vertex and put in in m_vertices_queue from shaded points, use filter_shaded_points function
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+    // const auto shaded_points = filter_shaded_points(m_vertices);
+    // std::uniform_int_distribution<> dis(0, shaded_points.size() - 1);
+    // const int random_index = dis(gen);
+    // m_vertices_queue.push(random_index);
+    // m_vertices_queue.push(1809);
+    m_vertices_queue.push(2309);
 }
 
 void application::init_point_visualization() {
@@ -280,20 +328,20 @@ void application::init_octree_visualization(const octree* root) {
 }
 
 void application::init_mesh_visualization() {
-    for (int i = 0; i < m_vertices.size(); i++) {
-        const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
-        if (v_dist_from_center > m_max_dist_from_center) {
-            m_max_dist_from_center = v_dist_from_center;
-        }
-    }
-
-    for (int i = 0; i < m_vertices.size(); i++) {
-        const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
-        const float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
-        float x = m_cuts[i].dist / v_dist_from_center_norm * m_cut_scalar;
-        m_cuts[i].x = x;
-        // m_vertices[i].color = hsl_to_rgb(x * 360.0f / 2.0f, 0.5f, 0.5f);
-    }
+    // for (int i = 0; i < m_vertices.size(); i++) {
+    //     const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
+    //     if (v_dist_from_center > m_max_dist_from_center) {
+    //         m_max_dist_from_center = v_dist_from_center;
+    //     }
+    // }
+    //
+    // for (int i = 0; i < m_vertices.size(); i++) {
+    //     const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
+    //     const float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+    //     const float x = m_cuts[i].dist / v_dist_from_center_norm * m_cut_scalar;
+    //     m_cuts[i].x = x;
+    //     m_vertices[i].color = hsl_to_rgb(x * 360.0f / 2.0f, 0.5f, 0.5f);
+    // }
 
     m_mesh_indices.clear();
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
@@ -430,6 +478,7 @@ void application::render_imgui() {
             }
             ImGui::SliderFloat("cut scalar", &m_cut_scalar, 0.00001f, 0.01f);
             ImGui::SliderFloat("cut scalar 2", &m_cut_scalar2, 0.00001f, 1.f);
+            ImGui::SliderFloat("m_bfs_paint_animation_speed", &m_bfs_paint_animation_speed, 0.001f, 1.f);
         }
         if (ImGui::CollapsingHeader("sensor rig")) {
             ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
@@ -537,9 +586,9 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
-    return fabs(dot(m_cuts[i0].normal, m_vertices[i0].position)) > m_cut_scalar2 &&
-        fabs(dot(m_cuts[i1].normal, m_vertices[i1].position)) > m_cut_scalar2 &&
-        fabs(dot(m_cuts[i2].normal, m_vertices[i2].position)) > m_cut_scalar2;
+    return fabs(dot(m_vertices[i0].normal, m_vertices[i0].position)) > m_cut_scalar2 &&
+        fabs(dot(m_vertices[i1].normal, m_vertices[i1].position)) > m_cut_scalar2 &&
+        fabs(dot(m_vertices[i2].normal, m_vertices[i2].position)) > m_cut_scalar2;
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {

@@ -1,4 +1,5 @@
 #pragma once
+#include <queue>
 #include <SDL.h>
 #include <glm/glm.hpp>
 #include "Includes/ProgramObject.h"
@@ -22,7 +23,6 @@ struct cut {
     float uv_dist;
     float ratio;
     float x;
-    glm::vec3 normal;
 };
 
 class application {
@@ -127,9 +127,6 @@ public:
         glm::vec3 normal_a = glm::normalize(glm::cross(m_vertices[b].position - m_vertices[a].position, m_vertices[c].position - m_vertices[a].position));
         glm::vec3 normal_b = glm::normalize(glm::cross(m_vertices[c].position - m_vertices[b].position, m_vertices[a].position - m_vertices[b].position));
         glm::vec3 normal_c = glm::normalize(glm::cross(m_vertices[a].position - m_vertices[c].position, m_vertices[b].position - m_vertices[c].position));
-        m_cuts[a].normal = normal_a;
-        m_cuts[b].normal = normal_b;
-        m_cuts[c].normal = normal_c;
         m_vertices[a].normal = normal_a;
         m_vertices[b].normal = normal_b;
         m_vertices[c].normal = normal_c;
@@ -148,12 +145,36 @@ public:
         float dist_c_a_uv_dist_ratio = uv_dist_c_a / dist_c_a;
         if (dist_c_a_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_c_a_uv_dist_ratio;
         if (dist_c_a_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_c_a_uv_dist_ratio;
-        if (m_cuts[a].dist < dist_a_b) { m_cuts[a].dist = dist_a_b; m_cuts[a].uv_dist = uv_dist_a_b; m_cuts[a].ratio = dist_a_b_uv_dist_ratio; }
-        if (m_cuts[b].dist < dist_a_b) { m_cuts[b].dist = dist_a_b; m_cuts[b].uv_dist = uv_dist_a_b; m_cuts[b].ratio = dist_a_b_uv_dist_ratio; }
-        if (m_cuts[b].dist < dist_b_c) { m_cuts[b].dist = dist_b_c; m_cuts[b].uv_dist = uv_dist_b_c; m_cuts[b].ratio = dist_b_c_uv_dist_ratio; }
-        if (m_cuts[c].dist < dist_b_c) { m_cuts[c].dist = dist_b_c; m_cuts[c].uv_dist = uv_dist_b_c; m_cuts[c].ratio = dist_b_c_uv_dist_ratio; }
-        if (m_cuts[c].dist < dist_c_a) { m_cuts[c].dist = dist_c_a; m_cuts[c].uv_dist = uv_dist_c_a; m_cuts[c].ratio = dist_c_a_uv_dist_ratio; }
-        if (m_cuts[a].dist < dist_c_a) { m_cuts[a].dist = dist_c_a; m_cuts[a].uv_dist = uv_dist_c_a; m_cuts[a].ratio = dist_c_a_uv_dist_ratio; }
+        if (m_cuts[a].dist < dist_a_b) {
+            m_cuts[a].dist = dist_a_b;
+            m_cuts[a].uv_dist = uv_dist_a_b;
+            m_cuts[a].ratio = dist_a_b_uv_dist_ratio;
+        }
+        if (m_cuts[b].dist < dist_a_b) {
+            m_cuts[b].dist = dist_a_b;
+            m_cuts[b].uv_dist = uv_dist_a_b;
+            m_cuts[b].ratio = dist_a_b_uv_dist_ratio;
+        }
+        if (m_cuts[b].dist < dist_b_c) {
+            m_cuts[b].dist = dist_b_c;
+            m_cuts[b].uv_dist = uv_dist_b_c;
+            m_cuts[b].ratio = dist_b_c_uv_dist_ratio;
+        }
+        if (m_cuts[c].dist < dist_b_c) {
+            m_cuts[c].dist = dist_b_c;
+            m_cuts[c].uv_dist = uv_dist_b_c;
+            m_cuts[c].ratio = dist_b_c_uv_dist_ratio;
+        }
+        if (m_cuts[c].dist < dist_c_a) {
+            m_cuts[c].dist = dist_c_a;
+            m_cuts[c].uv_dist = uv_dist_c_a;
+            m_cuts[c].ratio = dist_c_a_uv_dist_ratio;
+        }
+        if (m_cuts[a].dist < dist_c_a) {
+            m_cuts[a].dist = dist_c_a;
+            m_cuts[a].uv_dist = uv_dist_c_a;
+            m_cuts[a].ratio = dist_c_a_uv_dist_ratio;
+        }
         // write values to console
         // std::cout << "dist_a_b: " << dist_a_b << std::endl;
         // std::cout << "dist_b_c: " << dist_b_c << std::endl;
@@ -196,6 +217,7 @@ protected:
 
     // vertex vectors
     std::vector<file_loader::vertex> m_vertices;
+    std::queue<int> m_vertices_queue;
     std::vector<cut> m_cuts;
     float m_min_dist = std::numeric_limits<float>::max();
     float m_max_dist = std::numeric_limits<float>::min();
@@ -226,6 +248,9 @@ protected:
     float m_cut_scalar;
     float m_cut_scalar2;
     float m_line_width;
+    float m_bfs_paint_animation_speed;
+    float m_time_since_last_bfs_paint;
+    float m_bfs_epsilon;
 
     // other objects
     SDL_Window* m_window{};
