@@ -23,7 +23,7 @@ application::application(void) {
 
     m_bfs_paint_animation_speed = 0.01f;
     m_time_since_last_bfs_paint = 0.0f;
-    m_bfs_epsilon = 0.95f;
+    m_bfs_epsilon = 0.93f;
 
     m_show_axes = false;
     m_show_points = false;
@@ -82,31 +82,24 @@ void application::update() {
     // std::cout << "m_time_since_last_bfs_paint: " << m_time_since_last_bfs_paint << std::endl;
 
     const std::vector neighbors = {-1, +1, -16, +16, -17, -15, +15, +17};
-    // if time elapsed since last bfs paint is greater than m_bfs_paint_animation_speed then we get the next vertex from the queue and paint it
-    // and put its neighbors in the queue if the neighbor is not painted yet and if the normal of the neighbor is similar by and epsilon to the normal of the current vertex
-    // all vertexes are in m_vertices the queue is m_vertices_queue and we dont have to use m_cuts
-    for (int j = 0; j < 10; ++j) {
-        if (/*m_time_since_last_bfs_paint > m_bfs_paint_animation_speed && */!m_vertices_queue.empty()) {
-            // m_time_since_last_bfs_paint = 0.0f;
-            const int i = m_vertices_queue.front();
-            m_vertices_queue.pop();
-            // processed vertexes are blue
-            m_vertices[i].color = glm::vec3(0, 0, 1);
-            if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
-                for (const int neighbor : neighbors) {
-                    const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
-                    // std::cout << "i: " << i << " i + neighbor: " << i + neighbor << " dot: " << dot << '\n';
-                    if (m_vertices[i + neighbor].color == glm::vec3(1) && dot > m_bfs_epsilon) {
-                        // std::cout << "pushing " << i + neighbor << " to m_vertices_queue\n";
-                        m_vertices_queue.push(i + neighbor);
-                        // color the neighbor in the queue to red
-                        m_vertices[i + neighbor].color = glm::vec3(1, 0, 0);
-                    }
+    if (m_time_since_last_bfs_paint > m_bfs_paint_animation_speed && !m_vertices_queue.empty()) {
+        m_time_since_last_bfs_paint = 0.0f;
+        const int i = m_vertices_queue.front();
+        m_vertices_queue.pop();
+        // processed vertexes are blue
+        m_vertices[i].color = glm::vec3(0, 0, 1);
+        if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
+            for (const int neighbor : neighbors) {
+                const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
+                if (m_vertices[i + neighbor].color == glm::vec3(1) && dot > m_bfs_epsilon) {
+                    m_vertices_queue.push(i + neighbor);
+                    // color the neighbor in the queue to red
+                    m_vertices[i + neighbor].color = glm::vec3(1, 0, 0);
                 }
             }
-        } else {
-            std::cout << "m_vertices_queue is empty\n";
         }
+    } else {
+        std::cout << "m_vertices_queue is empty\n";
     }
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
