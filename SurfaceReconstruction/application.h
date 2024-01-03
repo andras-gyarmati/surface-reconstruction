@@ -71,7 +71,7 @@ public:
     std::vector<file_loader::vertex> filter_shaded_points(const std::vector<file_loader::vertex>& points);
     bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
     bool is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const;
-    void set_particle_program_uniforms(bool show_non_shaded, bool show_uv_heatmap);
+    void set_particle_program_uniforms(bool show_non_shaded);
     void randomize_vertex_colors(std::vector<file_loader::vertex>& vertices) const;
     glm::vec3 hsl_to_rgb(float h, float s, float l) const;
     glm::vec3 get_random_color() const;
@@ -130,10 +130,9 @@ public:
         m_cuts[a].normal = normal_a;
         m_cuts[b].normal = normal_b;
         m_cuts[c].normal = normal_c;
-        // set colors by normals byt transform it so there is no negative values
-        m_vertices[a].color = glm::vec3(normal_a.x, normal_a.y, normal_a.z) * 0.5f + 0.5f;
-        m_vertices[b].color = glm::vec3(normal_b.x, normal_b.y, normal_b.z) * 0.5f + 0.5f;
-        m_vertices[c].color = glm::vec3(normal_c.x, normal_c.y, normal_c.z) * 0.5f + 0.5f;
+        m_vertices[a].normal = normal_a;
+        m_vertices[b].normal = normal_b;
+        m_vertices[c].normal = normal_c;
         if (dist_a_b < m_min_dist) m_min_dist = dist_a_b;
         if (dist_a_b > m_max_dist) m_max_dist = dist_a_b;
         if (dist_b_c < m_min_dist) m_min_dist = dist_b_c;
@@ -212,7 +211,8 @@ protected:
     bool m_show_debug_sphere;
     bool m_show_octree;
     bool m_show_sensor_rig_boundary;
-    bool m_show_uv_heatmap;
+    bool m_show_normal;
+    bool m_show_color;
     bool m_show_back_faces;
     bool m_show_non_shaded_points;
     bool m_show_non_shaded_mesh;

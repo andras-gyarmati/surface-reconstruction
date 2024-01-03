@@ -2,10 +2,11 @@
 
 in vec3 vs_in_pos;
 in vec3 vs_in_col;
-in vec2 vs_in_tex;
+in vec3 vs_in_norm;
 
 out vec3 vs_out_pos;
 out vec3 vs_out_col;
+out vec3 vs_out_norm;
 out vec2 vs_out_tex[3];
 
 uniform mat4 mvp;
@@ -19,6 +20,7 @@ uniform float point_size;
 void main()
 {
     vs_out_col = vs_in_col;
+    vs_out_norm = vs_in_norm;
     gl_PointSize = point_size;
     gl_Position = mvp * vec4(vs_in_pos, 1);
 

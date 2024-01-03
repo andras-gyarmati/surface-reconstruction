@@ -27,7 +27,8 @@ application::application(void) {
     m_show_octree = false;
     m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
-    m_show_uv_heatmap = true;
+    m_show_normal = true;
+    m_show_color = false;
     m_show_non_shaded_points = false;
     m_show_non_shaded_mesh = false;
     m_auto_increment_rendered_point_index = false;
@@ -45,7 +46,7 @@ bool application::init(SDL_Window* window) {
     glEnable(GL_DEPTH_TEST);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "shaders/axes.vert"}, {GL_FRAGMENT_SHADER, "shaders/axes.frag"}});
-    m_particle_program.Init({{GL_VERTEX_SHADER, "shaders/particle.vert"}, {GL_FRAGMENT_SHADER, "shaders/particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
+    m_particle_program.Init({{GL_VERTEX_SHADER, "shaders/particle.vert"}, {GL_FRAGMENT_SHADER, "shaders/particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_norm"}});
     m_wireframe_program.Init({{GL_VERTEX_SHADER, "shaders/wireframe.vert"}, {GL_FRAGMENT_SHADER, "shaders/wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
     load_inputs_from_folder("inputs\\garazs_kijarat");
@@ -177,7 +178,8 @@ void application::init_point_visualization() {
     m_particle_buffer.BufferData(m_vertices);
     m_particle_vao.Init({
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_particle_buffer},
-        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_particle_buffer}
+        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_particle_buffer},
+        {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_particle_buffer}
     });
 }
 
@@ -270,19 +272,9 @@ void application::init_octree_visualization(const octree* root) {
     m_wireframe_indices_buffer.BufferData(m_wireframe_indices);
     m_wireframe_vao.Init(
         {
-            {
-                AttributeData{
-                    0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex),
-                    (void*)offsetof(file_loader::vertex, position)
-                },
-                m_wireframe_vertices_buffer
-            },
-            {
-                AttributeData{
-                    1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)
-                },
-                m_wireframe_vertices_buffer
-            }
+            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_wireframe_vertices_buffer},
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_wireframe_vertices_buffer},
+            {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_wireframe_vertices_buffer}
         },
         m_wireframe_indices_buffer);
 }
@@ -335,7 +327,8 @@ void application::init_mesh_visualization() {
     m_mesh_vao.Init(
         {
             {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_mesh_pos_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_mesh_pos_buffer}
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_mesh_pos_buffer},
+            {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_mesh_pos_buffer}
         },
         m_mesh_indices_buffer);
 }
@@ -355,7 +348,8 @@ void application::init_sensor_rig_boundary_visualization() {
     m_sensor_rig_boundary_vao.Init(
         {
             {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_sensor_rig_boundary_vertices_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_sensor_rig_boundary_vertices_buffer}
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_sensor_rig_boundary_vertices_buffer},
+            {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_sensor_rig_boundary_vertices_buffer}
         },
         m_sensor_rig_boundary_indices_buffer);
 }
@@ -396,7 +390,8 @@ void application::render_imgui() {
             ImGui::Checkbox("show points", &m_show_points);
             ImGui::SameLine();
             ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points);
-            ImGui::Checkbox("show uv heatmap", &m_show_uv_heatmap);
+            ImGui::Checkbox("show normal", &m_show_normal);
+            ImGui::Checkbox("show color", &m_show_color);
             ImGui::SameLine();
             ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
             ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
@@ -463,7 +458,7 @@ void application::render_imgui() {
 
 void application::render_points(VertexArrayObject& vao, const size_t size) {
     vao.Bind();
-    set_particle_program_uniforms(m_show_non_shaded_points, m_show_uv_heatmap);
+    set_particle_program_uniforms(m_show_non_shaded_points);
     glEnable(GL_PROGRAM_POINT_SIZE);
     m_particle_program.SetUniform("point_size", m_point_size);
     glDrawArrays(GL_POINTS, 0, size);
@@ -482,7 +477,7 @@ void application::render_octree_boxes() {
 
 void application::render_mesh() {
     m_mesh_vao.Bind();
-    set_particle_program_uniforms(m_show_non_shaded_mesh, m_show_uv_heatmap);
+    set_particle_program_uniforms(m_show_non_shaded_mesh);
     glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, nullptr);
     m_mesh_vao.Unbind();
 }
@@ -542,10 +537,9 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
-    // ok if m_cuts[i].normal is not perpendicular to m_vertices[i].position in absolute value
-    return fabs(glm::dot(m_cuts[i0].normal, m_vertices[i0].position)) > m_cut_scalar2 &&
-        fabs(glm::dot(m_cuts[i1].normal, m_vertices[i1].position)) > m_cut_scalar2 &&
-        fabs(glm::dot(m_cuts[i2].normal, m_vertices[i2].position)) > m_cut_scalar2;
+    return fabs(dot(m_cuts[i0].normal, m_vertices[i0].position)) > m_cut_scalar2 &&
+        fabs(dot(m_cuts[i1].normal, m_vertices[i1].position)) > m_cut_scalar2 &&
+        fabs(dot(m_cuts[i2].normal, m_vertices[i2].position)) > m_cut_scalar2;
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
@@ -554,7 +548,7 @@ bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, 
         m_sensor_rig_boundary.contains(m_vertices[i2].position));
 }
 
-void application::set_particle_program_uniforms(bool show_non_shaded, bool show_uv_heatmap) {
+void application::set_particle_program_uniforms(bool show_non_shaded) {
     m_particle_program.Use();
     m_particle_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     m_particle_program.SetUniform("world", glm::mat4(1));
@@ -569,7 +563,8 @@ void application::set_particle_program_uniforms(bool show_non_shaded, bool show_
     m_particle_program.SetTexture("tex_image[1]", 1, m_digital_camera_textures[1]);
     m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
     m_particle_program.SetUniform("show_non_shaded", (int)show_non_shaded);
-    m_particle_program.SetUniform("show_uv_heatmap", (int)show_uv_heatmap);
+    m_particle_program.SetUniform("show_normal", (int)m_show_normal);
+    m_particle_program.SetUniform("show_color", (int)m_show_color);
 }
 
 void application::randomize_vertex_colors(std::vector<file_loader::vertex>& vertices) const {

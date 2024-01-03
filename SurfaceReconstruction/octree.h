@@ -175,7 +175,7 @@ public:
     static boundary calc_boundary(const std::vector<file_loader::vertex>& vertices) {
         glm::vec3 top_left_front = glm::vec3(std::numeric_limits<float>::max());
         glm::vec3 bottom_right_back = glm::vec3(std::numeric_limits<float>::min());
-        for (const auto& [position, color] : vertices) {
+        for (const auto& [position, color, normal] : vertices) {
             if (position.x < top_left_front.x) {
                 top_left_front.x = position.x;
             }

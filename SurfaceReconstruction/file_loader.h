@@ -11,6 +11,7 @@ public:
     struct vertex {
         glm::vec3 position;
         glm::vec3 color;
+        glm::vec3 normal;
     };
 
     struct digital_camera_internal_params {
