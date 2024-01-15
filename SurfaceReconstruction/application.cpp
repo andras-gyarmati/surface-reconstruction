@@ -18,8 +18,8 @@ application::application(void) {
     m_point_size = 6.0f;
     m_line_width = 1.0f;
     m_render_points_up_to_index = 0;
-    m_cut_scalar = 0.003f;
-    m_cut_scalar2 = 0.003f;
+    m_uv_stretch_scalar = 0.003f;
+    m_normal_cut_scalar = 0.003f;
 
     m_bfs_paint_animation_speed = 0.01f;
     m_time_since_last_bfs_paint = 0.0f;
@@ -32,6 +32,8 @@ application::application(void) {
     m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
     m_show_normal = false;
+    m_show_uv_stretch = false;
+    m_show_bfs_col = true;
     m_show_color = true;
     m_show_non_shaded_points = false;
     m_show_non_shaded_mesh = false;
@@ -50,7 +52,14 @@ bool application::init(SDL_Window* window) {
     glEnable(GL_DEPTH_TEST);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "shaders/axes.vert"}, {GL_FRAGMENT_SHADER, "shaders/axes.frag"}});
-    m_particle_program.Init({{GL_VERTEX_SHADER, "shaders/particle.vert"}, {GL_FRAGMENT_SHADER, "shaders/particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_norm"}});
+    m_particle_program.Init({{GL_VERTEX_SHADER, "shaders/particle.vert"}, {GL_FRAGMENT_SHADER, "shaders/particle.frag"}},
+                            {
+                                {0, "vs_in_pos"},
+                                {1, "vs_in_col"},
+                                {2, "vs_in_norm"},
+                                {3, "vs_in_uv_stretch"},
+                                {4, "vs_in_bfs_col"}
+                            });
     m_wireframe_program.Init({{GL_VERTEX_SHADER, "shaders/wireframe.vert"}, {GL_FRAGMENT_SHADER, "shaders/wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
     load_inputs_from_folder("inputs\\garazs_kijarat");
@@ -87,14 +96,14 @@ void application::update() {
         const int i = m_vertices_queue.front();
         m_vertices_queue.pop();
         // processed vertexes are blue
-        m_vertices[i].color = glm::vec3(0, 0, 1);
+        m_vertices[i].bfs_col = glm::vec3(0, 0, 1);
         if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
             for (const int neighbor : neighbors) {
                 const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
-                if (m_vertices[i + neighbor].color == glm::vec3(1) && dot > m_bfs_epsilon) {
+                if (m_vertices[i + neighbor].bfs_col == glm::vec3(1) && dot > m_bfs_epsilon) {
                     m_vertices_queue.push(i + neighbor);
                     // color the neighbor in the queue to red
-                    m_vertices[i + neighbor].color = glm::vec3(1, 0, 0);
+                    m_vertices[i + neighbor].bfs_col = glm::vec3(1, 0, 0);
                 }
             }
         }
@@ -193,16 +202,16 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
 
     init_point_visualization();
-    // randomize_vertex_colors(m_vertices);
+    randomize_vertex_colors(m_vertices);
     set_uvs(m_vertices);
     // init_octree(m_vertices);
     // init_octree_visualization(&m_octree);
     // init_delaunay_shaded_points_segment();
     init_mesh_visualization();
 
-    // set all vertices color to white for bfs painting algo
-    for (auto& [position, color, normal] : m_vertices) {
-        color = glm::vec3(1);
+    // set all vertices bfs color to white for bfs painting algo
+    for (auto& [position, color, normal, uv_stretch, bfs_col] : m_vertices) {
+        bfs_col = glm::vec3(1);
     }
 
     // select a random vertex and put in in m_vertices_queue from shaded points, use filter_shaded_points function
@@ -322,20 +331,20 @@ void application::init_octree_visualization(const octree* root) {
 }
 
 void application::init_mesh_visualization() {
-    // for (int i = 0; i < m_vertices.size(); i++) {
-    //     const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
-    //     if (v_dist_from_center > m_max_dist_from_center) {
-    //         m_max_dist_from_center = v_dist_from_center;
-    //     }
-    // }
-    //
-    // for (int i = 0; i < m_vertices.size(); i++) {
-    //     const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
-    //     const float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
-    //     const float x = m_cuts[i].dist / v_dist_from_center_norm * m_cut_scalar;
-    //     m_cuts[i].x = x;
-    //     m_vertices[i].color = hsl_to_rgb(x * 360.0f / 2.0f, 0.5f, 0.5f);
-    // }
+    for (int i = 0; i < m_vertices.size(); i++) {
+        const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
+        if (v_dist_from_center > m_max_dist_from_center) {
+            m_max_dist_from_center = v_dist_from_center;
+        }
+    }
+
+    for (int i = 0; i < m_vertices.size(); i++) {
+        const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
+        const float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+        const float uv_stretch = m_cuts[i].dist / v_dist_from_center_norm * m_uv_stretch_scalar;
+        m_cuts[i].uv_stretch = uv_stretch;
+        m_vertices[i].uv_stretch = hsl_to_rgb(uv_stretch * 360.0f / 2.0f, 0.5f, 0.5f);
+    }
 
     m_mesh_indices.clear();
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
@@ -370,7 +379,9 @@ void application::init_mesh_visualization() {
         {
             {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_mesh_pos_buffer},
             {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_mesh_pos_buffer},
-            {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_mesh_pos_buffer}
+            {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_mesh_pos_buffer},
+            {AttributeData{3, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, uv_stretch)}, m_mesh_pos_buffer},
+            {AttributeData{4, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, bfs_col)}, m_mesh_pos_buffer}
         },
         m_mesh_indices_buffer);
 }
@@ -433,6 +444,8 @@ void application::render_imgui() {
             ImGui::SameLine();
             ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points);
             ImGui::Checkbox("show normal", &m_show_normal);
+            ImGui::Checkbox("show uv stretch", &m_show_uv_stretch);
+            ImGui::Checkbox("show bfs color", &m_show_bfs_col);
             ImGui::Checkbox("show color", &m_show_color);
             ImGui::SameLine();
             ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
@@ -470,8 +483,8 @@ void application::render_imgui() {
             if (ImGui::Button("solid")) {
                 m_mesh_rendering_mode = solid;
             }
-            ImGui::SliderFloat("cut scalar", &m_cut_scalar, 0.00001f, 0.01f);
-            ImGui::SliderFloat("cut scalar 2", &m_cut_scalar2, 0.00001f, 1.f);
+            ImGui::SliderFloat("uv stretch scalar", &m_uv_stretch_scalar, 0.00001f, 0.01f);
+            ImGui::SliderFloat("normal cut scalar", &m_normal_cut_scalar, 0.00001f, 1.f);
             ImGui::SliderFloat("m_bfs_paint_animation_speed", &m_bfs_paint_animation_speed, 0.001f, 1.f);
         }
         if (ImGui::CollapsingHeader("sensor rig")) {
@@ -580,9 +593,9 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
-    return fabs(dot(m_vertices[i0].normal, m_vertices[i0].position)) > m_cut_scalar2 &&
-        fabs(dot(m_vertices[i1].normal, m_vertices[i1].position)) > m_cut_scalar2 &&
-        fabs(dot(m_vertices[i2].normal, m_vertices[i2].position)) > m_cut_scalar2;
+    return fabs(dot(m_vertices[i0].normal, m_vertices[i0].position)) > m_normal_cut_scalar &&
+        fabs(dot(m_vertices[i1].normal, m_vertices[i1].position)) > m_normal_cut_scalar &&
+        fabs(dot(m_vertices[i2].normal, m_vertices[i2].position)) > m_normal_cut_scalar;
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
@@ -607,6 +620,8 @@ void application::set_particle_program_uniforms(bool show_non_shaded) {
     m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
     m_particle_program.SetUniform("show_non_shaded", (int)show_non_shaded);
     m_particle_program.SetUniform("show_normal", (int)m_show_normal);
+    m_particle_program.SetUniform("show_uv_stretch", (int)m_show_uv_stretch);
+    m_particle_program.SetUniform("show_bfs_col", (int)m_show_bfs_col);
     m_particle_program.SetUniform("show_color", (int)m_show_color);
 }
 

@@ -22,7 +22,7 @@ struct cut {
     float dist = std::numeric_limits<float>::min();
     float uv_dist;
     float ratio;
-    float x;
+    float uv_stretch;
 };
 
 class application {
@@ -234,6 +234,8 @@ protected:
     bool m_show_octree;
     bool m_show_sensor_rig_boundary;
     bool m_show_normal;
+    bool m_show_uv_stretch;
+    bool m_show_bfs_col;
     bool m_show_color;
     bool m_show_back_faces;
     bool m_show_non_shaded_points;
@@ -245,8 +247,8 @@ protected:
     int m_debug_sphere_n = 959;
     int m_debug_sphere_m = 959;
     float m_point_size;
-    float m_cut_scalar;
-    float m_cut_scalar2;
+    float m_uv_stretch_scalar;
+    float m_normal_cut_scalar;
     float m_line_width;
     float m_bfs_paint_animation_speed;
     float m_time_since_last_bfs_paint;

@@ -3,10 +3,14 @@
 in vec3 vs_in_pos;
 in vec3 vs_in_col;
 in vec3 vs_in_norm;
+in vec3 vs_in_uv_stretch;
+in vec3 vs_in_bfs_col;
 
 out vec3 vs_out_pos;
 out vec3 vs_out_col;
 out vec3 vs_out_norm;
+out vec3 vs_out_uv_stretch;
+out vec3 vs_out_bfs_col;
 out vec2 vs_out_tex[3];
 
 uniform mat4 mvp;
@@ -21,6 +25,8 @@ void main()
 {
     vs_out_col = vs_in_col;
     vs_out_norm = vs_in_norm;
+    vs_out_uv_stretch = vs_in_uv_stretch;
+    vs_out_bfs_col = vs_in_bfs_col;
     gl_PointSize = point_size;
     gl_Position = mvp * vec4(vs_in_pos, 1);
 
