@@ -21,7 +21,7 @@ application::application(void) {
     m_uv_stretch_scalar = 0.003f;
     m_normal_cut_scalar = 0.003f;
 
-    m_bfs_paint_animation_speed = 0.01f;
+    m_bfs_paint_animation_speed = 0.5f;
     m_time_since_last_bfs_paint = 0.0f;
     m_bfs_epsilon = 0.93f;
 
@@ -91,7 +91,7 @@ void application::update() {
     // std::cout << "m_time_since_last_bfs_paint: " << m_time_since_last_bfs_paint << std::endl;
 
     const std::vector neighbors = {-1, +1, -16, +16, -17, -15, +15, +17};
-    if (m_time_since_last_bfs_paint > m_bfs_paint_animation_speed && !m_vertices_queue.empty()) {
+    if ((m_time_since_last_bfs_paint > (1 - m_bfs_paint_animation_speed)) && !m_vertices_queue.empty()) {
         m_time_since_last_bfs_paint = 0.0f;
         const int i = m_vertices_queue.front();
         m_vertices_queue.pop();
@@ -485,7 +485,7 @@ void application::render_imgui() {
             }
             ImGui::SliderFloat("uv stretch scalar", &m_uv_stretch_scalar, 0.00001f, 0.01f);
             ImGui::SliderFloat("normal cut scalar", &m_normal_cut_scalar, 0.00001f, 1.f);
-            ImGui::SliderFloat("m_bfs_paint_animation_speed", &m_bfs_paint_animation_speed, 0.001f, 1.f);
+            ImGui::SliderFloat("bfs paint animation speed", &m_bfs_paint_animation_speed, 0.001f, 1.f);
         }
         if (ImGui::CollapsingHeader("sensor rig")) {
             ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
