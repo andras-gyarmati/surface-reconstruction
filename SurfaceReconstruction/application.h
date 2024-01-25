@@ -133,6 +133,7 @@ protected:
     std::vector<file_loader::vertex> m_tetrahedra_vertices;
 
     // flags
+    std::vector<char> m_show_vertex_groups;
     bool m_show_axes;
     bool m_show_points;
     bool m_show_debug_sphere;
@@ -168,4 +169,9 @@ protected:
     char m_input_folder[256]{};
     Texture2D m_digital_camera_textures[3];
     std::vector<glm::vec3> m_debug_sphere;
+
+    // ransac
+    int m_ransac_object_count = 0;
+    float m_ransac_threshold = 0.15f;
+    int m_ransac_iter = 500;
 };

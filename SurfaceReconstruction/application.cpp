@@ -10,6 +10,7 @@
 #include "file_loader.h"
 #include <Eigen/Dense>
 #include <algorithm>
+#include <future>
 
 application::application(void) {
     m_start_eye = glm::vec3(0, 0, 0);
@@ -96,8 +97,11 @@ void application::render() {
 
     if (m_show_points) {
         for (int i = 0; i < m_vertex_groups.size(); i++) {
-            render_points(*(m_particle_group_vaos[i]), m_vertex_groups[i].size());
+            if(m_show_vertex_groups.at(i))
+                render_points(*(m_particle_group_vaos[i]), m_vertex_groups[i].size());
         }
+
+        //render_points(*(m_particle_group_vaos[m_vertex_groups.size() - 1]), m_vertex_groups[m_vertex_groups.size() - 1].size());
     }
 
     if (m_show_debug_sphere)
@@ -170,12 +174,13 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     }
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
+    m_vertex_groups.clear();
     std::cout << "Loaded " << m_vertices.size() << " points from " << xyz_file << std::endl;
     m_render_points_up_to_index = m_vertices.size() - 16;
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
 
-    RunRANSAC(m_vertices, m_vertex_groups, 0);
+    RunRANSAC(m_vertices, m_vertex_groups, m_ransac_object_count);
     init_point_visualization();
     //randomize_vertex_colors(m_vertices);
     init_octree(m_vertices);
@@ -185,6 +190,10 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 }
 
 void application::init_point_visualization() {
+    m_particle_group_buffers.clear();
+    m_particle_group_vaos.clear();
+    m_show_vertex_groups.clear();
+
     m_particle_buffer.BufferData(m_vertices);
     m_particle_vao.Init({
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_particle_buffer},
@@ -210,6 +219,10 @@ void application::init_point_visualization() {
             {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, *buffer_p},
             {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, *buffer_p}
         });
+
+        for (int i = 0; i < m_vertex_groups.size(); i++) {
+            m_show_vertex_groups.push_back(true);
+        }
     }
 }
 
@@ -481,6 +494,33 @@ void application::render_imgui() {
                     ++m_render_points_up_to_index;
                 }
             }
+        }
+        if (ImGui::CollapsingHeader("ransac")) {
+            ImGui::Text("ransac planes: %d", m_ransac_object_count);
+            ImGui::SameLine();
+            if (ImGui::Button("-1")) {
+                if(m_ransac_object_count > 0)
+                    m_ransac_object_count--;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("+1")) {
+                m_ransac_object_count++;
+            }
+            ImGui::SliderFloat("ransac threshold", &m_ransac_threshold, 0.01f, 2.0f);
+            ImGui::SliderInt("ransac iterations", &m_ransac_iter, 1, 5000);
+
+            if (ImGui::Button("rerun ransac")) {
+                RunRANSAC(m_vertices, m_vertex_groups, m_ransac_object_count);
+                init_point_visualization();
+            }
+
+            ImGui::Text("plane visibility");
+            for (int i = 0; i < m_vertex_groups.size() - 1; i++) {
+                char text[100];
+                snprintf(text, 64, "plane %d", i + 1);
+                ImGui::Checkbox(text, (bool*)(&m_show_vertex_groups[i]));
+            }
+            ImGui::Checkbox("non grouped", (bool*)(&m_show_vertex_groups[m_vertex_groups.size() - 1]));
         }
         if (ImGui::CollapsingHeader("mesh")) {
             ImGui::Checkbox("show non shaded mesh", &m_show_non_shaded_mesh);
@@ -858,15 +898,19 @@ float* application::EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>&
     return finalPlane;
 }
 
-bool operator==(const file_loader::vertex& l, const file_loader::vertex& r) {
-    return l.position.x == r.position.x && l.position.y == r.position.y && l.position.z == r.position.z;
-}
+//bool operator==(const file_loader::vertex& l, const file_loader::vertex& r) {
+//    return l.position.x == r.position.x && l.position.y == r.position.y && l.position.z == r.position.z;
+//}
 
 void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vector<std::vector<file_loader::vertex*>>& dest, const int iterations) {
+    for (auto& point : points) {
+        point.color = glm::vec3(0, 0, 0);
+    }
+
     // Constants, replace them as needed
     const float FILTER_LOWEST_DISTANCE = 1.5f;
-    const float THERSHOLD = 0.15f;
-    const int RANSAC_ITER = 1000;
+    const float THERSHOLD = m_ransac_threshold;
+    const int RANSAC_ITER = m_ransac_iter;
 
     dest.clear();
     std::vector<file_loader::vertex*> filteredPoints;
