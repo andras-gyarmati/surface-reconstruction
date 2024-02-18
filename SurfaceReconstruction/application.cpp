@@ -1,46 +1,48 @@
-﻿#include <math.h>
-#include <vector>
+﻿#include <vector>
 #include <stack>
 #include <random>
 #include <glm/glm.hpp>
 #include "application.h"
-#include <glm/gtc/type_ptr.hpp>
-#include "delaunay_3d.h"
 #include "imgui/imgui.h"
 #include "file_loader.h"
 #include <Eigen/Dense>
-#include <algorithm>
-#include <future>
 
 application::application(void) {
     m_start_eye = glm::vec3(0, 0, 0);
     m_start_at = glm::vec3(0, 1, 0);
     m_start_up = glm::vec3(0, 0, 1);
     m_virtual_camera.SetView(m_start_eye, m_start_at, m_start_up);
-       
+
     strncpy_s(m_input_folder, "inputs\\garazs_kijarat", sizeof(m_input_folder));
     m_input_folder[sizeof(m_input_folder) - 1] = '\0';
 
     m_point_size = 6.0f;
     m_line_width = 1.0f;
     m_render_points_up_to_index = 0;
-    m_mesh_vertex_cut_distance = 6.0f;
+    m_uv_stretch_scalar = 0.003f;
+    m_normal_cut_scalar = 0.003f;
 
-    m_show_axes = true;
-    m_show_points = true;
+    m_bfs_paint_animation_speed = 1.0f;
+    m_time_since_last_bfs_paint = 0.0f;
+    m_bfs_epsilon = 0.93f;
+
+    m_show_axes = false;
+    m_show_points = false;
     m_show_debug_sphere = false;
     m_show_octree = false;
     m_show_back_faces = false;
     m_show_sensor_rig_boundary = false;
-    m_show_tetrahedra = false;
+    m_show_normal = false;
+    m_show_uv_stretch = false;
+    m_show_bfs_col = false;
+    m_show_color = true;
+    m_show_ransac = false;
     m_show_non_shaded_points = false;
-    m_show_texture = true;
     m_show_non_shaded_mesh = false;
     m_auto_increment_rendered_point_index = false;
 
     m_mesh_rendering_mode = none;
     m_octree_color = glm::vec3(0, 1.f, 0);
-    m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
     m_sensor_rig_boundary = octree::boundary{glm::vec3(-2.3f, -1.7f, -0.5), glm::vec3(1.7f, 0.4f, 0.7f)};
 }
 
@@ -52,7 +54,15 @@ bool application::init(SDL_Window* window) {
     glEnable(GL_DEPTH_TEST);
 
     m_axes_program.Init({{GL_VERTEX_SHADER, "shaders/axes.vert"}, {GL_FRAGMENT_SHADER, "shaders/axes.frag"}});
-    m_particle_program.Init({{GL_VERTEX_SHADER, "shaders/particle.vert"}, {GL_FRAGMENT_SHADER, "shaders/particle.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"}, {2, "vs_in_tex"}});
+    m_particle_program.Init({{GL_VERTEX_SHADER, "shaders/particle.vert"}, {GL_FRAGMENT_SHADER, "shaders/particle.frag"}},
+                            {
+                                {0, "vs_in_pos"},
+                                {1, "vs_in_col"},
+                                {2, "vs_in_ransac"},
+                                {3, "vs_in_norm"},
+                                {4, "vs_in_uv_stretch"},
+                                {5, "vs_in_bfs_col"}
+                            });
     m_wireframe_program.Init({{GL_VERTEX_SHADER, "shaders/wireframe.vert"}, {GL_FRAGMENT_SHADER, "shaders/wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
     load_inputs_from_folder("inputs\\garazs_kijarat");
@@ -80,6 +90,29 @@ void application::update() {
     const float delta_time = (float)(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
+    m_time_since_last_bfs_paint += delta_time;
+    // std::cout << "m_time_since_last_bfs_paint: " << m_time_since_last_bfs_paint << std::endl;
+
+    const std::vector neighbors = {-1, +1, -16, +16, -17, -15, +15, +17};
+    if ((m_time_since_last_bfs_paint > (1 - m_bfs_paint_animation_speed)) && !m_vertices_queue.empty()) {
+        m_time_since_last_bfs_paint = 0.0f;
+        const int i = m_vertices_queue.front();
+        m_vertices_queue.pop();
+        // processed vertexes are blue
+        m_vertices[i].bfs_col = glm::vec3(0, 0, 1);
+        if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
+            for (const int neighbor : neighbors) {
+                const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
+                if (m_vertices[i + neighbor].bfs_col == glm::vec3(1) && dot > m_bfs_epsilon) {
+                    m_vertices_queue.push(i + neighbor);
+                    // color the neighbor in the queue to red
+                    m_vertices[i + neighbor].bfs_col = glm::vec3(1, 0, 0);
+                }
+            }
+        }
+    } else {
+        std::cout << "m_vertices_queue is empty\n";
+    }
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
         m_render_points_up_to_index += 1;
@@ -96,12 +129,8 @@ void application::render() {
     }
 
     if (m_show_points) {
-        for (int i = 0; i < m_vertex_groups.size(); i++) {
-            if(m_show_vertex_groups.at(i))
-                render_points(*(m_particle_group_vaos[i]), m_vertex_groups[i].size());
-        }
-
-        //render_points(*(m_particle_group_vaos[m_vertex_groups.size() - 1]), m_vertex_groups[m_vertex_groups.size() - 1].size());
+        init_point_visualization();
+        render_points(m_particle_vao, m_vertices.size());
     }
 
     if (m_show_debug_sphere)
@@ -124,9 +153,6 @@ void application::render() {
         init_mesh_visualization();
         render_mesh();
     }
-
-    if (m_show_tetrahedra)
-        render_tetrahedra();
 
     render_imgui();
 }
@@ -175,55 +201,51 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     m_vertices = file_loader::load_xyz_file(xyz_file);
     m_vertex_groups.clear();
+    m_cuts = std::vector<cut>(m_vertices.size());
     std::cout << "Loaded " << m_vertices.size() << " points from " << xyz_file << std::endl;
     m_render_points_up_to_index = m_vertices.size() - 16;
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
 
     RunRANSAC(m_vertices, m_vertex_groups, m_ransac_object_count);
+    randomize_vertex_colors(m_vertices);
+    set_uvs(m_vertices);
+    // init_octree(m_vertices);
+    // init_octree_visualization(&m_octree);
+    // init_delaunay_shaded_points_segment();
     init_point_visualization();
-    //randomize_vertex_colors(m_vertices);
-    init_octree(m_vertices);
-    init_octree_visualization(&m_octree);
-    init_delaunay_shaded_points_segment();
     init_mesh_visualization();
+
+    // set all vertices bfs color to white for bfs painting algo
+    //for (auto& [position, color, ransac, normal, uv_stretch, bfs_col] : m_vertices) {
+    //    bfs_col = glm::vec3(1);
+    //}
+
+    for (auto& vertex : m_vertices) {
+        vertex.bfs_col = glm::vec3(1);
+    }
+
+    // select a random vertex and put in in m_vertices_queue from shaded points, use filter_shaded_points function
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    const auto shaded_points = filter_shaded_points(m_vertices);
+    std::uniform_int_distribution<> dis(0, shaded_points.size() - 1);
+    const int random_index = dis(gen);
+    //m_vertices_queue.push(random_index);
+    //m_vertices_queue.push(1809);
+    m_vertices_queue.push(2309);
 }
 
 void application::init_point_visualization() {
-    m_particle_group_buffers.clear();
-    m_particle_group_vaos.clear();
-    m_show_vertex_groups.clear();
-
     m_particle_buffer.BufferData(m_vertices);
     m_particle_vao.Init({
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_particle_buffer},
-        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_particle_buffer}
+        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_particle_buffer},
+        {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, ransac)}, m_particle_buffer},
+        {AttributeData{3, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_particle_buffer},
+        {AttributeData{4, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, uv_stretch)}, m_particle_buffer},
+        {AttributeData{5, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, bfs_col)}, m_particle_buffer}
     });
-
-    for(std::vector<file_loader::vertex*> group : m_vertex_groups)
-    {
-        std::shared_ptr<ArrayBuffer> buffer_p = std::make_shared<ArrayBuffer>();
-        std::shared_ptr<VertexArrayObject> vao_p = std::make_shared<VertexArrayObject>();
-        m_particle_group_buffers.push_back(buffer_p);
-        m_particle_group_vaos.push_back(vao_p);
-
-        std::vector<file_loader::vertex> tmp_vect;
-        for each (file_loader::vertex* vr in group)
-        {
-            tmp_vect.push_back(*vr);
-        }
-        
-        buffer_p->BufferData(tmp_vect);
-
-        vao_p->Init({
-            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, *buffer_p},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, *buffer_p}
-        });
-
-        for (int i = 0; i < m_vertex_groups.size(); i++) {
-            m_show_vertex_groups.push_back(true);
-        }
-    }
 }
 
 void application::init_debug_sphere() {
@@ -315,46 +337,66 @@ void application::init_octree_visualization(const octree* root) {
     m_wireframe_indices_buffer.BufferData(m_wireframe_indices);
     m_wireframe_vao.Init(
         {
-            {
-                AttributeData{
-                    0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex),
-                    (void*)offsetof(file_loader::vertex, position)
-                },
-                m_wireframe_vertices_buffer
-            },
-            {
-                AttributeData{
-                    1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)
-                },
-                m_wireframe_vertices_buffer
-            }
+            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_wireframe_vertices_buffer},
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_wireframe_vertices_buffer},
+            {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_wireframe_vertices_buffer}
         },
         m_wireframe_indices_buffer);
 }
 
 void application::init_mesh_visualization() {
+    for (int i = 0; i < m_vertices.size(); i++) {
+        const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
+        if (v_dist_from_center > m_max_dist_from_center) {
+            m_max_dist_from_center = v_dist_from_center;
+        }
+    }
+
+    for (int i = 0; i < m_vertices.size(); i++) {
+        const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
+        const float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+        const float uv_stretch = m_cuts[i].dist / v_dist_from_center_norm * m_uv_stretch_scalar;
+        m_cuts[i].uv_stretch = uv_stretch;
+        m_vertices[i].uv_stretch = hsl_to_rgb(uv_stretch * 360.0f / 2.0f, 0.5f, 0.5f);
+    }
+
     m_mesh_indices.clear();
     for (int i = 0; i < m_render_points_up_to_index; ++i) {
         if ((i % 16) != 15 && i < m_render_points_up_to_index - 16) {
-            if (is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
+            if (!is_triangle_should_be_excluded(i, i + 1, i + 17) && is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 1);
                 m_mesh_indices.push_back(i + 17);
             }
-            if (is_outside_of_sensor_rig_boundary(i, i + 17, i + 16) && is_mesh_vertex_cut_distance_ok(i, i + 17, i + 16)) {
+            if (!is_triangle_should_be_excluded(i, i + 17, i + 16) && is_outside_of_sensor_rig_boundary(i, i + 17, i + 16) && is_mesh_vertex_cut_distance_ok(i, i + 17, i + 16)) {
                 m_mesh_indices.push_back(i + 0);
                 m_mesh_indices.push_back(i + 17);
                 m_mesh_indices.push_back(i + 16);
             }
         }
     }
+
+    // for (int i = 0; i < m_vertices.size(); i++) {
+    //     float v_dist_norm = m_cuts[i].dist / m_max_dist;
+    //     float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+    //     float v_dist_corrected = v_dist_norm * v_dist_from_center_norm * m_mesh_vertex_cut_distance;
+    //     // log values to console
+    //     // std::cout << "v_dist_norm: " << v_dist_norm << std::endl;
+    //     // std::cout << "v_dist_from_center_norm: " << v_dist_from_center_norm << std::endl;
+    //     // std::cout << "v_dist_corrected: " << v_dist_corrected << std::endl << std::endl;
+    //     m_vertices[i].color = hsl_to_rgb(v_dist_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
+    // }
+
     m_mesh_pos_buffer.BufferData(m_vertices);
-    //m_mesh_pos_buffer.BufferData(m_vertex_groups);
     m_mesh_indices_buffer.BufferData(m_mesh_indices);
     m_mesh_vao.Init(
         {
             {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_mesh_pos_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_mesh_pos_buffer}
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_mesh_pos_buffer},
+            {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, ransac)}, m_mesh_pos_buffer},
+            {AttributeData{3, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_mesh_pos_buffer},
+            {AttributeData{4, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, uv_stretch)}, m_mesh_pos_buffer},
+            {AttributeData{5, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, bfs_col)}, m_mesh_pos_buffer}
         },
         m_mesh_indices_buffer);
 }
@@ -374,68 +416,11 @@ void application::init_sensor_rig_boundary_visualization() {
     m_sensor_rig_boundary_vao.Init(
         {
             {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_sensor_rig_boundary_vertices_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_sensor_rig_boundary_vertices_buffer}
+            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_sensor_rig_boundary_vertices_buffer},
+            {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, ransac)}, m_sensor_rig_boundary_vertices_buffer},
+            {AttributeData{3, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_sensor_rig_boundary_vertices_buffer}
         },
         m_sensor_rig_boundary_indices_buffer);
-}
-
-void application::init_delaunay_shaded_points_segment() {
-    m_delaunay_vertices = filter_shaded_points(m_vertices);
-    init_delaunay();
-}
-
-void application::init_delaunay_cube() {
-    m_delaunay_vertices = get_cube_vertices(3.0f);
-    init_delaunay();
-}
-
-void application::init_delaunay() {
-    m_delaunay = delaunay_3d(200.0f, glm::vec3(0.0f, 0.0f, 120.0f));
-    for (int i = 0; i < std::min((int)m_delaunay_vertices.size(), 200); ++i) {
-        m_delaunay.insert_point(m_delaunay_vertices[i]);
-    }
-    for (int i = 0; i < 4; ++i) {
-        m_delaunay.cleanup_super_tetrahedron();
-    }
-    init_delaunay_visualization();
-}
-
-void application::init_delaunay_visualization() {
-    m_tetrahedra_vertices = {};
-    m_tetrahedra_indices = {};
-
-    // const auto tetrahedra = m_delaunay.create_mesh(m_vertices);
-    for (auto tetrahedron : m_delaunay.m_tetrahedra) {
-        init_tetrahedron(&tetrahedron);
-    }
-
-    m_tetrahedra_vertices_buffer.BufferData(m_tetrahedra_vertices);
-    m_tetrahedra_indices_buffer.BufferData(m_tetrahedra_indices);
-    m_tetrahedra_vao.Init(
-        {
-            {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_tetrahedra_vertices_buffer},
-            {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_tetrahedra_vertices_buffer}
-        },
-        m_tetrahedra_indices_buffer);
-}
-
-void application::init_tetrahedron(const delaunay_3d::tetrahedron* tetrahedron) {
-    const glm::vec3 random_color = get_random_color();
-    const int offset = m_tetrahedra_vertices.size();
-    for (const glm::vec3 vert : tetrahedron->m_vertices) {
-        m_tetrahedra_vertices.push_back({vert /*+ (get_random_color() * 0.4f)*/, random_color});
-    }
-
-    std::vector<int> indices = std::vector<int>{
-        0, 1, 2,
-        1, 0, 3,
-        2, 1, 3,
-        0, 2, 3
-    };
-    for (int& index : indices) {
-        index += offset;
-    }
-    m_tetrahedra_indices.insert(m_tetrahedra_indices.end(), indices.begin(), indices.end());
 }
 
 void application::render_imgui() {
@@ -473,9 +458,14 @@ void application::render_imgui() {
         if (ImGui::CollapsingHeader("points")) {
             ImGui::Checkbox("show points", &m_show_points);
             ImGui::SameLine();
-            ImGui::Checkbox("show texture", &m_show_texture);
             ImGui::SameLine();
             ImGui::Checkbox("show non shaded points", &m_show_non_shaded_points);
+            ImGui::Checkbox("show normal", &m_show_normal);
+            ImGui::Checkbox("show ransac", &m_show_ransac);
+            ImGui::Checkbox("show uv stretch", &m_show_uv_stretch);
+            ImGui::Checkbox("show bfs color", &m_show_bfs_col);
+            ImGui::Checkbox("show color", &m_show_color);
+            ImGui::SameLine();
             ImGui::Checkbox("show debug sphere", &m_show_debug_sphere);
             ImGui::SliderFloat("point size", &m_point_size, 1.0f, 30.0f);
             ImGui::Checkbox("auto increment rendered point index", &m_auto_increment_rendered_point_index);
@@ -511,16 +501,15 @@ void application::render_imgui() {
 
             if (ImGui::Button("rerun ransac")) {
                 RunRANSAC(m_vertices, m_vertex_groups, m_ransac_object_count);
-                init_point_visualization();
             }
 
-            ImGui::Text("plane visibility");
-            for (int i = 0; i < m_vertex_groups.size() - 1; i++) {
-                char text[100];
-                snprintf(text, 64, "plane %d", i + 1);
-                ImGui::Checkbox(text, (bool*)(&m_show_vertex_groups[i]));
-            }
-            ImGui::Checkbox("non grouped", (bool*)(&m_show_vertex_groups[m_vertex_groups.size() - 1]));
+            //ImGui::Text("plane visibility");
+            //for (int i = 0; i < m_vertex_groups.size() - 1; i++) {
+            //    char text[100];
+            //    snprintf(text, 64, "plane %d", i + 1);
+            //    ImGui::Checkbox(text, (bool*)(&m_show_vertex_groups[i]));
+            //}
+            //ImGui::Checkbox("non grouped", (bool*)(&m_show_vertex_groups[m_vertex_groups.size() - 1]));
         }
         if (ImGui::CollapsingHeader("mesh")) {
             ImGui::Checkbox("show non shaded mesh", &m_show_non_shaded_mesh);
@@ -538,28 +527,14 @@ void application::render_imgui() {
             if (ImGui::Button("solid")) {
                 m_mesh_rendering_mode = solid;
             }
-            ImGui::SliderFloat("mesh vertex cut distance", &m_mesh_vertex_cut_distance, 0.1f, 50.0f);
+            ImGui::SliderFloat("uv stretch scalar", &m_uv_stretch_scalar, 0.00001f, 0.01f);
+            ImGui::SliderFloat("normal cut scalar", &m_normal_cut_scalar, 0.00001f, 1.f);
+            ImGui::SliderFloat("bfs paint animation speed", &m_bfs_paint_animation_speed, 0.001f, 1.f);
         }
         if (ImGui::CollapsingHeader("sensor rig")) {
             ImGui::Checkbox("show sensor rig boundary", &m_show_sensor_rig_boundary);
             ImGui::SliderFloat3("sensor rig top left front", &m_sensor_rig_boundary.m_top_left_front[0], -4.0f, -0.1f);
             ImGui::SliderFloat3("sensor rig bottom right back", &m_sensor_rig_boundary.m_bottom_right_back[0], 0.1f, 4.0f);
-        }
-        if (ImGui::CollapsingHeader("octree")) {
-            ImGui::Checkbox("show octree", &m_show_octree);
-            ImGui::ColorEdit3("octree color", &m_octree_color[0]);
-            if (ImGui::Button("apply octree color")) {
-                init_octree_visualization(&m_octree);
-            }
-        }
-        if (ImGui::CollapsingHeader("delaunay")) {
-            if (ImGui::Button("init delaunay cube")) {
-                init_delaunay_cube();
-            }
-            if (ImGui::Button("init delaunay shaded points segment")) {
-                init_delaunay_shaded_points_segment();
-            }
-            ImGui::Checkbox("show tetrahedra", &m_show_tetrahedra);
         }
         if (ImGui::CollapsingHeader("camera")) {
             ImGui::SliderFloat("cam speed", &cam_speed, 0.1f, 40.0f);
@@ -584,7 +559,6 @@ void application::render_imgui() {
 void application::render_points(VertexArrayObject& vao, const size_t size) {
     vao.Bind();
     set_particle_program_uniforms(m_show_non_shaded_points);
-    m_particle_program.SetUniform("show_texture", (int)m_show_texture);
     glEnable(GL_PROGRAM_POINT_SIZE);
     m_particle_program.SetUniform("point_size", m_point_size);
     glDrawArrays(GL_POINTS, 0, size);
@@ -604,7 +578,7 @@ void application::render_octree_boxes() {
 void application::render_mesh() {
     m_mesh_vao.Bind();
     set_particle_program_uniforms(m_show_non_shaded_mesh);
-    glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, m_mesh_indices.size(), GL_UNSIGNED_INT, nullptr);
     m_mesh_vao.Unbind();
 }
 
@@ -615,22 +589,6 @@ void application::render_sensor_rig_boundary() {
     m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
     glDrawElements(GL_LINES, m_sensor_rig_boundary_indices.size(), GL_UNSIGNED_INT, nullptr);
     m_sensor_rig_boundary_vao.Unbind();
-}
-
-void application::render_tetrahedra() {
-    glDisable(GL_CULL_FACE);
-    m_tetrahedra_vao.Bind();
-    glPolygonMode(GL_FRONT, GL_LINE);
-    m_wireframe_program.Use();
-    m_wireframe_program.SetUniform("mvp", m_virtual_camera.GetViewProj());
-    glDrawElements(GL_TRIANGLES, m_tetrahedra_indices.size(), GL_UNSIGNED_INT, nullptr);
-    m_tetrahedra_vao.Unbind();
-    if (m_show_back_faces) {
-        glDisable(GL_CULL_FACE);
-    } else {
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-    }
 }
 
 std::vector<file_loader::vertex> application::get_cube_vertices(const float side_len) {
@@ -679,9 +637,9 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
-    return glm::distance(m_vertices[i0].position, m_vertices[i1].position) < m_mesh_vertex_cut_distance &&
-        glm::distance(m_vertices[i1].position, m_vertices[i2].position) < m_mesh_vertex_cut_distance &&
-        glm::distance(m_vertices[i2].position, m_vertices[i0].position) < m_mesh_vertex_cut_distance;
+    return fabs(dot(m_vertices[i0].normal, m_vertices[i0].position)) > m_normal_cut_scalar &&
+        fabs(dot(m_vertices[i1].normal, m_vertices[i1].position)) > m_normal_cut_scalar &&
+        fabs(dot(m_vertices[i2].normal, m_vertices[i2].position)) > m_normal_cut_scalar;
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
@@ -705,6 +663,11 @@ void application::set_particle_program_uniforms(bool show_non_shaded) {
     m_particle_program.SetTexture("tex_image[1]", 1, m_digital_camera_textures[1]);
     m_particle_program.SetTexture("tex_image[2]", 2, m_digital_camera_textures[2]);
     m_particle_program.SetUniform("show_non_shaded", (int)show_non_shaded);
+    m_particle_program.SetUniform("show_normal", (int)m_show_normal);
+    m_particle_program.SetUniform("show_uv_stretch", (int)m_show_uv_stretch);
+    m_particle_program.SetUniform("show_bfs_col", (int)m_show_bfs_col);
+    m_particle_program.SetUniform("show_color", (int)m_show_color);
+    m_particle_program.SetUniform("show_ransac", (int)m_show_ransac);
 }
 
 void application::randomize_vertex_colors(std::vector<file_loader::vertex>& vertices) const {
@@ -898,13 +861,9 @@ float* application::EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>&
     return finalPlane;
 }
 
-//bool operator==(const file_loader::vertex& l, const file_loader::vertex& r) {
-//    return l.position.x == r.position.x && l.position.y == r.position.y && l.position.z == r.position.z;
-//}
-
 void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vector<std::vector<file_loader::vertex*>>& dest, const int iterations) {
     for (auto& point : points) {
-        point.color = glm::vec3(0, 0, 0);
+        point.ransac = glm::vec3(0, 0, 0);
     }
 
     // Constants, replace them as needed
@@ -923,7 +882,7 @@ void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vecto
         for (auto& point : points) {
             float distFromOrigo = glm::length(glm::vec3(point.position.x, point.position.y, point.position.z));
 
-            if (distFromOrigo > FILTER_LOWEST_DISTANCE && point.color == glm::vec3(0,0,0)) {
+            if (distFromOrigo > FILTER_LOWEST_DISTANCE && point.ransac == glm::vec3(0,0,0)) {
                 filteredPoints.push_back(&point);
             }
         }
@@ -944,7 +903,7 @@ void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vecto
         std::vector<file_loader::vertex*> points_to_group;
         for (int idx = 0; idx < num; idx++) {
             if (differences.isInliers.at(idx)) {
-                filteredPoints.at(idx)->color = iterColor;
+                filteredPoints.at(idx)->ransac = iterColor;
                 points_to_group.push_back(filteredPoints.at(idx));
             }
         }
@@ -957,7 +916,7 @@ void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vecto
 
     std::vector<file_loader::vertex*> remaining;
     for (auto& v : points) {
-        if (v.color == glm::vec3(0, 0, 0)) {
+        if (v.ransac == glm::vec3(0, 0, 0)) {
             remaining.push_back(&v);
         }
     }

@@ -170,6 +170,6 @@
     <None Include="shaders\particle.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="ClassDiagram.cd" />
+    <None Include="diagrams\ClassDiagram.cd" />
   </ItemGroup>
 </Project>
