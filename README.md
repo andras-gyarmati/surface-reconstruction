@@ -1,5 +1,7 @@
 # 3D Surface Reconstruction from Point Clouds using LiDAR Sensor Data
 
+![program_mesh_solid](https://github.com/andras-gyarmati/surface-reconstruction/assets/3900156/c9328582-418a-4ba9-8d3c-cb61970852de)
+
 This repository focuses on the creation of 3D surfaces from point clouds captured by a university-used LiDAR sensor. For coloring the surfaces, images from cameras positioned alongside the sensor are used.
 
 ## Files in Repository
