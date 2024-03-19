@@ -86,6 +86,7 @@ void application::update() {
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
     }
+
     static Uint32 last_time = SDL_GetTicks();
     const float delta_time = (float)(SDL_GetTicks() - last_time) / 1000.0f;
     m_virtual_camera.Update(delta_time);
@@ -98,12 +99,13 @@ void application::update() {
         m_time_since_last_bfs_paint = 0.0f;
         const int i = m_vertices_queue.front();
         m_vertices_queue.pop();
+        std::cout << i << "\n";
         // processed vertexes are blue
         m_vertices[i].bfs_col = glm::vec3(0, 0, 1);
         if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
             for (const int neighbor : neighbors) {
                 const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
-                if (m_vertices[i + neighbor].bfs_col == glm::vec3(1) && dot > m_bfs_epsilon) {
+                if (m_vertices[i + neighbor].bfs_col == glm::vec3(1) && dot > m_bfs_epsilon && !m_vertices[i + neighbor].is_grouped) {
                     m_vertices_queue.push(i + neighbor);
                     // color the neighbor in the queue to red
                     m_vertices[i + neighbor].bfs_col = glm::vec3(1, 0, 0);
@@ -111,7 +113,7 @@ void application::update() {
             }
         }
     } else {
-        std::cout << "m_vertices_queue is empty\n";
+        //std::cout << "m_vertices_queue is empty\n";
     }
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
@@ -130,7 +132,7 @@ void application::render() {
 
     if (m_show_points) {
         init_point_visualization();
-        render_points(m_particle_vao, m_vertices.size());
+        render_points(m_particle_vao, m_vertices.get_points_to_render().size());
     }
 
     if (m_show_debug_sphere)
@@ -199,17 +201,17 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         }
     }
 
-    m_vertices = file_loader::load_xyz_file(xyz_file);
+    m_vertices = VertexSet(file_loader::load_xyz_file(xyz_file));
     m_vertex_groups.clear();
     m_cuts = std::vector<cut>(m_vertices.size());
     std::cout << "Loaded " << m_vertices.size() << " points from " << xyz_file << std::endl;
     m_render_points_up_to_index = m_vertices.size() - 16;
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
-
-    RunRANSAC(m_vertices, m_vertex_groups, m_ransac_object_count);
-    randomize_vertex_colors(m_vertices);
-    set_uvs(m_vertices);
+    
+    RunRANSAC(m_ransac_object_count);
+    //randomize_vertex_colors(m_vertices);
+    set_uvs(m_vertices.get_points());
     // init_octree(m_vertices);
     // init_octree_visualization(&m_octree);
     // init_delaunay_shaded_points_segment();
@@ -217,27 +219,24 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     init_mesh_visualization();
 
     // set all vertices bfs color to white for bfs painting algo
-    //for (auto& [position, color, ransac, normal, uv_stretch, bfs_col] : m_vertices) {
-    //    bfs_col = glm::vec3(1);
-    //}
-
-    for (auto& vertex : m_vertices) {
+    for (auto& vertex : m_vertices.get_points()) {
         vertex.bfs_col = glm::vec3(1);
     }
 
     // select a random vertex and put in in m_vertices_queue from shaded points, use filter_shaded_points function
     std::random_device rd;
     std::mt19937 gen(rd());
-    const auto shaded_points = filter_shaded_points(m_vertices);
-    std::uniform_int_distribution<> dis(0, shaded_points.size() - 1);
-    const int random_index = dis(gen);
-    //m_vertices_queue.push(random_index);
+    //const auto shaded_points = filter_shaded_points(m_vertices.get_non_grouped());
+    std::uniform_int_distribution<> dis(0, m_vertices.get_non_grouped().size() - 1);
+    //int random_index;
+    int random_index = m_vertices.get_non_grouped()[dis(gen)];
+    m_vertices_queue.push(random_index);
     //m_vertices_queue.push(1809);
-    m_vertices_queue.push(2309);
+    //m_vertices_queue.push(2309);
 }
 
 void application::init_point_visualization() {
-    m_particle_buffer.BufferData(m_vertices);
+    m_particle_buffer.BufferData(m_vertices.get_points_to_render());
     m_particle_vao.Init({
         {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_particle_buffer},
         {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_particle_buffer},
@@ -345,19 +344,21 @@ void application::init_octree_visualization(const octree* root) {
 }
 
 void application::init_mesh_visualization() {
-    for (int i = 0; i < m_vertices.size(); i++) {
-        const float v_dist_from_center = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0));
+    std::vector<file_loader::vertex> points = m_vertices.get_points_to_render();
+
+    for (int i = 0; i < points.size(); i++) {
+        const float v_dist_from_center = glm::distance(points[i].position, glm::vec3(0, 0, 0));
         if (v_dist_from_center > m_max_dist_from_center) {
             m_max_dist_from_center = v_dist_from_center;
         }
     }
 
-    for (int i = 0; i < m_vertices.size(); i++) {
+    for (int i = 0; i < points.size(); i++) {
         const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
-        const float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+        const float v_dist_from_center_norm = glm::distance(points[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
         const float uv_stretch = m_cuts[i].dist / v_dist_from_center_norm * m_uv_stretch_scalar;
         m_cuts[i].uv_stretch = uv_stretch;
-        m_vertices[i].uv_stretch = hsl_to_rgb(uv_stretch * 360.0f / 2.0f, 0.5f, 0.5f);
+        points[i].uv_stretch = hsl_to_rgb(uv_stretch * 360.0f / 2.0f, 0.5f, 0.5f);
     }
 
     m_mesh_indices.clear();
@@ -387,7 +388,7 @@ void application::init_mesh_visualization() {
     //     m_vertices[i].color = hsl_to_rgb(v_dist_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
     // }
 
-    m_mesh_pos_buffer.BufferData(m_vertices);
+    m_mesh_pos_buffer.BufferData(m_vertices.get_points_to_render());
     m_mesh_indices_buffer.BufferData(m_mesh_indices);
     m_mesh_vao.Init(
         {
@@ -499,16 +500,16 @@ void application::render_imgui() {
             ImGui::SliderFloat("ransac threshold", &m_ransac_threshold, 0.01f, 2.0f);
             ImGui::SliderInt("ransac iterations", &m_ransac_iter, 1, 5000);
 
-            if (ImGui::Button("rerun ransac")) {
-                RunRANSAC(m_vertices, m_vertex_groups, m_ransac_object_count);
-            }
-
-            //ImGui::Text("plane visibility");
-            //for (int i = 0; i < m_vertex_groups.size() - 1; i++) {
-            //    char text[100];
-            //    snprintf(text, 64, "plane %d", i + 1);
-            //    ImGui::Checkbox(text, (bool*)(&m_show_vertex_groups[i]));
+            //if (ImGui::Button("rerun ransac")) {
+            //    RunRANSAC(m_vertices.get_points(), m_vertex_groups, m_ransac_object_count);
             //}
+
+            ImGui::Text("plane visibility");
+            for (int i = 0; i < m_vertices.group_count(); i++) {
+                char text[100];
+                snprintf(text, 64, "group %d", i + 1);
+                ImGui::Checkbox(text, (bool*)(&m_vertices.get_show_groups()[i]));
+            }
             //ImGui::Checkbox("non grouped", (bool*)(&m_show_vertex_groups[m_vertex_groups.size() - 1]));
         }
         if (ImGui::CollapsingHeader("mesh")) {
@@ -734,16 +735,16 @@ void application::toggle_fullscreen(SDL_Window* win) {
     }
 }
 
-float* application::EstimatePlaneImplicit(const std::vector<file_loader::vertex*>& pts) {
-    const int num = pts.size();
+float* application::EstimatePlaneImplicit(const std::vector<int>& pts) {
+    const size_t num = pts.size();
 
     Eigen::MatrixXf Cfs(num, 4);
 
-    for (int i = 0; i < num; i++) {
-        file_loader::vertex* pt = pts.at(i);
-        Cfs(i, 0) = pt->position.x;
-        Cfs(i, 1) = pt->position.y;
-        Cfs(i, 2) = pt->position.z;
+    for (size_t i = 0; i < num; i++) {
+        file_loader::vertex pt = m_vertices[pts[i]];
+        Cfs(i, 0) = pt.position.x;
+        Cfs(i, 1) = pt.position.y;
+        Cfs(i, 2) = pt.position.z;
         Cfs(i, 3) = 1.0f;
     }
 
@@ -771,7 +772,7 @@ float* application::EstimatePlaneImplicit(const std::vector<file_loader::vertex*
     return ret;
 }
 
-application::RANSACDiffs application::PlanePointRANSACDifferences(const std::vector<file_loader::vertex*>& pts, float* plane, float threshold) {
+application::RANSACDiffs application::PlanePointRANSACDifferences(const std::vector<int>& pts, float* plane, float threshold) {
     size_t num = pts.size();
 
     float A = plane[0];
@@ -786,8 +787,8 @@ application::RANSACDiffs application::PlanePointRANSACDifferences(const std::vec
 
     int inlierCounter = 0;
     for (int idx = 0; idx < num; idx++) {
-        file_loader::vertex* pt = pts.at(idx);
-        float diff = fabs(A * pt->position.x + B * pt->position.y + C * pt->position.z + D);
+        file_loader::vertex pt = m_vertices[pts[idx]];
+        float diff = fabs(A * pt.position.x + B * pt.position.y + C * pt.position.z + D);
         distances.push_back(diff);
         if (diff < threshold) {
             isInliers.push_back(true);
@@ -805,13 +806,13 @@ application::RANSACDiffs application::PlanePointRANSACDifferences(const std::vec
     return ret;
 }
 
-float* application::EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>& pts, float threshold, int iterNum) {
+float* application::EstimatePlaneRANSAC(const std::vector<int>& pts, float threshold, int iterNum) {
     size_t num = pts.size();
 
     int bestSampleInlierNum = 0;
     float bestPlane[4];
 
-    for (int iter = 0; iter < iterNum; iter++) {
+    for (Uint32 iter = 0; iter < iterNum; iter++) {
         int index1 = rand() % num;
         int index2 = rand() % num;
 
@@ -823,14 +824,7 @@ float* application::EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>&
             index3 = rand() % num;
         }
 
-        file_loader::vertex* pt1 = pts.at(index1);
-        file_loader::vertex* pt2 = pts.at(index2);
-        file_loader::vertex* pt3 = pts.at(index3);
-
-        std::vector<file_loader::vertex*> minimalSample;
-        minimalSample.push_back(pt1);
-        minimalSample.push_back(pt2);
-        minimalSample.push_back(pt3);
+        const std::vector<int> minimalSample = {index1, index2, index3};
 
         float* samplePlane = EstimatePlaneImplicit(minimalSample);
 
@@ -849,11 +843,11 @@ float* application::EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>&
     RANSACDiffs bestResult = PlanePointRANSACDifferences(pts, bestPlane, threshold);
     std::cout << "Best plane params: " << bestPlane[0] << " " << bestPlane[1] << " " << bestPlane[2] << "\n";
 
-    std::vector<file_loader::vertex*> inlierPts;
+    std::vector<int> inlierPts;
 
     for (int idx = 0; idx < num; idx++) {
         if (bestResult.isInliers.at(idx)) {
-            inlierPts.push_back(pts.at(idx));
+            inlierPts.push_back(pts[idx]);
         }
     }
 
@@ -861,9 +855,14 @@ float* application::EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>&
     return finalPlane;
 }
 
-void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vector<std::vector<file_loader::vertex*>>& dest, const int iterations) {
-    for (auto& point : points) {
-        point.ransac = glm::vec3(0, 0, 0);
+void application::RunRANSAC(const int iterations) {
+    //for (auto& point : points) {
+    //    point.ransac = glm::vec3(0, 0, 0);
+    //}
+
+    for (size_t i = 0; i < m_vertices.size(); i++)
+    {
+        m_vertices[i].ransac = glm::vec3(0);
     }
 
     // Constants, replace them as needed
@@ -871,19 +870,19 @@ void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vecto
     const float THERSHOLD = m_ransac_threshold;
     const int RANSAC_ITER = m_ransac_iter;
 
-    dest.clear();
-    std::vector<file_loader::vertex*> filteredPoints;
+    std::vector<int> filteredPoints;
     float hValue = 0.0f;
 
     for (int i = 0; i < iterations; i++) {
         filteredPoints.clear();
         glm::vec3 iterColor = hsl_to_rgb(hValue, 0.5f, 0.5f);
 
-        for (auto& point : points) {
-            float distFromOrigo = glm::length(glm::vec3(point.position.x, point.position.y, point.position.z));
+        for (size_t j = 0; j < m_vertices.size(); j++) 
+        {
+            float distFromOrigo = glm::length(glm::vec3(m_vertices[j].position.x, m_vertices[j].position.y, m_vertices[j].position.z));
 
-            if (distFromOrigo > FILTER_LOWEST_DISTANCE && point.ransac == glm::vec3(0,0,0)) {
-                filteredPoints.push_back(&point);
+            if (distFromOrigo > FILTER_LOWEST_DISTANCE && !m_vertices[j].is_grouped) {
+                filteredPoints.push_back(j);
             }
         }
 
@@ -900,26 +899,17 @@ void application::RunRANSAC(std::vector<file_loader::vertex>& points, std::vecto
         //Color inlier points
         RANSACDiffs differences = PlanePointRANSACDifferences(filteredPoints, planeParams, THERSHOLD);
         std::cout << differences.inliersNum << std::endl;
-        std::vector<file_loader::vertex*> points_to_group;
+        std::vector<int> points_to_group;
         for (int idx = 0; idx < num; idx++) {
             if (differences.isInliers.at(idx)) {
-                filteredPoints.at(idx)->ransac = iterColor;
-                points_to_group.push_back(filteredPoints.at(idx));
+                m_vertices[filteredPoints[idx]].ransac = iterColor;
+                points_to_group.push_back(filteredPoints[idx]);
             }
         }
-        dest.push_back(points_to_group);
-        hValue += 360.0 / iterations;
+        m_vertices.create_group(points_to_group);
+        hValue += 360.0f / iterations;
         std::cout << points_to_group.size() << "\n";
 
         delete[] planeParams;
     }
-
-    std::vector<file_loader::vertex*> remaining;
-    for (auto& v : points) {
-        if (v.ransac == glm::vec3(0, 0, 0)) {
-            remaining.push_back(&v);
-        }
-    }
-
-    dest.push_back(remaining);
 }

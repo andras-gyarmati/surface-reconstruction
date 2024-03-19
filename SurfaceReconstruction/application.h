@@ -11,6 +11,7 @@
 #include "file_loader.h"
 #include "octree.h"
 #include <cstdlib>
+#include "VertexSet.h"
 
 enum mesh_rendering_mode {
     none = 0,
@@ -122,30 +123,39 @@ public:
         float dist_a_b = glm::distance(m_vertices[a].position, m_vertices[b].position);
         float dist_b_c = glm::distance(m_vertices[b].position, m_vertices[c].position);
         float dist_c_a = glm::distance(m_vertices[c].position, m_vertices[a].position);
+
         float uv_dist_a_b = glm::distance(m_cuts[a].uv, m_cuts[b].uv);
         float uv_dist_b_c = glm::distance(m_cuts[b].uv, m_cuts[c].uv);
         float uv_dist_c_a = glm::distance(m_cuts[c].uv, m_cuts[a].uv);
+
         glm::vec3 normal_a = glm::normalize(glm::cross(m_vertices[b].position - m_vertices[a].position, m_vertices[c].position - m_vertices[a].position));
         glm::vec3 normal_b = glm::normalize(glm::cross(m_vertices[c].position - m_vertices[b].position, m_vertices[a].position - m_vertices[b].position));
         glm::vec3 normal_c = glm::normalize(glm::cross(m_vertices[a].position - m_vertices[c].position, m_vertices[b].position - m_vertices[c].position));
         m_vertices[a].normal = normal_a;
         m_vertices[b].normal = normal_b;
         m_vertices[c].normal = normal_c;
-        if (dist_a_b < m_min_dist) m_min_dist = dist_a_b;
-        if (dist_a_b > m_max_dist) m_max_dist = dist_a_b;
-        if (dist_b_c < m_min_dist) m_min_dist = dist_b_c;
-        if (dist_b_c > m_max_dist) m_max_dist = dist_b_c;
-        if (dist_c_a < m_min_dist) m_min_dist = dist_c_a;
-        if (dist_c_a > m_max_dist) m_max_dist = dist_c_a;
+
+        //if (dist_a_b < m_min_dist) m_min_dist = dist_a_b;
+        //if (dist_a_b > m_max_dist) m_max_dist = dist_a_b;
+        //if (dist_b_c < m_min_dist) m_min_dist = dist_b_c;
+        //if (dist_b_c > m_max_dist) m_max_dist = dist_b_c;
+        //if (dist_c_a < m_min_dist) m_min_dist = dist_c_a;
+        //if (dist_c_a > m_max_dist) m_max_dist = dist_c_a;
+        m_min_dist = std::min({ m_min_dist, dist_a_b, dist_b_c, dist_c_a });
+        m_max_dist = std::max({ m_max_dist, dist_a_b, dist_b_c, dist_c_a });
+
         float dist_a_b_uv_dist_ratio = uv_dist_a_b / dist_a_b;
-        if (dist_a_b_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_a_b_uv_dist_ratio;
-        if (dist_a_b_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_a_b_uv_dist_ratio;
         float dist_b_c_uv_dist_ratio = uv_dist_b_c / dist_b_c;
-        if (dist_b_c_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_b_c_uv_dist_ratio;
-        if (dist_b_c_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_b_c_uv_dist_ratio;
-        float dist_c_a_uv_dist_ratio = uv_dist_c_a / dist_c_a;
-        if (dist_c_a_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_c_a_uv_dist_ratio;
-        if (dist_c_a_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_c_a_uv_dist_ratio;
+        float dist_c_a_uv_dist_ratio =  uv_dist_c_a / dist_c_a;
+        //if (dist_a_b_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_a_b_uv_dist_ratio;
+        //if (dist_a_b_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_a_b_uv_dist_ratio;
+        //if (dist_b_c_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_b_c_uv_dist_ratio;
+        //if (dist_b_c_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_b_c_uv_dist_ratio;
+        //if (dist_c_a_uv_dist_ratio < m_min_v_dist_uv_dist_ratio) m_min_v_dist_uv_dist_ratio = dist_c_a_uv_dist_ratio;
+        //if (dist_c_a_uv_dist_ratio > m_max_v_dist_uv_dist_ratio) m_max_v_dist_uv_dist_ratio = dist_c_a_uv_dist_ratio;
+        m_min_v_dist_uv_dist_ratio = std::min({ m_min_v_dist_uv_dist_ratio, dist_a_b_uv_dist_ratio, dist_b_c_uv_dist_ratio, dist_c_a_uv_dist_ratio });
+        m_max_v_dist_uv_dist_ratio = std::max({ m_max_v_dist_uv_dist_ratio, dist_a_b_uv_dist_ratio, dist_b_c_uv_dist_ratio, dist_c_a_uv_dist_ratio });
+
         if (m_cuts[a].dist < dist_a_b) {
             m_cuts[a].dist = dist_a_b;
             m_cuts[a].uv_dist = uv_dist_a_b;
@@ -192,10 +202,10 @@ public:
         std::vector<bool> isInliers;
         std::vector<float> distances;
     };
-    float* EstimatePlaneImplicit(const std::vector<file_loader::vertex*>& pts);
-    float* EstimatePlaneRANSAC(const std::vector<file_loader::vertex*>& pts, float threshold, int iterNum);
-    RANSACDiffs PlanePointRANSACDifferences(const std::vector<file_loader::vertex*>& pts, float* plane, float threshold);
-    void RunRANSAC(std::vector<file_loader::vertex>& points, std::vector<std::vector<file_loader::vertex*>>& dest, int iterations);
+    float* EstimatePlaneImplicit(const std::vector<int>& pts);
+    float* EstimatePlaneRANSAC(const std::vector<int>& pts, float threshold, int iterNum);
+    RANSACDiffs PlanePointRANSACDifferences(const std::vector<int>& pts, float* plane, float threshold);
+    void RunRANSAC(int iterations);
 
 protected:
     // shader programs
@@ -205,7 +215,6 @@ protected:
 
     // VAOs
     VertexArrayObject m_particle_vao;
-    //std::vector<std::shared_ptr<VertexArrayObject>> m_particle_group_vaos;
     VertexArrayObject m_debug_sphere_vao;
     VertexArrayObject m_wireframe_vao;
     VertexArrayObject m_sensor_rig_boundary_vao;
@@ -213,7 +222,6 @@ protected:
 
     // array buffers
     ArrayBuffer m_particle_buffer;
-    //std::vector<std::shared_ptr<ArrayBuffer>> m_particle_group_buffers;
     ArrayBuffer m_debug_sphere_buffer;
     ArrayBuffer m_wireframe_vertices_buffer;
     ArrayBuffer m_sensor_rig_boundary_vertices_buffer;
@@ -230,7 +238,7 @@ protected:
     std::vector<int> m_mesh_indices;
 
     // vertex vectors
-    std::vector<file_loader::vertex> m_vertices;
+    VertexSet m_vertices;
     std::queue<int> m_vertices_queue;
     std::vector<cut> m_cuts;
     float m_min_dist = std::numeric_limits<float>::max();
@@ -243,7 +251,6 @@ protected:
     std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
 
     // flags
-    //std::vector<char> m_show_vertex_groups;
     bool m_show_axes;
     bool m_show_points;
     bool m_show_debug_sphere;
@@ -287,7 +294,7 @@ protected:
     std::vector<glm::vec3> m_debug_sphere;
 
     // ransac
-    int m_ransac_object_count = 0;
+    int m_ransac_object_count = 4;
     float m_ransac_threshold = 0.15f;
     int m_ransac_iter = 500;
 };

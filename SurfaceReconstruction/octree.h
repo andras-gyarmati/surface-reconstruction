@@ -58,7 +58,7 @@ public:
 
     void insert(const glm::vec3 point_to_insert) {
         if (find(point_to_insert)) {
-            std::cout << "Point already exists in the tree" << " pos: " << glm::to_string(point_to_insert) << std::endl;
+            //std::cout << "Point already exists in the tree" << " pos: " << glm::to_string(point_to_insert) << std::endl;
             return;
         }
 
@@ -66,10 +66,10 @@ public:
             m_top_left_front->y ||
             point_to_insert.y > m_bottom_right_back->y || point_to_insert.z < m_top_left_front->z || point_to_insert.z >
             m_bottom_right_back->z) {
-            std::cout << "Point is out of bounds." << " pos: " << glm::to_string(point_to_insert) <<
-                " m_top_left_front: "
-                << glm::to_string(*m_top_left_front) << " m_bottom_right_back: " << glm::to_string(*m_bottom_right_back)
-                << std::endl;
+            //std::cout << "Point is out of bounds." << " pos: " << glm::to_string(point_to_insert) <<
+            //    " m_top_left_front: "
+            //    << glm::to_string(*m_top_left_front) << " m_bottom_right_back: " << glm::to_string(*m_bottom_right_back)
+            //    << std::endl;
             return;
         }
 
@@ -175,7 +175,7 @@ public:
     static boundary calc_boundary(const std::vector<file_loader::vertex>& vertices) {
         glm::vec3 top_left_front = glm::vec3(std::numeric_limits<float>::max());
         glm::vec3 bottom_right_back = glm::vec3(std::numeric_limits<float>::min());
-        for (const auto& [position, color, ransac, normal, uv_stretch, bfs_col] : vertices) {
+        for (const auto& [position, color, ransac, normal, uv_stretch, bfs_col, is_grouped] : vertices) {
             if (position.x < top_left_front.x) {
                 top_left_front.x = position.x;
             }
