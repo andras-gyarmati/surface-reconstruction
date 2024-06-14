@@ -93,6 +93,9 @@
     <ClInclude Include="octree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="VertexSet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -135,7 +138,7 @@
     <ClCompile Include="file_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="application.cpp">
+    <ClCompile Include="VertexSet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -171,5 +174,17 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="diagrams\ClassDiagram.cd" />
+    <None Include="ransac_compute.shader">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="RANSAC.cu" />
+    <CudaCompile Include="application.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="ransac_plane.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

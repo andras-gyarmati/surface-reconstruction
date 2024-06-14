@@ -13,6 +13,8 @@
 #include <cstdlib>
 #include "VertexSet.h"
 
+#include <iostream>
+
 enum mesh_rendering_mode {
     none = 0,
     wireframe = 1,
@@ -72,7 +74,9 @@ public:
     static std::vector<file_loader::vertex> get_cube_vertices(float side_len);
     std::vector<file_loader::vertex> filter_shaded_points(const std::vector<file_loader::vertex>& points);
     bool is_mesh_vertex_cut_distance_ok(int i0, int i1, int i2) const;
+    bool is_mesh_vertex_cut_distance_ok(const file_loader::vertex& v0, const file_loader::vertex& v1, const file_loader::vertex& v2) const;
     bool is_outside_of_sensor_rig_boundary(int i0, int i1, int i2) const;
+    bool is_outside_of_sensor_rig_boundary(const file_loader::vertex& v0, const file_loader::vertex& v1, const file_loader::vertex& v2) const;
     void set_particle_program_uniforms(bool show_non_shaded);
     void randomize_vertex_colors(std::vector<file_loader::vertex>& vertices) const;
     glm::vec3 hsl_to_rgb(float h, float s, float l) const;
@@ -128,12 +132,11 @@ public:
         float uv_dist_b_c = glm::distance(m_cuts[b].uv, m_cuts[c].uv);
         float uv_dist_c_a = glm::distance(m_cuts[c].uv, m_cuts[a].uv);
 
-        glm::vec3 normal_a = glm::normalize(glm::cross(m_vertices[b].position - m_vertices[a].position, m_vertices[c].position - m_vertices[a].position));
-        glm::vec3 normal_b = glm::normalize(glm::cross(m_vertices[c].position - m_vertices[b].position, m_vertices[a].position - m_vertices[b].position));
-        glm::vec3 normal_c = glm::normalize(glm::cross(m_vertices[a].position - m_vertices[c].position, m_vertices[b].position - m_vertices[c].position));
-        m_vertices[a].normal = normal_a;
-        m_vertices[b].normal = normal_b;
-        m_vertices[c].normal = normal_c;
+        glm::vec3 triangle_normal = glm::normalize(glm::cross(m_vertices[b].position - m_vertices[a].position, m_vertices[c].position - m_vertices[a].position));
+        //glm::vec3 normal_a = glm::normalize(glm::cross(m_vertices[b].position - m_vertices[a].position, m_vertices[c].position - m_vertices[a].position));
+        //glm::vec3 normal_b = glm::normalize(glm::cross(m_vertices[c].position - m_vertices[b].position, m_vertices[a].position - m_vertices[b].position));
+        //glm::vec3 normal_c = glm::normalize(glm::cross(m_vertices[a].position - m_vertices[c].position, m_vertices[b].position - m_vertices[c].position));
+        m_vertices[a].normal = m_vertices[b].normal = m_vertices[c].normal = triangle_normal;
 
         //if (dist_a_b < m_min_dist) m_min_dist = dist_a_b;
         //if (dist_a_b > m_max_dist) m_max_dist = dist_a_b;
@@ -196,16 +199,8 @@ public:
         return false; //dist_a_b > 0.0f && dist_b_c > 0.0f && dist_c_a > 0.0f && uv_dist_a_b == 0.0f && uv_dist_b_c == 0.0f && uv_dist_c_a == 0.0f;
     }
 
-    //RANSAC functions
-    struct RANSACDiffs {
-        int inliersNum;
-        std::vector<bool> isInliers;
-        std::vector<float> distances;
-    };
-    float* EstimatePlaneImplicit(const std::vector<int>& pts);
-    float* EstimatePlaneRANSAC(const std::vector<int>& pts, float threshold, int iterNum);
-    RANSACDiffs PlanePointRANSACDifferences(const std::vector<int>& pts, float* plane, float threshold);
-    void RunRANSAC(int iterations);
+    //RANSAC 
+    void RunRANSAC(const int& objects);
 
 protected:
     // shader programs
@@ -239,7 +234,9 @@ protected:
 
     // vertex vectors
     VertexSet m_vertices;
+    std::vector<int> m_vertices_vector;
     std::queue<int> m_vertices_queue;
+    std::queue<int> m_vertices_group_queue;
     std::vector<cut> m_cuts;
     float m_min_dist = std::numeric_limits<float>::max();
     float m_max_dist = std::numeric_limits<float>::min();
@@ -277,7 +274,9 @@ protected:
     float m_bfs_paint_animation_speed;
     float m_time_since_last_bfs_paint;
     float m_bfs_epsilon;
-
+    float m_neighbor_distance = 0.75f;
+    int m_min_group_size = 25;
+        
     // other objects
     SDL_Window* m_window{};
     gCamera m_virtual_camera;
@@ -295,6 +294,6 @@ protected:
 
     // ransac
     int m_ransac_object_count = 4;
-    float m_ransac_threshold = 0.15f;
-    int m_ransac_iter = 500;
+    float m_ransac_threshold = 0.05f;
+    int m_ransac_iter = 50000;
 };

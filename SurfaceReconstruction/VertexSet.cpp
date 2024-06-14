@@ -6,10 +6,7 @@ VertexSet::VertexSet()
 
 }
 
-VertexSet::VertexSet(std::vector<file_loader::vertex>& points)
-{
-	this->points = points;
-}
+VertexSet::VertexSet(std::vector<file_loader::vertex>& points) : points(points), show_group({ static_cast<char>(false) }) { }
 
 std::vector<file_loader::vertex>& VertexSet::get_points()
 {
@@ -37,54 +34,56 @@ std::vector<int> VertexSet::get_non_grouped()
 	return result;
 }
 
-std::vector<file_loader::vertex>& VertexSet::get_points_to_render()
+std::vector<file_loader::vertex>& VertexSet::get_points_to_render() const
 {
-	return points;
-		
-	//static std::vector<file_loader::vertex> result;
-	//result.clear();
+	static std::vector<file_loader::vertex> result;
+	result.clear();
 
-	//if (group_count() == 0)
-	//{
-	//	result = points;
-	//}
-	//else
-	//{
-	//	int i = 0;
-	//	for (std::vector<int> group : groups)
-	//	{
-	//		if (static_cast<bool>(show_group[i]))
-	//		{
-	//			for (int j : group)
-	//			{
-	//				result.push_back(points[j]);
-	//			}
-	//		}
-	//		i++;
-	//	}
+	int i = 0;
+	file_loader::vertex prev;
+	for (const file_loader::vertex& v : points)
+	{
+		if (v.group_id != 0)
+		{
+			prev = v;
+			break;
+		}
+	}
 
-	//	for (size_t i = 0; i < points.size(); i++)
-	//	{
-	//		if (!points[i].is_grouped)
-	//		{
-	//			result.push_back(points[i]);
-	//		}
-	//	}
-	//}
+	for (const file_loader::vertex& v : points)
+	{
+		if (static_cast<bool>(show_group[v.group_id]))
+		{
+			result.push_back(v);
+			prev = v;
+		}
+		else
+		{
+			result.push_back(prev);
+		}
+	}
 
-	//return result;
+	return result;
 }
 
 void VertexSet::create_group(std::vector<int> points_to_group)
 {
+	static int ID = 1;
+
 	std::vector<int> group;
-	for each (int idx in points_to_group)
+	for (int idx : points_to_group)
 	{
-		points[idx].is_grouped = true;
-		group.push_back(idx);
+		if (points[idx].group_id == 0)
+		{
+			points[idx].group_id = ID;
+			points[idx].is_grouped = true;
+			group.push_back(idx);
+		}
 	}
+
 	groups.push_back(group);
 	show_group.push_back(static_cast<char>(true));
+	ID++;
 }
 
 size_t VertexSet::size() const
@@ -94,7 +93,23 @@ size_t VertexSet::size() const
 
 size_t VertexSet::group_count() const
 {
-	return groups.size();
+	return show_group.size();
+}
+
+std::vector<std::vector<int>> VertexSet::get_shown_groups()
+{
+	static std::vector<std::vector<int>> result;
+	result.clear();
+	
+	for (int i = 1; i < show_group.size(); i++)
+	{
+		if (static_cast<bool>(show_group[i]))
+		{
+			result.push_back(groups[i - 1]);
+		}
+	}
+	
+	return result;
 }
 
 file_loader::vertex VertexSet::operator[](int i) const

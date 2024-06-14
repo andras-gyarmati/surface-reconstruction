@@ -1,11 +1,17 @@
-﻿#include <vector>
+﻿#define GPU
+#include <vector>
 #include <stack>
 #include <random>
 #include <glm/glm.hpp>
 #include "application.h"
 #include "imgui/imgui.h"
 #include "file_loader.h"
+#define EIGEN_NO_CUDA
 #include <Eigen/Dense>
+#include "delaunay_3d.h"
+#include "ransac_plane.cu"
+//#include <Fade_2D.h>
+#include <chrono>
 
 application::application(void) {
     m_start_eye = glm::vec3(0, 0, 0);
@@ -66,6 +72,8 @@ bool application::init(SDL_Window* window) {
     m_wireframe_program.Init({{GL_VERTEX_SHADER, "shaders/wireframe.vert"}, {GL_FRAGMENT_SHADER, "shaders/wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
     load_inputs_from_folder("inputs\\garazs_kijarat");
+    //load_inputs_from_folder("inputs\\elte_logo");
+    //load_inputs_from_folder("inputs\\parkolo_gomb");
     init_debug_sphere();
 
     init_sensor_rig_boundary_visualization();
@@ -94,27 +102,27 @@ void application::update() {
     m_time_since_last_bfs_paint += delta_time;
     // std::cout << "m_time_since_last_bfs_paint: " << m_time_since_last_bfs_paint << std::endl;
 
-    const std::vector neighbors = {-1, +1, -16, +16, -17, -15, +15, +17};
-    if ((m_time_since_last_bfs_paint > (1 - m_bfs_paint_animation_speed)) && !m_vertices_queue.empty()) {
-        m_time_since_last_bfs_paint = 0.0f;
-        const int i = m_vertices_queue.front();
-        m_vertices_queue.pop();
-        std::cout << i << "\n";
-        // processed vertexes are blue
-        m_vertices[i].bfs_col = glm::vec3(0, 0, 1);
-        if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
-            for (const int neighbor : neighbors) {
-                const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
-                if (m_vertices[i + neighbor].bfs_col == glm::vec3(1) && dot > m_bfs_epsilon && !m_vertices[i + neighbor].is_grouped) {
-                    m_vertices_queue.push(i + neighbor);
-                    // color the neighbor in the queue to red
-                    m_vertices[i + neighbor].bfs_col = glm::vec3(1, 0, 0);
-                }
-            }
-        }
-    } else {
-        //std::cout << "m_vertices_queue is empty\n";
-    }
+    //const std::vector neighbors = {-1, +1, -16, +16, -17, -15, +15, +17};
+    //if ((m_time_since_last_bfs_paint > (1 - m_bfs_paint_animation_speed)) && !m_vertices_queue.empty()) {
+    //    m_time_since_last_bfs_paint = 0.0f;
+    //    const int i = m_vertices_queue.front();
+    //    m_vertices_queue.pop();
+    //    std::cout << i << "\n";
+    //    // processed vertexes are blue
+    //    m_vertices[i].bfs_col = glm::vec3(0, 0, 1);
+    //    if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
+    //        for (const int neighbor : neighbors) {
+    //            const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
+    //            if (m_vertices[i + neighbor].bfs_col == glm::vec3(1) && dot > m_bfs_epsilon && !m_vertices[i + neighbor].is_grouped) {
+    //                m_vertices_queue.push(i + neighbor);
+    //                // color the neighbor in the queue to red
+    //                m_vertices[i + neighbor].bfs_col = glm::vec3(1, 0, 0);
+    //            }
+    //        }
+    //    }
+    //} else {
+    //    //std::cout << "m_vertices_queue is empty\n";
+    //}
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
         m_render_points_up_to_index += 1;
@@ -152,7 +160,7 @@ void application::render() {
         } else if (m_mesh_rendering_mode == wireframe) {
             glPolygonMode(GL_FRONT, GL_LINE);
         }
-        init_mesh_visualization();
+        //init_mesh_visualization();
         render_mesh();
     }
 
@@ -215,24 +223,71 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     // init_octree(m_vertices);
     // init_octree_visualization(&m_octree);
     // init_delaunay_shaded_points_segment();
+    
+    //set all vertices bfs color to white for bfs painting algo
+    for (auto& vertex : m_vertices.get_points()) {
+        vertex.bfs_col = glm::vec3(0);
+    }
+
+    const std::vector<int> neighbors = { -1, +1, -16, +16, -17, -15, +15, +17 };
+    for (int j = 0; j < m_vertices.size(); j++)
+    {
+        glm::vec3 groupColor = get_random_color();
+        m_vertices_vector.clear();
+
+        if (m_vertices[j].is_grouped == false && !m_sensor_rig_boundary.contains(m_vertices[j].position))
+        {
+            m_vertices_group_queue.push(j);
+            m_vertices[j].is_grouped = true;
+        }
+
+        while (!m_vertices_group_queue.empty())
+        {
+            int idx = m_vertices_group_queue.front();
+            m_vertices[idx].bfs_col = glm::vec3(1);
+            m_vertices_group_queue.pop();
+            m_vertices_vector.push_back(idx);
+
+            for (const int n : neighbors)
+            {
+                if (idx + n >= 0 && idx + n < m_vertices.size()) {
+                    if (glm::distance(m_vertices[idx + n].position, m_vertices[idx].position) <= m_neighbor_distance && !m_vertices[idx + n].is_grouped && !m_sensor_rig_boundary.contains(m_vertices[j].position) && m_vertices[idx + n].bfs_col == glm::vec3(0))
+                    {
+                        m_vertices_group_queue.push(idx + n);
+                        m_vertices[idx + n].is_grouped = true;
+                    }
+                }
+            }
+        }
+
+        if (m_vertices_vector.size() >= m_min_group_size)
+        {
+            for (auto& i : m_vertices_vector)
+            {
+                m_vertices[i].bfs_col = groupColor;
+            }
+
+            m_vertices.create_group(m_vertices_vector);
+        }
+    }
+
     init_point_visualization();
     init_mesh_visualization();
 
-    // set all vertices bfs color to white for bfs painting algo
-    for (auto& vertex : m_vertices.get_points()) {
-        vertex.bfs_col = glm::vec3(1);
-    }
+    //std::random_device rd;
+    //std::mt19937 gen(rd());
+    //std::uniform_int_distribution<> dis(0, m_vertices.get_non_grouped().size() - 1);
 
-    // select a random vertex and put in in m_vertices_queue from shaded points, use filter_shaded_points function
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    //const auto shaded_points = filter_shaded_points(m_vertices.get_non_grouped());
-    std::uniform_int_distribution<> dis(0, m_vertices.get_non_grouped().size() - 1);
-    //int random_index;
-    int random_index = m_vertices.get_non_grouped()[dis(gen)];
-    m_vertices_queue.push(random_index);
-    //m_vertices_queue.push(1809);
-    //m_vertices_queue.push(2309);
+    //// select a random vertex and put in in m_vertices_queue from shaded points, use filter_shaded_points function
+    //std::random_device rd;
+    //std::mt19937 gen(rd());
+    ////const auto shaded_points = filter_shaded_points(m_vertices.get_non_grouped());
+    //std::uniform_int_distribution<> dis(0, m_vertices.get_non_grouped().size() - 1);
+    ////int random_index;
+    //int random_index = m_vertices.get_non_grouped()[dis(gen)];
+    //m_vertices_queue.push(random_index);
+    ////m_vertices_queue.push(1809);
+    ////m_vertices_queue.push(2309);
 }
 
 void application::init_point_visualization() {
@@ -259,8 +314,8 @@ void application::init_debug_sphere() {
 }
 
 void application::init_octree(const std::vector<file_loader::vertex>& vertices) {
-    const auto [tlf, brb] = octree::calc_boundary(vertices);
-    m_octree = octree(tlf, brb);
+    octree::boundary b = octree::calc_boundary(vertices);
+    m_octree = octree(b.m_top_left_front, b.m_bottom_right_back);
     for (int i = 0; i < vertices.size(); ++i) {
         if (vertices[i].position != glm::vec3(0, 0, 0)) {
             m_octree.insert(vertices[i].position);
@@ -344,51 +399,226 @@ void application::init_octree_visualization(const octree* root) {
 }
 
 void application::init_mesh_visualization() {
-    std::vector<file_loader::vertex> points = m_vertices.get_points_to_render();
-
-    for (int i = 0; i < points.size(); i++) {
-        const float v_dist_from_center = glm::distance(points[i].position, glm::vec3(0, 0, 0));
-        if (v_dist_from_center > m_max_dist_from_center) {
-            m_max_dist_from_center = v_dist_from_center;
-        }
-    }
-
-    for (int i = 0; i < points.size(); i++) {
-        const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
-        const float v_dist_from_center_norm = glm::distance(points[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
-        const float uv_stretch = m_cuts[i].dist / v_dist_from_center_norm * m_uv_stretch_scalar;
-        m_cuts[i].uv_stretch = uv_stretch;
-        points[i].uv_stretch = hsl_to_rgb(uv_stretch * 360.0f / 2.0f, 0.5f, 0.5f);
-    }
-
     m_mesh_indices.clear();
-    for (int i = 0; i < m_render_points_up_to_index; ++i) {
-        if ((i % 16) != 15 && i < m_render_points_up_to_index - 16) {
-            if (!is_triangle_should_be_excluded(i, i + 1, i + 17) && is_outside_of_sensor_rig_boundary(i, i + 1, i + 17) && is_mesh_vertex_cut_distance_ok(i, i + 1, i + 17)) {
-                m_mesh_indices.push_back(i + 0);
-                m_mesh_indices.push_back(i + 1);
-                m_mesh_indices.push_back(i + 17);
+    //std::vector<file_loader::vertex> points = m_vertices.get_points_to_render();
+
+    //for (int i = 0; i < points.size(); i++) {
+    //    const float v_dist_from_center = glm::distance(points[i].position, glm::vec3(0, 0, 0));
+    //    if (v_dist_from_center > m_max_dist_from_center) {
+    //        m_max_dist_from_center = v_dist_from_center;
+    //    }
+    //}
+
+    //for (int i = 0; i < points.size(); i++) {
+    //    const float v_dist_uv_dist_ratio_norm = m_cuts[i].ratio / m_max_v_dist_uv_dist_ratio;
+    //    const float v_dist_from_center_norm = glm::distance(points[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+    //    const float uv_stretch = m_cuts[i].dist / v_dist_from_center_norm * m_uv_stretch_scalar;
+    //    m_cuts[i].uv_stretch = uv_stretch;
+    //    points[i].uv_stretch = hsl_to_rgb(uv_stretch * 360.0f / 2.0f, 0.5f, 0.5f);
+    //}
+    
+    std::vector<std::vector<int>> groups = m_vertices.get_shown_groups();
+    
+    //2D Delanuay on planes
+
+    //    std::vector<GEOM_FADE2D::Point2> d_p;
+    //    int c = 0;
+    //    for (int idx : groups[i])
+    //    {
+    //        glm::vec4 tmp = T * glm::vec4(m_vertices[idx].position, 1);
+    //        //transformed.push_back(glm::vec2(tmp.x, tmp.y));
+    //        d_p.push_back({ tmp.x, tmp.y });
+    //        d_p[c++].setCustomIndex(idx);
+    //        //Ordering of indices stays the same
+    //    }
+    //    
+    //    GEOM_FADE2D::Fade_2D dt;
+    //    std::vector<GEOM_FADE2D::Point2*> vVertexHandles;
+    //    dt.insert(d_p, vVertexHandles);
+    //
+    //    std::vector<GEOM_FADE2D::Triangle2*> vAllDelaunayTriangles;
+    //    dt.getTrianglePointers(vAllDelaunayTriangles);
+    //    for (std::vector<GEOM_FADE2D::Triangle2*>::iterator it = vAllDelaunayTriangles.begin(); it != vAllDelaunayTriangles.end(); ++it)
+    //    {
+    //        GEOM_FADE2D::Triangle2* pT(*it);
+    //        GEOM_FADE2D::Point2* v1;
+    //        GEOM_FADE2D::Point2* v2;
+    //        GEOM_FADE2D::Point2* v3;
+
+    //        pT->getCorners(v1, v2, v3);
+
+    //        m_mesh_indices.push_back(v1->getCustomIndex());
+    //        m_mesh_indices.push_back(v2->getCustomIndex());
+    //        m_mesh_indices.push_back(v3->getCustomIndex());
+    //    }
+    //}
+
+    //3d Delanuay on non plane objects
+    std::vector<file_loader::vertex> m_tetrahedra_vertices = {};
+    std::vector<int> m_tetrahedra_indices = {};
+    int j = 0;
+    for(int i = 0; i < groups.size(); i++)
+    {
+        std::vector<int> group = groups[i];
+
+        j++;
+        if (j <= m_ransac_object_count)
+        {
+            for (int i = 0; i < group.size(); ++i) {
+                if ((group[i] % 16) != 15 && group[i] < m_render_points_up_to_index - 16) {
+                    if (!is_triangle_should_be_excluded(group[i], group[i] + 1, group[i] + 17) && is_outside_of_sensor_rig_boundary(group[i], group[i] + 1, group[i]+ 17) && is_mesh_vertex_cut_distance_ok(group[i], group[i] +1, group[i] + 17)) {
+                        //m_mesh_indices.push_back(group[i] + 0);
+                        //m_mesh_indices.push_back(group[i] + 1);
+                        //m_mesh_indices.push_back(group[i] + 17);
+                        const int offset = m_tetrahedra_vertices.size();
+                        m_tetrahedra_vertices.push_back(m_vertices[group[i] + 0]);
+                        m_tetrahedra_vertices.push_back(m_vertices[group[i] + 1]);
+                        m_tetrahedra_vertices.push_back(m_vertices[group[i] + 17]);
+
+                        std::vector<int> indices =
+                        {
+                            0, 1, 2
+                        };
+                        for (int& index : indices) {
+                            index += offset;
+                        }
+                        m_mesh_indices.insert(m_mesh_indices.end(), indices.begin(), indices.end());
+                    }
+                    if (!is_triangle_should_be_excluded(i, i + 17, i + 16) && is_outside_of_sensor_rig_boundary(group[i], group[i] + 17, group[i] + 16) && is_mesh_vertex_cut_distance_ok(group[i], group[i] + 17, group[i] + 16)) {
+                        //m_mesh_indices.push_back(group[i] + 0);
+                        //m_mesh_indices.push_back(group[i] + 17);
+                        //m_mesh_indices.push_back(group[i] + 16);
+                        const int offset = m_tetrahedra_vertices.size();
+                        m_tetrahedra_vertices.push_back(m_vertices[group[i] + 0]);
+                        m_tetrahedra_vertices.push_back(m_vertices[group[i] + 17]);
+                        m_tetrahedra_vertices.push_back(m_vertices[group[i] + 16]);
+
+                        std::vector<int> indices =
+                        {
+                            0, 1, 2
+                        };
+                        for (int& index : indices) {
+                            index += offset;
+                        }
+                        m_mesh_indices.insert(m_mesh_indices.end(), indices.begin(), indices.end());
+                    }
+                }
             }
-            if (!is_triangle_should_be_excluded(i, i + 17, i + 16) && is_outside_of_sensor_rig_boundary(i, i + 17, i + 16) && is_mesh_vertex_cut_distance_ok(i, i + 17, i + 16)) {
-                m_mesh_indices.push_back(i + 0);
-                m_mesh_indices.push_back(i + 17);
-                m_mesh_indices.push_back(i + 16);
-            }
+            continue;
         }
+
+        delaunay_3d m_delaunay = delaunay_3d(10.f, m_vertices[group[0]].position);
+        std::vector<file_loader::vertex> group_points;
+
+        for (int i : group) {
+            m_delaunay.insert_point(m_vertices[i]);
+        }
+        for (int i = 0; i < 6; ++i) {
+            m_delaunay.cleanup_super_tetrahedron();
+        }
+
+        // const auto tetrahedra = m_delaunay.create_mesh(m_vertices);
+        int c = 0;
+        for (auto tetrahedron : m_delaunay.m_tetrahedra) {
+            //std::cout << "Group " << j <<" Tet " << c++ << "\n";
+            const int offset = m_tetrahedra_vertices.size();
+            for (const glm::vec3 vert : tetrahedron.m_vertices) {
+                //position, color, ransac, normal, uv_stretch, bfs_col
+                file_loader::vertex tmp;
+                tmp.position = vert;
+                tmp.color = glm::vec3(0);
+                tmp.ransac = m_vertices[group[0]].ransac;
+                tmp.normal = m_vertices[group[0]].normal;
+                tmp.uv_stretch = m_vertices[group[0]].uv_stretch;
+                tmp.bfs_col = m_vertices[group[0]].bfs_col;
+                m_tetrahedra_vertices.push_back(tmp);
+            }
+
+            std::vector<int> indices = 
+            {
+                0, 1, 2,
+                1, 0, 3,
+                2, 1, 3,
+                0, 2, 3
+            };
+
+            for (int& index : indices) {
+                index += offset;
+            }
+            //m_tetrahedra_indices.insert(m_tetrahedra_indices.end(), indices.begin(), indices.end());
+            m_mesh_indices.insert(m_mesh_indices.end(), indices.begin(), indices.end());
+        }        
+
+        //OLD
+        /*std::vector<file_loader::vertex> group_points;
+        for (int i : group)
+        {
+            group_points.push_back(m_vertices[i]);
+        }
+        delaunay_3d d3 = delaunay_3d(10.f);
+        std::vector<delaunay_3d::tetrahedron> a = d3.create_mesh(group_points);
+
+        for (delaunay_3d::tetrahedron t : a)
+        {
+            for (delaunay_3d::face f : t.m_faces)
+            {
+                glm::vec3 tmp = f.a;
+                int i = 0;
+                bool found = false;
+                while (!found && i < group.size())
+                {
+                    found = m_vertices[group[i]].position == tmp;
+                    i++;
+                }   
+                if (!found) break;
+                int a_idx = i;
+
+                tmp = f.b;
+                i = 0;
+                found = false;
+                while (!found && i < group.size())
+                {
+                    found = m_vertices[group[i]].position == tmp;
+                    i++;
+                }
+                if (!found) break;
+                int b_idx = i;
+
+                tmp = f.c;
+                i = 0;
+                found = false;
+                while (!found && i < group.size())
+                {
+                    found = m_vertices[group[i]].position == tmp;
+                    i++;
+                }
+                if (!found) break;
+                int c_idx = i;
+
+                m_mesh_indices.push_back(a_idx);
+                m_mesh_indices.push_back(b_idx);
+                m_mesh_indices.push_back(c_idx);
+            }*/
+
+            //for (int i = 0; i < group.size(); ++i) {
+            //    if ((group[i] % 16) != 15 && group[i] < m_render_points_up_to_index - 16) {
+            //        if (!is_triangle_should_be_excluded(group[i], group[i] + 1, group[i] + 17) && is_outside_of_sensor_rig_boundary(group[i], group[i] + 1, group[i]+ 17) && is_mesh_vertex_cut_distance_ok(group[i], group[i] +1, group[i] + 17)) {
+            //            m_mesh_indices.push_back(group[i] + 0);
+            //            m_mesh_indices.push_back(group[i] + 1);
+            //            m_mesh_indices.push_back(group[i] + 17);
+            //        }
+            //        if (!is_triangle_should_be_excluded(i, i + 17, i + 16) && is_outside_of_sensor_rig_boundary(group[i], group[i] + 17, group[i] + 16) && is_mesh_vertex_cut_distance_ok(group[i], group[i] + 17, group[i] + 16)) {
+            //            m_mesh_indices.push_back(group[i] + 0);
+            //            m_mesh_indices.push_back(group[i] + 17);
+            //            m_mesh_indices.push_back(group[i] + 16);
+            //        }
+            //    }
+            //}
+
+        //}
     }
-
-    // for (int i = 0; i < m_vertices.size(); i++) {
-    //     float v_dist_norm = m_cuts[i].dist / m_max_dist;
-    //     float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
-    //     float v_dist_corrected = v_dist_norm * v_dist_from_center_norm * m_mesh_vertex_cut_distance;
-    //     // log values to console
-    //     // std::cout << "v_dist_norm: " << v_dist_norm << std::endl;
-    //     // std::cout << "v_dist_from_center_norm: " << v_dist_from_center_norm << std::endl;
-    //     // std::cout << "v_dist_corrected: " << v_dist_corrected << std::endl << std::endl;
-    //     m_vertices[i].color = hsl_to_rgb(v_dist_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
-    // }
-
-    m_mesh_pos_buffer.BufferData(m_vertices.get_points_to_render());
+    //m_mesh_indices = m_tetrahedra_indices;
+    m_mesh_pos_buffer.BufferData(m_tetrahedra_vertices);
     m_mesh_indices_buffer.BufferData(m_mesh_indices);
     m_mesh_vao.Init(
         {
@@ -400,6 +630,19 @@ void application::init_mesh_visualization() {
             {AttributeData{5, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, bfs_col)}, m_mesh_pos_buffer}
         },
         m_mesh_indices_buffer);
+
+    // for (int i = 0; i < m_vertices.size(); i++) {
+    //     float v_dist_norm = m_cuts[i].dist / m_max_dist;
+    //     float v_dist_from_center_norm = glm::distance(m_vertices[i].position, glm::vec3(0, 0, 0)) / m_max_dist_from_center;
+    //     float v_dist_corrected = v_dist_norm * v_dist_from_center_norm * m_mesh_vertex_cut_distance;
+    //     // log values to console
+    //     // std::cout << "v_dist_norm: " << v_dist_norm << std::endl;
+    //     // std::cout << "v_dist_from_center_norm: " << v_dist_from_center_norm << std::endl;
+    //     // std::cout << "v_dist_corrected: " << v_dist_corrected << std::endl << std::endl;
+    //     m_vertices[i].color = hsl_to_rgb(v_dist_corrected * 360.0f / 2.0f, 0.5f, 0.5f);
+    // }
+    
+    //OLD
 }
 
 void application::init_sensor_rig_boundary_visualization() {
@@ -507,8 +750,12 @@ void application::render_imgui() {
             ImGui::Text("plane visibility");
             for (int i = 0; i < m_vertices.group_count(); i++) {
                 char text[100];
-                snprintf(text, 64, "group %d", i + 1);
-                ImGui::Checkbox(text, (bool*)(&m_vertices.get_show_groups()[i]));
+                snprintf(text, 64, "group %d", i);
+                if (ImGui::Checkbox(text, (bool*)(&m_vertices.get_show_groups()[i])))
+                {
+                    if(m_mesh_rendering_mode != none)
+                        init_mesh_visualization();
+                }
             }
             //ImGui::Checkbox("non grouped", (bool*)(&m_show_vertex_groups[m_vertex_groups.size() - 1]));
         }
@@ -643,10 +890,22 @@ bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, con
         fabs(dot(m_vertices[i2].normal, m_vertices[i2].position)) > m_normal_cut_scalar;
 }
 
+bool application::is_mesh_vertex_cut_distance_ok(const file_loader::vertex& v0, const file_loader::vertex& v1, const file_loader::vertex& v2) const {
+    return fabs(dot(v0.normal, v0.position)) > m_normal_cut_scalar &&
+        fabs(dot(v1.normal, v1.position)) > m_normal_cut_scalar &&
+        fabs(dot(v2.normal, v2.position)) > m_normal_cut_scalar;
+}
+
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
     return !(m_sensor_rig_boundary.contains(m_vertices[i0].position) ||
         m_sensor_rig_boundary.contains(m_vertices[i1].position) ||
         m_sensor_rig_boundary.contains(m_vertices[i2].position));
+}
+
+bool application::is_outside_of_sensor_rig_boundary(const file_loader::vertex& v0, const file_loader::vertex& v1, const file_loader::vertex& v2) const {
+    return !(m_sensor_rig_boundary.contains(v0.position) ||
+        m_sensor_rig_boundary.contains(v1.position) ||
+        m_sensor_rig_boundary.contains(v2.position));
 }
 
 void application::set_particle_program_uniforms(bool show_non_shaded) {
@@ -735,131 +994,7 @@ void application::toggle_fullscreen(SDL_Window* win) {
     }
 }
 
-float* application::EstimatePlaneImplicit(const std::vector<int>& pts) {
-    const size_t num = pts.size();
-
-    Eigen::MatrixXf Cfs(num, 4);
-
-    for (size_t i = 0; i < num; i++) {
-        file_loader::vertex pt = m_vertices[pts[i]];
-        Cfs(i, 0) = pt.position.x;
-        Cfs(i, 1) = pt.position.y;
-        Cfs(i, 2) = pt.position.z;
-        Cfs(i, 3) = 1.0f;
-    }
-
-    Eigen::MatrixXf mtx = Cfs.transpose() * Cfs;
-    Eigen::EigenSolver<Eigen::MatrixXf> es(mtx);
-
-    const int lowestEigenValueIndex = std::min({0,1,2,3},
-        [&es](int v1, int v2) {
-            return es.eigenvalues()[v1].real() < es.eigenvalues()[v2].real();
-        });
-
-    float A = es.eigenvectors().col(lowestEigenValueIndex)(0).real();
-    float B = es.eigenvectors().col(lowestEigenValueIndex)(1).real();
-    float C = es.eigenvectors().col(lowestEigenValueIndex)(2).real();
-    float D = es.eigenvectors().col(lowestEigenValueIndex)(3).real();
-
-    float norm = std::sqrt(A * A + B * B + C * C);
-
-    float* ret = new float[4];
-    ret[0] = A / norm;
-    ret[1] = B / norm;
-    ret[2] = C / norm;
-    ret[3] = D / norm;
-
-    return ret;
-}
-
-application::RANSACDiffs application::PlanePointRANSACDifferences(const std::vector<int>& pts, float* plane, float threshold) {
-    size_t num = pts.size();
-
-    float A = plane[0];
-    float B = plane[1];
-    float C = plane[2];
-    float D = plane[3];
-
-    RANSACDiffs ret;
-
-    std::vector<bool> isInliers;
-    std::vector<float> distances;
-
-    int inlierCounter = 0;
-    for (int idx = 0; idx < num; idx++) {
-        file_loader::vertex pt = m_vertices[pts[idx]];
-        float diff = fabs(A * pt.position.x + B * pt.position.y + C * pt.position.z + D);
-        distances.push_back(diff);
-        if (diff < threshold) {
-            isInliers.push_back(true);
-            ++inlierCounter;
-        }
-        else {
-            isInliers.push_back(false);
-        }
-    }
-
-    ret.distances = distances;
-    ret.isInliers = isInliers;
-    ret.inliersNum = inlierCounter;
-
-    return ret;
-}
-
-float* application::EstimatePlaneRANSAC(const std::vector<int>& pts, float threshold, int iterNum) {
-    size_t num = pts.size();
-
-    int bestSampleInlierNum = 0;
-    float bestPlane[4];
-
-    for (Uint32 iter = 0; iter < iterNum; iter++) {
-        int index1 = rand() % num;
-        int index2 = rand() % num;
-
-        while (index2 == index1) {
-            index2 = rand() % num;
-        }
-        int index3 = rand() % num;
-        while (index3 == index1 || index3 == index2) {
-            index3 = rand() % num;
-        }
-
-        const std::vector<int> minimalSample = {index1, index2, index3};
-
-        float* samplePlane = EstimatePlaneImplicit(minimalSample);
-
-        RANSACDiffs sampleResult = PlanePointRANSACDifferences(pts, samplePlane, threshold);
-
-        if (sampleResult.inliersNum > bestSampleInlierNum) {
-            bestSampleInlierNum = sampleResult.inliersNum;
-            for (int i = 0; i < 4; ++i) {
-                bestPlane[i] = samplePlane[i];
-            }
-        }
-
-        delete[] samplePlane;
-    }
-
-    RANSACDiffs bestResult = PlanePointRANSACDifferences(pts, bestPlane, threshold);
-    std::cout << "Best plane params: " << bestPlane[0] << " " << bestPlane[1] << " " << bestPlane[2] << "\n";
-
-    std::vector<int> inlierPts;
-
-    for (int idx = 0; idx < num; idx++) {
-        if (bestResult.isInliers.at(idx)) {
-            inlierPts.push_back(pts[idx]);
-        }
-    }
-
-    float* finalPlane = EstimatePlaneImplicit(inlierPts);
-    return finalPlane;
-}
-
-void application::RunRANSAC(const int iterations) {
-    //for (auto& point : points) {
-    //    point.ransac = glm::vec3(0, 0, 0);
-    //}
-
+void application::RunRANSAC(const int& objects) {
     for (size_t i = 0; i < m_vertices.size(); i++)
     {
         m_vertices[i].ransac = glm::vec3(0);
@@ -867,15 +1002,17 @@ void application::RunRANSAC(const int iterations) {
 
     // Constants, replace them as needed
     const float FILTER_LOWEST_DISTANCE = 1.5f;
-    const float THERSHOLD = m_ransac_threshold;
+    const float THRESHOLD = m_ransac_threshold;
     const int RANSAC_ITER = m_ransac_iter;
 
     std::vector<int> filteredPoints;
     float hValue = 0.0f;
 
-    for (int i = 0; i < iterations; i++) {
-        filteredPoints.clear();
+    for (int i = 0; i < objects; i++) {
         glm::vec3 iterColor = hsl_to_rgb(hValue, 0.5f, 0.5f);
+        filteredPoints.clear();
+
+        //float* bestModel;
 
         for (size_t j = 0; j < m_vertices.size(); j++) 
         {
@@ -887,17 +1024,16 @@ void application::RunRANSAC(const int iterations) {
         }
 
         size_t num = filteredPoints.size();
-        std::cout << "Point num: " << num << "\n";
-    
-        //parameters of best fitting plane determined by RANSAC
-        float* planeParams = EstimatePlaneRANSAC(filteredPoints, THERSHOLD, RANSAC_ITER);
+        auto start = std::chrono::system_clock::now();
 
-        std::cout << "Plane params RANSAC:" << std::endl;
-        std::cout << "A:" << planeParams[0] << " B:" << planeParams[1]
-            << " C:" << planeParams[2] << " D:" << planeParams[3] << std::endl;
+        /* do some work */
+        RANSACDiffs differences = runRANSACPlane(m_vertices, filteredPoints, m_ransac_iter, m_ransac_threshold);
 
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);        
+        std::cout << "Ransac took: " << elapsed.count() << '\n';
         //Color inlier points
-        RANSACDiffs differences = PlanePointRANSACDifferences(filteredPoints, planeParams, THERSHOLD);
+
         std::cout << differences.inliersNum << std::endl;
         std::vector<int> points_to_group;
         for (int idx = 0; idx < num; idx++) {
@@ -907,9 +1043,6 @@ void application::RunRANSAC(const int iterations) {
             }
         }
         m_vertices.create_group(points_to_group);
-        hValue += 360.0f / iterations;
-        std::cout << points_to_group.size() << "\n";
-
-        delete[] planeParams;
+        hValue += 360.0f / objects;
     }
 }

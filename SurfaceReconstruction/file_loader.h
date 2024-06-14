@@ -16,6 +16,7 @@ public:
         glm::vec3 uv_stretch;
         glm::vec3 bfs_col;
         bool is_grouped = false;
+        int group_id = 0;
     };
 
     struct digital_camera_internal_params {

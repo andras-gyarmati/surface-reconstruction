@@ -209,7 +209,9 @@ public:
     }
 
     std::vector<tetrahedron> create_mesh(const std::vector<file_loader::vertex>& vertices) {
+        std::cout << "What a mesh (get it:D)";
         for (const file_loader::vertex& point : vertices) {
+            std::cout << "Insert point: " << point.position.x << ", " << point.position.y << ", " << point.position.z << "\n";
             insert_point(point);
         }
         cleanup_super_tetrahedron();

@@ -55,6 +55,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.5.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -78,8 +79,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>T:\OGLPack\include;T:\eigen-3.4.0;$(IncludePath)</IncludePath>
-    <LibraryPath>T:\OGLPack\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>T:\fadeRelease_v2.12\include_fade2d;T:\OGLPack\include;T:\eigen-3.4.0;T:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\include;$(IncludePath)</IncludePath>
+    <LibraryPath>T:\fadeRelease_v2.12\x64;T:\OGLPack\lib\x64;T:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -112,11 +113,17 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_image.lib;glew32.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;SDL2_image.lib;glew32.lib;opengl32.lib;fade2D_$(Platform)_$(PlatformToolset)_$(Configuration).lib;cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;cusolver.lib;cublas.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>T:\fadeRelease_v2.12\x64</AdditionalLibraryDirectories>
     </Link>
+    <CudaCompile>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <Include>%(Include)</Include>
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -170,6 +177,7 @@
     <ClInclude Include="Includes\VertexArrayObject.h" />
     <ClInclude Include="application.h" />
     <ClInclude Include="octree.h" />
+    <ClInclude Include="VertexSet.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imconfig.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imgui.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imgui_impl_sdl_gl3.h" />
@@ -189,22 +197,36 @@
     <ClCompile Include="Includes\ShaderObject.cpp" />
     <ClCompile Include="Includes\VertexArrayObject.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="application.cpp" />
+    <CudaCompile Include="application.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
     <None Include="diagrams\ClassDiagram.cd" />
     <None Include="Includes\BufferObject.inl" />
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />
     <None Include="Includes\VertexArrayObject.inl" />
+    <CudaCompile Include="ransac_plane.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+      <DeploymentContent>false</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </DeploymentContent>
+    </CudaCompile>
+    <ClCompile Include="VertexSet.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_demo.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_draw.cpp" />
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_impl_sdl_gl3.cpp" />
+    <None Include="ransac_compute.shader" />
     <None Include="shaders\axes.frag" />
     <None Include="shaders\axes.vert" />
     <None Include="shaders\particle.frag" />
     <None Include="shaders\particle.vert" />
     <None Include="shaders\wireframe.frag" />
     <None Include="shaders\wireframe.vert" />
+    <CudaCompile Include="RANSAC.cu">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <Content Include="shaders\wireframe.frag" />
@@ -212,6 +234,7 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.5.targets" />
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LocalDebuggerEnvironment>PATH=T:\OGLPack\bin\x86;%PATH%</LocalDebuggerEnvironment>

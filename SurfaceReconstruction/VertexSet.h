@@ -1,5 +1,6 @@
 #pragma once
 #include "file_loader.h"
+#include "octree.h"
 
 class VertexSet
 {
@@ -17,8 +18,9 @@ public:
 	const std::vector<file_loader::vertex>& get_points() const;
 	std::vector<std::vector<int>> get_grouped_points();
 	std::vector<int> get_non_grouped();
-	std::vector<file_loader::vertex>& get_points_to_render();
+	std::vector<file_loader::vertex>& get_points_to_render() const;
 	std::vector<char>& get_show_groups();
+	std::vector<std::vector<int>> get_shown_groups();
 
 	void create_group(std::vector<int> points_to_group);
 
