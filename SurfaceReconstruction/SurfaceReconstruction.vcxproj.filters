@@ -174,9 +174,6 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="diagrams\ClassDiagram.cd" />
-    <None Include="ransac_compute.shader">
-      <Filter>Shaders</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="RANSAC.cu" />
