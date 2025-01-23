@@ -9,8 +9,7 @@
 #define EIGEN_NO_CUDA
 #include <Eigen/Dense>
 #include "delaunay_3d.h"
-#include "ransac_plane.cu"
-//#include <Fade_2D.h>
+#include "ransac_plane.h"
 #include <chrono>
 
 application::application(void) {
@@ -32,6 +31,8 @@ application::application(void) {
     m_time_since_last_bfs_paint = 0.0f;
     m_bfs_epsilon = 0.93f;
 
+    m_sec_per_frame = 15;
+
     m_show_axes = false;
     m_show_points = false;
     m_show_debug_sphere = false;
@@ -46,6 +47,7 @@ application::application(void) {
     m_show_non_shaded_points = false;
     m_show_non_shaded_mesh = false;
     m_auto_increment_rendered_point_index = false;
+    m_real_time = false;
 
     m_mesh_rendering_mode = none;
     m_octree_color = glm::vec3(0, 1.f, 0);
@@ -100,29 +102,6 @@ void application::update() {
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
     m_time_since_last_bfs_paint += delta_time;
-    // std::cout << "m_time_since_last_bfs_paint: " << m_time_since_last_bfs_paint << std::endl;
-
-    //const std::vector neighbors = {-1, +1, -16, +16, -17, -15, +15, +17};
-    //if ((m_time_since_last_bfs_paint > (1 - m_bfs_paint_animation_speed)) && !m_vertices_queue.empty()) {
-    //    m_time_since_last_bfs_paint = 0.0f;
-    //    const int i = m_vertices_queue.front();
-    //    m_vertices_queue.pop();
-    //    std::cout << i << "\n";
-    //    // processed vertexes are blue
-    //    m_vertices[i].bfs_col = glm::vec3(0, 0, 1);
-    //    if ((i % 16) != 15 && (i % 16) != 0 && 15 < i && i < m_render_points_up_to_index - 16) {
-    //        for (const int neighbor : neighbors) {
-    //            const float dot = fabs(glm::dot(m_vertices[i + neighbor].normal, m_vertices[i].normal));
-    //            if (m_vertices[i + neighbor].bfs_col == glm::vec3(1) && dot > m_bfs_epsilon && !m_vertices[i + neighbor].is_grouped) {
-    //                m_vertices_queue.push(i + neighbor);
-    //                // color the neighbor in the queue to red
-    //                m_vertices[i + neighbor].bfs_col = glm::vec3(1, 0, 0);
-    //            }
-    //        }
-    //    }
-    //} else {
-    //    //std::cout << "m_vertices_queue is empty\n";
-    //}
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
         m_render_points_up_to_index += 1;
@@ -216,18 +195,22 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     m_render_points_up_to_index = m_vertices.size() - 16;
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
-    
+
+    //First init graph, this creates color weights
+    //m_graph = vertex_graph(m_vertices.get_points());
+
+    //Run ransac, right now it creates groups AND sets edge weights in graph, later on when spectral clustering is implemented the former groups won't be needed
     RunRANSAC(m_ransac_object_count);
-    //randomize_vertex_colors(m_vertices);
+    randomize_vertex_colors(m_vertices.get_points());
     set_uvs(m_vertices.get_points());
     // init_octree(m_vertices);
     // init_octree_visualization(&m_octree);
     // init_delaunay_shaded_points_segment();
     
     //set all vertices bfs color to white for bfs painting algo
-    for (auto& vertex : m_vertices.get_points()) {
-        vertex.bfs_col = glm::vec3(0);
-    }
+    //for (auto& vertex : m_vertices.get_points()) {
+    //    vertex.bfs_col = glm::vec3(0);
+    //}
 
     const std::vector<int> neighbors = { -1, +1, -16, +16, -17, -15, +15, +17 };
     for (int j = 0; j < m_vertices.size(); j++)
@@ -271,23 +254,29 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         }
     }
 
+    int i = 0;
+    for (std::vector<int>& v : m_vertices.get_grouped_points())
+    {
+        file_loader::write_ply_file("outputs\\group" + std::to_string(i) + ".ply", m_vertices.get_points(), v);
+        i++;
+    }
+
+    m_graph = supervoxel::supervoxelSegmentation(m_vertices.get_points(), 0.5, 1);
+    for (auto& v : m_graph.nodes)
+    {
+        glm::vec3 c = get_random_color();
+
+        for (auto& p : v.points)
+        {
+            p->uv_stretch = c;
+        }
+    }
+
+    spectral_cluster(m_vertices.get_points(), 2);
+    //spectral_cluster(m_vertices.get_points(), 1, m_vertices.get_grouped_points());
+
     init_point_visualization();
     init_mesh_visualization();
-
-    //std::random_device rd;
-    //std::mt19937 gen(rd());
-    //std::uniform_int_distribution<> dis(0, m_vertices.get_non_grouped().size() - 1);
-
-    //// select a random vertex and put in in m_vertices_queue from shaded points, use filter_shaded_points function
-    //std::random_device rd;
-    //std::mt19937 gen(rd());
-    ////const auto shaded_points = filter_shaded_points(m_vertices.get_non_grouped());
-    //std::uniform_int_distribution<> dis(0, m_vertices.get_non_grouped().size() - 1);
-    ////int random_index;
-    //int random_index = m_vertices.get_non_grouped()[dis(gen)];
-    //m_vertices_queue.push(random_index);
-    ////m_vertices_queue.push(1809);
-    ////m_vertices_queue.push(2309);
 }
 
 void application::init_point_visualization() {
@@ -418,40 +407,6 @@ void application::init_mesh_visualization() {
     //}
     
     std::vector<std::vector<int>> groups = m_vertices.get_shown_groups();
-    
-    //2D Delanuay on planes
-
-    //    std::vector<GEOM_FADE2D::Point2> d_p;
-    //    int c = 0;
-    //    for (int idx : groups[i])
-    //    {
-    //        glm::vec4 tmp = T * glm::vec4(m_vertices[idx].position, 1);
-    //        //transformed.push_back(glm::vec2(tmp.x, tmp.y));
-    //        d_p.push_back({ tmp.x, tmp.y });
-    //        d_p[c++].setCustomIndex(idx);
-    //        //Ordering of indices stays the same
-    //    }
-    //    
-    //    GEOM_FADE2D::Fade_2D dt;
-    //    std::vector<GEOM_FADE2D::Point2*> vVertexHandles;
-    //    dt.insert(d_p, vVertexHandles);
-    //
-    //    std::vector<GEOM_FADE2D::Triangle2*> vAllDelaunayTriangles;
-    //    dt.getTrianglePointers(vAllDelaunayTriangles);
-    //    for (std::vector<GEOM_FADE2D::Triangle2*>::iterator it = vAllDelaunayTriangles.begin(); it != vAllDelaunayTriangles.end(); ++it)
-    //    {
-    //        GEOM_FADE2D::Triangle2* pT(*it);
-    //        GEOM_FADE2D::Point2* v1;
-    //        GEOM_FADE2D::Point2* v2;
-    //        GEOM_FADE2D::Point2* v3;
-
-    //        pT->getCorners(v1, v2, v3);
-
-    //        m_mesh_indices.push_back(v1->getCustomIndex());
-    //        m_mesh_indices.push_back(v2->getCustomIndex());
-    //        m_mesh_indices.push_back(v3->getCustomIndex());
-    //    }
-    //}
 
     //3d Delanuay on non plane objects
     std::vector<file_loader::vertex> m_tetrahedra_vertices = {};
@@ -526,7 +481,7 @@ void application::init_mesh_visualization() {
                 //position, color, ransac, normal, uv_stretch, bfs_col
                 file_loader::vertex tmp;
                 tmp.position = vert;
-                tmp.color = glm::vec3(0);
+                //tmp.color = glm::vec3(0);
                 tmp.ransac = m_vertices[group[0]].ransac;
                 tmp.normal = m_vertices[group[0]].normal;
                 tmp.uv_stretch = m_vertices[group[0]].uv_stretch;
@@ -549,57 +504,6 @@ void application::init_mesh_visualization() {
             m_mesh_indices.insert(m_mesh_indices.end(), indices.begin(), indices.end());
         }        
 
-        //OLD
-        /*std::vector<file_loader::vertex> group_points;
-        for (int i : group)
-        {
-            group_points.push_back(m_vertices[i]);
-        }
-        delaunay_3d d3 = delaunay_3d(10.f);
-        std::vector<delaunay_3d::tetrahedron> a = d3.create_mesh(group_points);
-
-        for (delaunay_3d::tetrahedron t : a)
-        {
-            for (delaunay_3d::face f : t.m_faces)
-            {
-                glm::vec3 tmp = f.a;
-                int i = 0;
-                bool found = false;
-                while (!found && i < group.size())
-                {
-                    found = m_vertices[group[i]].position == tmp;
-                    i++;
-                }   
-                if (!found) break;
-                int a_idx = i;
-
-                tmp = f.b;
-                i = 0;
-                found = false;
-                while (!found && i < group.size())
-                {
-                    found = m_vertices[group[i]].position == tmp;
-                    i++;
-                }
-                if (!found) break;
-                int b_idx = i;
-
-                tmp = f.c;
-                i = 0;
-                found = false;
-                while (!found && i < group.size())
-                {
-                    found = m_vertices[group[i]].position == tmp;
-                    i++;
-                }
-                if (!found) break;
-                int c_idx = i;
-
-                m_mesh_indices.push_back(a_idx);
-                m_mesh_indices.push_back(b_idx);
-                m_mesh_indices.push_back(c_idx);
-            }*/
-
             //for (int i = 0; i < group.size(); ++i) {
             //    if ((group[i] % 16) != 15 && group[i] < m_render_points_up_to_index - 16) {
             //        if (!is_triangle_should_be_excluded(group[i], group[i] + 1, group[i] + 17) && is_outside_of_sensor_rig_boundary(group[i], group[i] + 1, group[i]+ 17) && is_mesh_vertex_cut_distance_ok(group[i], group[i] +1, group[i] + 17)) {
@@ -617,7 +521,7 @@ void application::init_mesh_visualization() {
 
         //}
     }
-    //m_mesh_indices = m_tetrahedra_indices;
+
     m_mesh_pos_buffer.BufferData(m_tetrahedra_vertices);
     m_mesh_indices_buffer.BufferData(m_mesh_indices);
     m_mesh_vao.Init(
@@ -699,6 +603,13 @@ void application::render_imgui() {
                 load_inputs_from_folder(m_input_folder);
             }
         }
+        if (ImGui::CollapsingHeader("app flow")) {
+            ImGui::Checkbox("real time", &m_real_time);
+            if(m_real_time) {
+                ImGui::SameLine();
+                ImGui::SliderInt("sec/frame", &m_sec_per_frame, 1, 30);
+            }
+        }
         if (ImGui::CollapsingHeader("points")) {
             ImGui::Checkbox("show points", &m_show_points);
             ImGui::SameLine();
@@ -742,10 +653,6 @@ void application::render_imgui() {
             }
             ImGui::SliderFloat("ransac threshold", &m_ransac_threshold, 0.01f, 2.0f);
             ImGui::SliderInt("ransac iterations", &m_ransac_iter, 1, 5000);
-
-            //if (ImGui::Button("rerun ransac")) {
-            //    RunRANSAC(m_vertices.get_points(), m_vertex_groups, m_ransac_object_count);
-            //}
 
             ImGui::Text("plane visibility");
             for (int i = 0; i < m_vertices.group_count(); i++) {
@@ -885,9 +792,7 @@ std::vector<file_loader::vertex> application::filter_shaded_points(const std::ve
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const int i0, const int i1, const int i2) const {
-    return fabs(dot(m_vertices[i0].normal, m_vertices[i0].position)) > m_normal_cut_scalar &&
-        fabs(dot(m_vertices[i1].normal, m_vertices[i1].position)) > m_normal_cut_scalar &&
-        fabs(dot(m_vertices[i2].normal, m_vertices[i2].position)) > m_normal_cut_scalar;
+    return is_mesh_vertex_cut_distance_ok(m_vertices[i0], m_vertices[i1], m_vertices[i2]);
 }
 
 bool application::is_mesh_vertex_cut_distance_ok(const file_loader::vertex& v0, const file_loader::vertex& v1, const file_loader::vertex& v2) const {
@@ -897,9 +802,7 @@ bool application::is_mesh_vertex_cut_distance_ok(const file_loader::vertex& v0, 
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const int i0, const int i1, const int i2) const {
-    return !(m_sensor_rig_boundary.contains(m_vertices[i0].position) ||
-        m_sensor_rig_boundary.contains(m_vertices[i1].position) ||
-        m_sensor_rig_boundary.contains(m_vertices[i2].position));
+    return is_outside_of_sensor_rig_boundary(m_vertices[i0], m_vertices[i1], m_vertices[i2]);
 }
 
 bool application::is_outside_of_sensor_rig_boundary(const file_loader::vertex& v0, const file_loader::vertex& v1, const file_loader::vertex& v2) const {
@@ -1044,5 +947,13 @@ void application::RunRANSAC(const int& objects) {
         }
         m_vertices.create_group(points_to_group);
         hValue += 360.0f / objects;
+
+        //for (int i = 0; i < num; i++)
+        //{
+        //    for (int j = 0; j < num; j++)
+        //    {
+        //        m_graph.mat[filteredPoints[i]][filteredPoints[j]].ransac_w = 1;
+        //    }
+        //}
     }
 }

@@ -89,7 +89,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>T:\OGLPack\include;$(IncludePath)</IncludePath>
+    <IncludePath>T:\eigen-3.4.0;T:\OGLPack\include;$(IncludePath)</IncludePath>
     <LibraryPath>T:\OGLPack\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -122,8 +122,12 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <Include>%(Include)</Include>
+      <Include>%(Include);%(AdditionalIncludeDirectories)</Include>
     </CudaCompile>
+    <CudaLink>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -177,6 +181,7 @@
     <ClInclude Include="Includes\VertexArrayObject.h" />
     <ClInclude Include="application.h" />
     <ClInclude Include="octree.h" />
+    <ClInclude Include="ransac_plane.h" />
     <ClInclude Include="VertexSet.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imconfig.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imgui.h" />
@@ -187,6 +192,7 @@
     <ClInclude Include="T:\OGLPack\include\imgui\stb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="application.cpp" />
     <ClCompile Include="file_loader.cpp" />
     <ClCompile Include="Includes\gCamera.cpp" />
     <ClCompile Include="Includes\GLconversions.cpp" />
@@ -197,16 +203,14 @@
     <ClCompile Include="Includes\ShaderObject.cpp" />
     <ClCompile Include="Includes\VertexArrayObject.cpp" />
     <ClCompile Include="main.cpp" />
-    <CudaCompile Include="application.cu">
-      <FileType>Document</FileType>
-    </CudaCompile>
+    <ClCompile Include="vertex_graph.cpp" />
+    <ClCompile Include="vertex_graph.h" />
     <None Include="diagrams\ClassDiagram.cd" />
     <None Include="Includes\BufferObject.inl" />
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />
     <None Include="Includes\VertexArrayObject.inl" />
     <CudaCompile Include="ransac_plane.cu">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <FileType>Document</FileType>
       <DeploymentContent>false</DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -223,9 +227,6 @@
     <None Include="shaders\particle.vert" />
     <None Include="shaders\wireframe.frag" />
     <None Include="shaders\wireframe.vert" />
-    <CudaCompile Include="RANSAC.cu">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <Content Include="shaders\wireframe.frag" />

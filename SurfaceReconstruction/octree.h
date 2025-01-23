@@ -3,6 +3,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include "glm/ext.hpp"
+#include "file_loader.h"
 
 class octree {
     enum octant {

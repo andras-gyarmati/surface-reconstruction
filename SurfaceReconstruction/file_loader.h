@@ -41,10 +41,13 @@ public:
             };
         }
     };
+    
+    class VertexSet;
 
     static digital_camera_params load_digital_camera_params(const std::string& filename);
     static std::vector<vertex> read_vertices_from_file(std::ifstream* file, int vertex_count);
     static std::vector<vertex> load_ply_file(const std::string& filename);
     static std::vector<vertex> load_xyz_file(const std::string& filename);
     static std::vector<std::string> get_directory_files(const std::string& folder_name);
+    static void write_ply_file(const std::string& filename, const std::vector<file_loader::vertex>& v, const std::vector<int>& group);
 };

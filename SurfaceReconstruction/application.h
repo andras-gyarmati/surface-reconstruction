@@ -12,6 +12,7 @@
 #include "octree.h"
 #include <cstdlib>
 #include "VertexSet.h"
+#include "vertex_graph.h"
 
 #include <iostream>
 
@@ -246,6 +247,7 @@ protected:
     std::vector <std::vector<file_loader::vertex*>> m_vertex_groups;
     std::vector<file_loader::vertex> m_wireframe_vertices;
     std::vector<file_loader::vertex> m_sensor_rig_boundary_vertices;
+    vertex_graph m_graph;
 
     // flags
     bool m_show_axes;
@@ -262,6 +264,7 @@ protected:
     bool m_show_ransac;
     bool m_show_non_shaded_mesh;
     bool m_auto_increment_rendered_point_index;
+    bool m_real_time;
 
     // numeric values
     int m_render_points_up_to_index;
@@ -276,6 +279,7 @@ protected:
     float m_bfs_epsilon;
     float m_neighbor_distance = 0.75f;
     int m_min_group_size = 25;
+    int m_sec_per_frame;
         
     // other objects
     SDL_Window* m_window{};

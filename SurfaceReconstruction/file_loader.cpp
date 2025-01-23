@@ -9,6 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <filesystem>
 #include "file_loader.h"
+#include "VertexSet.h"
 
 file_loader::digital_camera_params file_loader::load_digital_camera_params(const std::string& filename) {
     digital_camera_params camera_params;
@@ -146,4 +147,32 @@ std::vector<std::string> file_loader::get_directory_files(const std::string& fol
         file_paths.push_back(entry.path().string());
     }
     return file_paths;
+}
+
+void file_loader::write_ply_file(const std::string& filename, const std::vector<file_loader::vertex>& v, const std::vector<int>& group)
+{
+    int num = group.size();
+    std::ofstream f;
+    f.open(filename);
+
+    f << "ply\n";
+    f << "format ascii 1.0\n";
+    f << "element vertex " << num << std::endl;
+    f << "property float x\n";
+    f << "property float y\n";
+    f << "property float z\n";
+    f << "property uchar red\n";
+    f << "property uchar green\n";
+    f << "property uchar blue\n";
+    f << "end_header\n";
+
+    for (int idx = 0; idx < num; idx++) {
+        file_loader::vertex point = v[group[idx]];
+
+        //f << point.position.x << " " << point.position.y << " " << point.position.z << " " << point.color.r << " " << point.color.g << " " << point.color.b << std::endl;
+        f << point.position.x << " " << point.position.y << " " << point.position.z << " " << 1 << " " << 1 << " " << 1 << std::endl;
+
+    }
+
+    f.close();
 }
