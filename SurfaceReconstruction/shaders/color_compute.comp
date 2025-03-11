@@ -2,14 +2,14 @@
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
-layout (binding = 0) buffer out_layout
+layout (std430, binding = 0) writeonly buffer out_layout
 {
-    vec3 colors[];
+    vec4 colors[];
 };
 
-layout (binding = 1) buffer in_layout
+layout (std430, binding = 1) readonly buffer in_layout
 {
-    vec3 positions[];
+    vec4 positions[];
 };
 
 uniform sampler2D tex_image[3];
@@ -23,7 +23,9 @@ uniform int y;
 void main()
 {
     uint idx = gl_GlobalInvocationID.x * y + gl_GlobalInvocationID.y;
-    vec3 pos = positions[idx];
+    vec3 pos = positions[idx].xyz;
+    vec2[3] d_pixels;
+    vec4[3] local_colors;
 
     for (int i = 0; i < 3; ++i)
     {
@@ -35,11 +37,27 @@ void main()
         p_c.y = cam_k[1][1] * -p_tmp.y + cam_k[1][2];
         if (dist > 0 && p_c.x >= 0 && p_c.x <= 960 && p_c.y >= 0 && p_c.y <= 600)
         {
-            colors[idx] = texture(tex_image[i], vec2(p_c.x / 960.0f, p_c.y / 600.0f)).xyz;
+            d_pixels[i] = p_c;
+            local_colors[i] = texture(tex_image[i], vec2(p_c.x / 960.0f, p_c.y / 600.0f));
+            colors[idx] = texture(tex_image[i], vec2(p_c.x / 960.0f, p_c.y / 600.0f));
         }
         else
         {
-//            colors[idx] = vec3(0);
+            d_pixels[i] = vec2(0);
+            local_colors[i] = vec4(0);
         }
+    }
+
+    vec4 weighted_color = vec4(0);
+    for (int i = 0; i < 3; i++)
+    {
+        if(local_colors[i] != vec4(0))
+        {
+            weighted_color
+        }
+//        if (d_pixels[i].z > 0 && d_pixels[i].x >= 0 && d_pixels[i].x <= 960 && d_pixels[i].y >= 0 && d_pixels[i].y <= 600)
+//        {
+//            local_colors[i] = texture(tex_image[i], vec2(d_pixels[i].x / 960.0f, d_pixels[i].y / 600.0f));
+//        }
     }
 }

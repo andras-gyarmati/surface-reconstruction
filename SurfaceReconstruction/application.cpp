@@ -297,11 +297,33 @@ void application::init_debug_sphere() {
     m_debug_sphere.resize((m_debug_sphere_m + 1) * (m_debug_sphere_n + 1));
     for (int i = 0; i <= m_debug_sphere_n; ++i)
         for (int j = 0; j <= m_debug_sphere_m; ++j)
-            m_debug_sphere[i + j * (m_debug_sphere_n + 1)] = get_sphere_pos(
+            m_debug_sphere[i + j * (m_debug_sphere_n + 1)].position = get_sphere_pos(
                 (float)(i) / (float)(m_debug_sphere_n),
                 (float)(j) / (float)(m_debug_sphere_m));
+    //calculate_normals(m_debug_sphere);
+    get_color_from_pictures(m_debug_sphere, m_digital_camera_params, m_digital_camera_textures);
     m_debug_sphere_buffer.BufferData(m_debug_sphere);
-    m_debug_sphere_vao.Init({{CreateAttribute<0, glm::vec3, 0, sizeof(glm::vec3)>, m_debug_sphere_buffer}});
+    m_debug_sphere_vao.Init({
+        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_debug_sphere_buffer},
+        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_debug_sphere_buffer},
+        {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, ransac)}, m_debug_sphere_buffer},
+        {AttributeData{3, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_debug_sphere_buffer},
+        {AttributeData{4, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, uv_stretch)}, m_debug_sphere_buffer},
+        {AttributeData{5, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, bfs_col)}, m_debug_sphere_buffer}
+    });
+
+    octree_vertex::boundary b = octree_vertex::calc_boundary(m_debug_sphere);
+    octree_vertex sphere_octree(b.m_top_left_front, b.m_bottom_right_back);
+    for (auto& p : m_debug_sphere)
+    {
+        sphere_octree.insert(p);
+    }
+
+    auto res = sphere_octree.find_k_nearest(file_loader::vertex(), 4);
+    for (const auto& p : res)
+    {
+        std::cout << p->position.x << p->position.y << p->position.z << std::endl;
+    }
 }
 
 void application::init_octree(const std::vector<file_loader::vertex>& vertices) {
@@ -998,7 +1020,7 @@ glm::vec3 get_centroid(std::vector<file_loader::vertex> points) {
 }
 
 void application::calculate_normals(std::vector<file_loader::vertex>& points) {
-    const float max_range = 0.5f;
+    const float max_range = 0.05f;
 
     for (auto& p : points) {
         std::vector<file_loader::vertex> in_range = get_points_in_range(max_range, points, p);
@@ -1029,37 +1051,32 @@ void application::calculate_normals(std::vector<file_loader::vertex>& points) {
 }
 
 void application::get_color_from_pictures(std::vector<file_loader::vertex>& points, file_loader::digital_camera_params camera_params, Texture2D* images) {
-    //BufferObject m_color_compute_buffer;
-    ////VertexArrayObject m_color_compute_vao;
-    //m_color_compute_buffer.BufferData(colors);
-
     ProgramObject m_color_compute_program;
-    m_color_compute_program.Init({ {GL_COMPUTE_SHADER, "shaders/color_compute.comp"} }
-        //,
-        //{
-        //    {0, "out_buffer"},
-        //    {1, "in_buffer"}
-        //}
-        );
-
-    glm::vec3* out_buffer = new glm::vec3[points.size()];
-    GLuint SSBO2;
-    glGenBuffers(1, &SSBO2);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO2);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec3), (GLvoid*)out_buffer, GL_DYNAMIC_COPY);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO2);
-
-    glm::vec3* in_buffer = new glm::vec3[points.size()];
-    int i = 0;
+    m_color_compute_program.Init({ {GL_COMPUTE_SHADER, "shaders/color_compute.comp"} });
+    std::vector<glm::vec4> in_buffer;
     for (const auto& p : points)
     {
-        in_buffer[i++] = p.position;
+        in_buffer.push_back(glm::vec4(p.position, 0));
     }
     GLuint SSBO1;
     glGenBuffers(1, &SSBO1);
+
+    std::vector<glm::vec4> out_buffer;
+    out_buffer.resize(points.size());
+    for (const auto& p : points)
+    {
+        out_buffer.push_back(glm::vec4(0));
+    }
+    GLuint SSBO2;
+    glGenBuffers(1, &SSBO2);
+
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO1);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec3), (GLvoid*)in_buffer, GL_DYNAMIC_COPY);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec4), (GLvoid*)in_buffer.data(), GL_DYNAMIC_COPY);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, SSBO1);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO2);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec4), (GLvoid*)out_buffer.data(), GL_DYNAMIC_COPY);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO2);
 
     //m_color_compute_buffer.Bind();
     int x = 650;
@@ -1080,47 +1097,15 @@ void application::get_color_from_pictures(std::vector<file_loader::vertex>& poin
     m_color_compute_program.SetUniform("y", y);
 
     glDispatchCompute(x, y, 1);
+    //glDispatchCompute(points.size(), 1, 1);
     glMemoryBarrier(GL_QUERY_BUFFER_BARRIER_BIT || GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
-
+    //glMemoryBarrier(GL_ALL_BARRIER_BITS);
+ 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO2);
-    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, points.size() * sizeof(glm::vec3), (GLvoid*)out_buffer);
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, points.size() * sizeof(glm::vec4), (GLvoid*)out_buffer.data());
 
     for (int i = 0; i < points.size(); i++)
     {
-        points[i].color = out_buffer[i];
+        points[i].color = glm::vec3(out_buffer[i].x, out_buffer[i].y, out_buffer[i].z);
     }
-
-    //int i = 0;
-    //for (glm::vec3& col : out) {
-    //    points[i].color = col;
-    //    i++;
-    //}
-
-    //glm::mat3 cam_k = camera_params.get_cam_k();
-    //for (auto& p : points)
-    //{
-    //    int i = 0;
-    //    for (auto& device : camera_params.devices)
-    //    {
-    //        glm::vec3 p_tmp = device.r * (p.position - device.t);
-    //        float dist = p_tmp.z;
-
-    //        p_tmp /= p_tmp.z;
-    //        glm::vec2 p_c;
-    //        // get the uv coordinate
-    //        p_c.x = cam_k[0][0] * p_tmp.x + cam_k[0][2];
-    //        p_c.y = cam_k[1][1] * -p_tmp.y + cam_k[1][2];
-    //        if (dist > 0 && p_c.x >= 0 && p_c.x <= 960 && p_c.y >= 0 && p_c.y <= 600)
-    //        {
-    //            //vs_out_tex[i] = vec2(p_c.x / 960.0f, p_c.y / 600.0f);
-    //            p.color = glm::vec3(0);
-    //        }
-    //        else
-    //        {
-    //            //vs_out_tex[i] = vec2(-1, -1);
-    //        }
-
-    //        i++;
-    //    }
-    //}
 }
