@@ -186,6 +186,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="diagrams\ClassDiagram.cd" />
+    <None Include="shaders\color_compute.comp">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="ransac_plane.cu">

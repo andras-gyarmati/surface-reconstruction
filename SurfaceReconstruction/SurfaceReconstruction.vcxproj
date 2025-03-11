@@ -223,6 +223,7 @@
     <ClCompile Include="T:\OGLPack\include\imgui\imgui_impl_sdl_gl3.cpp" />
     <None Include="shaders\axes.frag" />
     <None Include="shaders\axes.vert" />
+    <None Include="shaders\color_compute.comp" />
     <None Include="shaders\particle.frag" />
     <None Include="shaders\particle.vert" />
     <None Include="shaders\wireframe.frag" />

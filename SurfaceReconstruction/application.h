@@ -203,6 +203,14 @@ public:
     //RANSAC 
     void RunRANSAC(const int& objects);
 
+    void calculate_normals(std::vector<file_loader::vertex>& points);
+
+    std::vector<file_loader::vertex> get_points_in_range(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target);
+
+    std::vector<int> get_points_in_range_by_index(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target);
+
+    void get_color_from_pictures(std::vector<file_loader::vertex>& points, file_loader::digital_camera_params camera_params, Texture2D* images);
+
 protected:
     // shader programs
     ProgramObject m_axes_program;

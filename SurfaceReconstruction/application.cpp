@@ -198,10 +198,10 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
 
     //First init graph, this creates color weights
     //m_graph = vertex_graph(m_vertices.get_points());
-
+    get_color_from_pictures(m_vertices.get_points(), m_digital_camera_params, m_digital_camera_textures);
     //Run ransac, right now it creates groups AND sets edge weights in graph, later on when spectral clustering is implemented the former groups won't be needed
     RunRANSAC(m_ransac_object_count);
-    randomize_vertex_colors(m_vertices.get_points());
+    //randomize_vertex_colors(m_vertices.get_points());
     set_uvs(m_vertices.get_points());
     // init_octree(m_vertices);
     // init_octree_visualization(&m_octree);
@@ -272,11 +272,13 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         }
     }
 
-    spectral_cluster(m_vertices.get_points(), 2);
+    //spectral_cluster(m_vertices.get_points(), 2);
     //spectral_cluster(m_vertices.get_points(), 1, m_vertices.get_grouped_points());
 
     init_point_visualization();
     init_mesh_visualization();
+
+    calculate_normals(m_vertices.get_points());
 }
 
 void application::init_point_visualization() {
@@ -915,8 +917,6 @@ void application::RunRANSAC(const int& objects) {
         glm::vec3 iterColor = hsl_to_rgb(hValue, 0.5f, 0.5f);
         filteredPoints.clear();
 
-        //float* bestModel;
-
         for (size_t j = 0; j < m_vertices.size(); j++) 
         {
             float distFromOrigo = glm::length(glm::vec3(m_vertices[j].position.x, m_vertices[j].position.y, m_vertices[j].position.z));
@@ -956,4 +956,171 @@ void application::RunRANSAC(const int& objects) {
         //    }
         //}
     }
+}
+
+std::vector<file_loader::vertex> application::get_points_in_range(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target) {
+    std::vector<file_loader::vertex> in_range;
+    for (auto& p : points) {
+        if (glm::distance(p.position, target.position) < r) {
+            in_range.push_back(p);
+        }
+    }
+
+    return in_range;
+}
+
+std::vector<int> application::get_points_in_range_by_index(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target) {
+    std::vector<int> in_range;
+    int i = 0;
+    for (auto& p : points) {
+        if (glm::distance(p.position, target.position) < r) {
+            in_range.push_back(i++);
+        }
+    }
+
+    return in_range;
+}
+
+glm::vec3 get_centroid(std::vector<file_loader::vertex> points) {
+    float x_sum, y_sum, z_sum;
+    x_sum = z_sum = y_sum = 0.f;
+    int n = points.size();
+
+    for (const auto& p : points) {
+        x_sum += p.position.x;
+        y_sum += p.position.y;
+        z_sum += p.position.z;
+    }
+
+    glm::vec3 centroid = { x_sum / n, y_sum / n, z_sum / n };;
+
+    return centroid;
+}
+
+void application::calculate_normals(std::vector<file_loader::vertex>& points) {
+    const float max_range = 0.5f;
+
+    for (auto& p : points) {
+        std::vector<file_loader::vertex> in_range = get_points_in_range(max_range, points, p);
+        glm::vec3 centroid = get_centroid(in_range);
+
+        Eigen::Matrix3f M;
+        M.setZero();
+        for (auto& p2 : in_range)
+        {
+            Eigen::Vector3f p_minus_centroid = Eigen::Vector3f(p2.position.x, p2.position.y, p2.position.z) - Eigen::Vector3f(centroid.x, centroid.y, centroid.z);
+            M += p_minus_centroid * p_minus_centroid.transpose();
+        }
+
+        M /= in_range.size();
+
+        Eigen::EigenSolver<Eigen::Matrix3f> es(M);
+        const int lowestEigenValueIndex = std::min({ 0,1,2 },
+            [&es](int v1, int v2) {
+                return es.eigenvalues()[v1].real() < es.eigenvalues()[v2].real();
+            });
+        float A = es.eigenvectors().col(lowestEigenValueIndex)(0).real();
+        float B = es.eigenvectors().col(lowestEigenValueIndex)(1).real();
+        float C = es.eigenvectors().col(lowestEigenValueIndex)(2).real();
+        glm::vec3 p_normal(A, B, C);
+
+        p.normal = glm::normalize(p_normal);
+    }  
+}
+
+void application::get_color_from_pictures(std::vector<file_loader::vertex>& points, file_loader::digital_camera_params camera_params, Texture2D* images) {
+    //BufferObject m_color_compute_buffer;
+    ////VertexArrayObject m_color_compute_vao;
+    //m_color_compute_buffer.BufferData(colors);
+
+    ProgramObject m_color_compute_program;
+    m_color_compute_program.Init({ {GL_COMPUTE_SHADER, "shaders/color_compute.comp"} }
+        //,
+        //{
+        //    {0, "out_buffer"},
+        //    {1, "in_buffer"}
+        //}
+        );
+
+    glm::vec3* out_buffer = new glm::vec3[points.size()];
+    GLuint SSBO2;
+    glGenBuffers(1, &SSBO2);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO2);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec3), (GLvoid*)out_buffer, GL_DYNAMIC_COPY);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO2);
+
+    glm::vec3* in_buffer = new glm::vec3[points.size()];
+    int i = 0;
+    for (const auto& p : points)
+    {
+        in_buffer[i++] = p.position;
+    }
+    GLuint SSBO1;
+    glGenBuffers(1, &SSBO1);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO1);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec3), (GLvoid*)in_buffer, GL_DYNAMIC_COPY);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, SSBO1);
+
+    //m_color_compute_buffer.Bind();
+    int x = 650;
+    int y = points.size() / x + 1;
+
+    m_color_compute_program.Use();
+    m_color_compute_program.SetUniform("cam_k", camera_params.get_cam_k());
+    m_color_compute_program.SetUniform("cam_r[0]", camera_params.devices[0].r);
+    m_color_compute_program.SetUniform("cam_r[1]", camera_params.devices[1].r);
+    m_color_compute_program.SetUniform("cam_r[2]", camera_params.devices[2].r);
+    m_color_compute_program.SetUniform("cam_t[0]", camera_params.devices[0].t);
+    m_color_compute_program.SetUniform("cam_t[1]", camera_params.devices[1].t);
+    m_color_compute_program.SetUniform("cam_t[2]", camera_params.devices[2].t);
+    m_color_compute_program.SetTexture("tex_image[0]", 0, images[0]);
+    m_color_compute_program.SetTexture("tex_image[1]", 1, images[1]);
+    m_color_compute_program.SetTexture("tex_image[2]", 2, images[2]);
+    m_color_compute_program.SetUniform("x", x);
+    m_color_compute_program.SetUniform("y", y);
+
+    glDispatchCompute(x, y, 1);
+    glMemoryBarrier(GL_QUERY_BUFFER_BARRIER_BIT || GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO2);
+    glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, points.size() * sizeof(glm::vec3), (GLvoid*)out_buffer);
+
+    for (int i = 0; i < points.size(); i++)
+    {
+        points[i].color = out_buffer[i];
+    }
+
+    //int i = 0;
+    //for (glm::vec3& col : out) {
+    //    points[i].color = col;
+    //    i++;
+    //}
+
+    //glm::mat3 cam_k = camera_params.get_cam_k();
+    //for (auto& p : points)
+    //{
+    //    int i = 0;
+    //    for (auto& device : camera_params.devices)
+    //    {
+    //        glm::vec3 p_tmp = device.r * (p.position - device.t);
+    //        float dist = p_tmp.z;
+
+    //        p_tmp /= p_tmp.z;
+    //        glm::vec2 p_c;
+    //        // get the uv coordinate
+    //        p_c.x = cam_k[0][0] * p_tmp.x + cam_k[0][2];
+    //        p_c.y = cam_k[1][1] * -p_tmp.y + cam_k[1][2];
+    //        if (dist > 0 && p_c.x >= 0 && p_c.x <= 960 && p_c.y >= 0 && p_c.y <= 600)
+    //        {
+    //            //vs_out_tex[i] = vec2(p_c.x / 960.0f, p_c.y / 600.0f);
+    //            p.color = glm::vec3(0);
+    //        }
+    //        else
+    //        {
+    //            //vs_out_tex[i] = vec2(-1, -1);
+    //        }
+
+    //        i++;
+    //    }
+    //}
 }

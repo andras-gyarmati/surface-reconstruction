@@ -412,6 +412,7 @@ RANSACDiffs runRANSACPlane(const VertexSet& pts, const std::vector<int> indices,
         << " C:" << bestModel[2] << " D:" << bestModel[3] << std::endl;
 
     RANSACDiffs differences = PlanePointRANSACDifferences(pts ,indices, bestModel, threshold);
+	differences.bestModel = bestModel;
     delete[] bestModel;
 
     return differences;

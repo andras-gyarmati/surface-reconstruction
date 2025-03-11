@@ -15,6 +15,7 @@ struct RANSACDiffs {
     int inliersNum;
     std::vector<bool> isInliers;
     std::vector<float> distances;
+    float* bestModel;
 };
 
 RANSACDiffs runRANSACPlane(const VertexSet& pts, const std::vector<int> indices, const int& iters, const float& threshold);
