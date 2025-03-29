@@ -175,11 +175,13 @@ edge::edge()
 	color_w = 0;
 	ransac_w = 0;
 	distance_w = 0;
+	accumulated_w = 0;
 }
 
 float edge::get_weight() const
 {
-	return color_w + ransac_w + distance_w;
+	//return color_w + ransac_w + distance_w;
+	return accumulated_w;
 }
 
 vertex_graph::vertex_graph(const std::vector<file_loader::vertex>& vertices)
@@ -193,9 +195,13 @@ vertex_graph::vertex_graph(const std::vector<file_loader::vertex>& vertices)
 		for (size_t j = 0; j <= i; j++)
 		{
 			edge e;
+			e.from = vertices[i];
+			e.to = vertices[j];
 			e.color_w = glm::distance(vertices[i].color, vertices[j].color) / 442.f;
 			e.ransac_w = 0;
 			e.distance_w = (glm::distance(vertices[i].position, vertices[j].position) <= 10.f) ? 1 : 0;
+
+			e.accumulated_w = graph_utils::calc_weigth(vertices[i], vertices[j]);
 
 			mat[j][i] = mat[i][j] = e;
 		}
@@ -215,6 +221,8 @@ vertex_graph::vertex_graph(const std::vector<file_loader::vertex>& vertices, con
 			edge e;
 			e.color_w = glm::distance(vertices[i].color, vertices[j].color) / 442.f;
 			e.ransac_w = 0;
+			e.from = vertices[i];
+			e.from = vertices[j];
 			for (auto& g : groups)
 			{
 				bool found_one = false;
@@ -264,6 +272,7 @@ vertex_graph::vertex_graph(const std::vector<file_loader::vertex>& vertices, con
 			//}
 
 			e.distance_w = (glm::distance(vertices[i].position, vertices[j].position) <= 10.f) ? 1 : 0;
+			e.accumulated_w = graph_utils::calc_weigth(vertices[i], vertices[j]);
 
 			mat[j][i] = mat[i][j] = e;
 		}
@@ -286,6 +295,15 @@ vertex_graph::vertex_graph(const std::unordered_map<int, supervoxel::Voxel>& vox
 		{
 			edge e;
 			glm::vec3 v_i_color = voxel_i.second.getColor();
+			
+			file_loader::vertex tmp1;
+			tmp1.normal = voxel_i.second.getNormal();
+			tmp1.position = voxel_i.second.centroid;
+			file_loader::vertex tmp2;
+			tmp2.normal = voxel_j.second.getNormal();
+			tmp2.position = voxel_j.second.centroid;
+			e.accumulated_w = graph_utils::calc_weigth(tmp1, tmp2);
+
 			glm::vec3 v_j_color = voxel_j.second.getColor();
 			e.color_w = glm::distance(v_i_color, v_j_color); /// 442.f;
 			e.ransac_w = 0;
@@ -344,6 +362,14 @@ vertex_graph::vertex_graph(const std::unordered_map<int, supervoxel::Voxel>& vox
 			e.ransac_w /= (voxel_i.second.points.size() * voxel_j.second.points.size());
 			e.distance_w = (glm::distance(voxel_i.second.centroid, voxel_j.second.centroid) <= 10.f) ? 1 : 0;
 
+			file_loader::vertex tmp1;
+			tmp1.normal = voxel_i.second.getNormal();
+			tmp1.position = voxel_i.second.centroid;
+			file_loader::vertex tmp2;
+			tmp1.normal = voxel_j.second.getNormal();
+			tmp1.position = voxel_j.second.centroid;
+			e.accumulated_w = graph_utils::calc_weigth(tmp1, tmp2);
+
 			mat[i][j] = e;
 			j++;
 		}
@@ -387,6 +413,31 @@ namespace graph_utils
 {
 	float cut(vertex_graph v) {
 		return 1.f;
+	}
+
+
+	float flux(float r) {
+		//TODO
+		return glm::exp(-(r * r) / 1);
+	}
+	
+	float calc_weigth(file_loader::vertex a, file_loader::vertex b)
+	{
+		// Gives angle between normals in radians
+		float angle = glm::asin(glm::dot(a.normal, b.normal) / (glm::length(a.normal * glm::length(b.normal))));
+		// Convert to degrees for me poor human eyes:)
+		angle = angle / glm::pi<float>() * 180.f;
+		angle = glm::abs(angle);
+		//float angle = glm::asin(glm::dot(a.position, b.position) / (glm::length(a.position * glm::length(b.position))));
+		//std::cout << a.normal.x << a.normal.y << a.normal.z << " to " << b.normal.x << b.normal.y << b.normal.z << " angle: " << angle << std::endl;
+		//plane case
+		if (angle < 10.f)
+			return 1.f;
+
+		if (glm::dot((b.normal - a.normal), (b.position - a.position)) > 0.f && (glm::dot((b.position - a.position) - (glm::dot((b.position - a.position), b.normal)), a.normal) > 0.f))
+			return 1.f;
+
+		return 0.f;
 	}
 
 	void normalized_cut(const vertex_graph& input, vertex_graph& v1, vertex_graph& v2) {
@@ -515,30 +566,149 @@ void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations, 
 	}
 }
 
-void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations) {
+void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations, float threshold) {
 	auto supervoxels = supervoxel::supervoxelSegmentation(points, 0.5, 1);
 	auto m_graph = vertex_graph(supervoxels);
 	std::queue<vertex_graph> graph_queue;
 	graph_queue.push(m_graph);
 
-	for (int i = 0; i < iterations; i++) {
-		for (int j = 0; j < pow(2, i); j++)
-		{
+	std::vector<vertex_graph> final_subgraphs;
+
+	while(!graph_queue.empty()) {
+
+	//for (int i = 0; i < iterations; i++) {
+	//	for (int j = 0; j < pow(2, i); j++)
+	//	{
 			vertex_graph act = graph_queue.front();
 			graph_queue.pop();
 			vertex_graph v1, v2;
 
-			graph_utils::normalized_cut(act, v1, v2);
+			//graph_utils::normalized_cut(act, v1, v2);
+#pragma region calc eigenvector
+			const size_t num = act.mat.size();
 
-			graph_queue.push(v1);
-			graph_queue.push(v2);
+			Eigen::MatrixXf D(num, num);
+			Eigen::MatrixXf W(num, num);
+
+			//Create D diagonal matrix and W symmetric matrix and L laplacian matrix
+			for (size_t i = 0; i < num; i++)
+			{
+				for (size_t j = 0; j < num; j++)
+				{
+					if (i == j)
+					{
+						D(i, j) = static_cast<float>(num);
+						W(i, j) = 0.f;
+					}
+					else
+					{
+						D(i, j) = 0.f;
+						W(i, j) = act.mat[i][j].get_weight();
+
+					}
+				}
+			}
+			//std::ofstream dout("D.txt");
+			//std::ofstream wout("W.txt");
+			//std::ofstream lout("L.txt");
+			//dout << D << "\n";
+			//wout << W << "\n";
+			Eigen::MatrixXf L = D - W;
+			//lout << L << "\n";
+
+			//Solve generalized linear model
+			Eigen::GeneralizedSelfAdjointEigenSolver<Eigen::MatrixXf> ges;
+			ges.compute(L, D);
+
+			//Get Fiedler vector (eigenvector of second smallest eigenvalue)
+			int smallest = 0;
+			int second_smallest = 1;
+			int tmp;
+			if (ges.eigenvalues()[smallest] > ges.eigenvalues()[second_smallest])
+			{
+				tmp = smallest;
+				smallest = second_smallest;
+				second_smallest = tmp;
+			}
+
+			for (int i = 2; i < ges.eigenvalues().size(); i++)
+			{
+				if (ges.eigenvalues()[i] < ges.eigenvalues()[smallest])
+				{
+					second_smallest = smallest;
+					smallest = i;
+				}
+				else if (ges.eigenvalues()[i] < ges.eigenvalues()[second_smallest])
+				{
+					second_smallest = i;
+				}
+			}
+
+			auto eigenvector = ges.eigenvectors().col(second_smallest);
+#pragma endregion
+
+#pragma check to threshold
+			float average_cost = 0.f;
+			int cut_count = 0;
+			for (int i = 0; i < act.mat.size(); i++) {
+				for (int j = 0; j < eigenvector.size(); j++)
+				{
+					if (i == j)
+						continue;
+					
+					if (eigenvector[i] != eigenvector(j))
+					{
+						average_cost += act.mat[i][j].accumulated_w;
+						cut_count++;
+					}
+				}
+			}
+			average_cost /= cut_count;
+
+			if (average_cost < threshold) {
+#pragma region cut if allowed
+				std::vector<file_loader::vertex*> out_1;
+				std::vector<file_loader::vertex*> out_2;
+				for (int i = 0; i < act.nodes.size(); i++)
+				{
+					auto curr = act.nodes[i];
+					for (auto v : curr.points)
+					{
+						if (eigenvector[i] < 0)
+						{
+							out_1.push_back(v);
+						}
+						else
+						{
+							out_2.push_back(v);
+						}
+					}
+				}
+
+				v1 = vertex_graph(supervoxel::supervoxelSegmentation(out_1, 0.5, 1));
+				v2 = vertex_graph(supervoxel::supervoxelSegmentation(out_2, 0.5, 1));
+#pragma endregion
+
+				if (v1.nodes.size() >= 3 && v2.nodes.size() >= 3)
+				{
+					graph_queue.push(v1);
+					graph_queue.push(v2);
+				}
+				else
+				{
+					final_subgraphs.push_back(act);
+				}
+			}
+			else 
+			{
+				final_subgraphs.push_back(act);
+			}
+#pragma endregion
 		}
-	}
+	//}
 
-	while (!graph_queue.empty())
+	for(auto graph : final_subgraphs)
 	{
-		auto graph = graph_queue.front();
-		graph_queue.pop();
 		glm::vec3 c = get_random_color();
 		for (const auto& v : graph.nodes)
 		{

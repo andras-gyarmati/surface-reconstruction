@@ -48,16 +48,16 @@ void main()
         }
     }
 
-    vec4 weighted_color = vec4(0);
-    for (int i = 0; i < 3; i++)
-    {
-        if(local_colors[i] != vec4(0))
-        {
-            weighted_color
-        }
+//    vec4 weighted_color = vec4(0);
+//    for (int i = 0; i < 3; i++)
+//    {
+//        if(local_colors[i] != vec4(0))
+//        {
+//            weighted_color
+//        }
 //        if (d_pixels[i].z > 0 && d_pixels[i].x >= 0 && d_pixels[i].x <= 960 && d_pixels[i].y >= 0 && d_pixels[i].y <= 600)
 //        {
 //            local_colors[i] = texture(tex_image[i], vec2(d_pixels[i].x / 960.0f, d_pixels[i].y / 600.0f));
 //        }
-    }
+//    }
 }

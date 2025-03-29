@@ -196,8 +196,6 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     m_digital_camera_params = file_loader::load_digital_camera_params("inputs\\CameraParametersMinimal.txt");
     std::cout << "Loaded digital camera parameters from inputs\\CameraParametersMinimal.txt" << std::endl;
 
-    //First init graph, this creates color weights
-    //m_graph = vertex_graph(m_vertices.get_points());
     get_color_from_pictures(m_vertices.get_points(), m_digital_camera_params, m_digital_camera_textures);
     //Run ransac, right now it creates groups AND sets edge weights in graph, later on when spectral clustering is implemented the former groups won't be needed
     RunRANSAC(m_ransac_object_count);
@@ -261,24 +259,26 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
         i++;
     }
 
-    m_graph = supervoxel::supervoxelSegmentation(m_vertices.get_points(), 0.5, 1);
-    for (auto& v : m_graph.nodes)
-    {
-        glm::vec3 c = get_random_color();
+    //m_graph = supervoxel::supervoxelSegmentation(m_vertices.get_points(), 0.5, 1);
+    //for (auto& v : m_graph.nodes)
+    //{
+    //    glm::vec3 c = get_random_color();
 
-        for (auto& p : v.points)
-        {
-            p->uv_stretch = c;
-        }
-    }
+    //    for (auto& p : v.points)
+    //    {
+    //        p->uv_stretch = c;
+    //    }
+    //}
 
-    //spectral_cluster(m_vertices.get_points(), 2);
-    //spectral_cluster(m_vertices.get_points(), 1, m_vertices.get_grouped_points());
+    //spectral_cluster(m_vertices.get_points(), 3, m_vertices.get_grouped_points());
 
     init_point_visualization();
     init_mesh_visualization();
 
     calculate_normals(m_vertices.get_points());
+    //First init graph, this creates color weights
+    //m_graph = vertex_graph(m_vertices.get_points());
+    spectral_cluster(m_vertices.get_points(), 0, m_max_cut_cost);
 }
 
 void application::init_point_visualization() {
@@ -300,18 +300,8 @@ void application::init_debug_sphere() {
             m_debug_sphere[i + j * (m_debug_sphere_n + 1)].position = get_sphere_pos(
                 (float)(i) / (float)(m_debug_sphere_n),
                 (float)(j) / (float)(m_debug_sphere_m));
-    //calculate_normals(m_debug_sphere);
+    calculate_normals(m_debug_sphere);
     get_color_from_pictures(m_debug_sphere, m_digital_camera_params, m_digital_camera_textures);
-    m_debug_sphere_buffer.BufferData(m_debug_sphere);
-    m_debug_sphere_vao.Init({
-        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_debug_sphere_buffer},
-        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_debug_sphere_buffer},
-        {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, ransac)}, m_debug_sphere_buffer},
-        {AttributeData{3, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_debug_sphere_buffer},
-        {AttributeData{4, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, uv_stretch)}, m_debug_sphere_buffer},
-        {AttributeData{5, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, bfs_col)}, m_debug_sphere_buffer}
-    });
-
     octree_vertex::boundary b = octree_vertex::calc_boundary(m_debug_sphere);
     octree_vertex sphere_octree(b.m_top_left_front, b.m_bottom_right_back);
     for (auto& p : m_debug_sphere)
@@ -322,8 +312,23 @@ void application::init_debug_sphere() {
     auto res = sphere_octree.find_k_nearest(file_loader::vertex(), 4);
     for (const auto& p : res)
     {
+        p->color = glm::vec3(100, 0, 0);
         std::cout << p->position.x << p->position.y << p->position.z << std::endl;
     }
+
+    spectral_cluster(m_debug_sphere, 0, m_max_cut_cost);
+
+    m_debug_sphere_buffer.BufferData(m_debug_sphere);
+    m_debug_sphere_vao.Init({
+        {AttributeData{0, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, position)}, m_debug_sphere_buffer},
+        {AttributeData{1, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, color)}, m_debug_sphere_buffer},
+        {AttributeData{2, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, ransac)}, m_debug_sphere_buffer},
+        {AttributeData{3, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, normal)}, m_debug_sphere_buffer},
+        {AttributeData{4, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, uv_stretch)}, m_debug_sphere_buffer},
+        {AttributeData{5, 3, GL_FLOAT, GL_FALSE, sizeof(file_loader::vertex), (void*)offsetof(file_loader::vertex, bfs_col)}, m_debug_sphere_buffer}
+    });
+
+
 }
 
 void application::init_octree(const std::vector<file_loader::vertex>& vertices) {
@@ -996,8 +1001,9 @@ std::vector<int> application::get_points_in_range_by_index(float r, const std::v
     int i = 0;
     for (auto& p : points) {
         if (glm::distance(p.position, target.position) < r) {
-            in_range.push_back(i++);
+            in_range.push_back(i);
         }
+        i++;
     }
 
     return in_range;
@@ -1020,10 +1026,17 @@ glm::vec3 get_centroid(std::vector<file_loader::vertex> points) {
 }
 
 void application::calculate_normals(std::vector<file_loader::vertex>& points) {
-    const float max_range = 0.05f;
+    const float max_range = 1.f;
 
     for (auto& p : points) {
         std::vector<file_loader::vertex> in_range = get_points_in_range(max_range, points, p);
+        std::vector<int> in_range_ind = get_points_in_range_by_index(max_range, points, p);
+
+        float* n_2_raw = new float[3];
+        n_2_raw = EstimatePlaneImplicit(points, in_range_ind);
+        glm::vec3 n_2 = glm::vec3(n_2_raw[0], n_2_raw[1], n_2_raw[2]);
+        delete[] n_2_raw;
+
         glm::vec3 centroid = get_centroid(in_range);
 
         Eigen::Matrix3f M;
@@ -1046,7 +1059,20 @@ void application::calculate_normals(std::vector<file_loader::vertex>& points) {
         float C = es.eigenvectors().col(lowestEigenValueIndex)(2).real();
         glm::vec3 p_normal(A, B, C);
 
-        p.normal = glm::normalize(p_normal);
+        if (glm::dot(p_normal, (-p.position)) <= 0)
+        {
+            p_normal = -p_normal;
+        }
+
+        if (glm::dot(n_2, (-p.position)) <= 0)
+        {
+            n_2 = -n_2;
+        }
+
+        p.normal = p_normal;
+        p.uv_stretch = n_2;
+
+        //std::cout << p_normal.x << "," << p_normal.y << "," << p_normal.z << "  -  " << n_2.x << "," << n_2.y << "," << n_2.z << std::endl;
     }  
 }
 

@@ -276,8 +276,8 @@ protected:
 
     // numeric values
     int m_render_points_up_to_index;
-    int m_debug_sphere_n = 959;
-    int m_debug_sphere_m = 959;
+    int m_debug_sphere_n = 100; // 959;
+    int m_debug_sphere_m = 100; //959;
     float m_point_size;
     float m_uv_stretch_scalar;
     float m_normal_cut_scalar;
@@ -288,6 +288,7 @@ protected:
     float m_neighbor_distance = 0.75f;
     int m_min_group_size = 25;
     int m_sec_per_frame;
+    float m_max_cut_cost = 0.8f;
         
     // other objects
     SDL_Window* m_window{};
@@ -302,7 +303,7 @@ protected:
     file_loader::digital_camera_params m_digital_camera_params;
     char m_input_folder[256]{};
     Texture2D m_digital_camera_textures[3];
-    std::vector<glm::vec3> m_debug_sphere;
+    std::vector<file_loader::vertex> m_debug_sphere;
 
     // ransac
     int m_ransac_object_count = 4;

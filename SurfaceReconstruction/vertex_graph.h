@@ -29,7 +29,10 @@ struct edge
 	float color_w;
 	float ransac_w;
 	float distance_w;
-	//float normal_w;
+	float normal_w;
+	file_loader::vertex from;
+	file_loader::vertex to;
+	float accumulated_w;
 
 	edge();
 
@@ -69,10 +72,12 @@ namespace graph_utils
 	//Minimal cost of cut
 	float cut(vertex_graph v);
 
+	float calc_weigth(file_loader::vertex a, file_loader::vertex b);
+
 	void normalized_cut(const vertex_graph& input, vertex_graph& v1, vertex_graph& v2);
 }
 
-void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations);
+void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations, float threshold);
 
 void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations, const std::vector<std::vector<int>>& groups);
 

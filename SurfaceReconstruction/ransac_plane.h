@@ -18,4 +18,6 @@ struct RANSACDiffs {
     float* bestModel;
 };
 
+float* EstimatePlaneImplicit(const VertexSet& pts, const std::vector<int>& indices);
+
 RANSACDiffs runRANSACPlane(const VertexSet& pts, const std::vector<int> indices, const int& iters, const float& threshold);
