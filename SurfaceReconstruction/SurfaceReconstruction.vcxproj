@@ -79,8 +79,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>T:\fadeRelease_v2.12\include_fade2d;T:\OGLPack\include;T:\eigen-3.4.0;T:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\include;$(IncludePath)</IncludePath>
-    <LibraryPath>T:\fadeRelease_v2.12\x64;T:\OGLPack\lib\x64;T:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>T:\fadeRelease_v2.12\include_fade2d;T:\OGLPack\include;T:\eigen-3.4.0;T:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\include;T:\vcpkg\installed\x64-windows-static\include;$(IncludePath)</IncludePath>
+    <LibraryPath>T:\vcpkg\installed\x64-windows-static\lib;T:\fadeRelease_v2.12\x64;T:\OGLPack\lib\x64;T:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -181,6 +181,7 @@
     <ClInclude Include="Includes\VertexArrayObject.h" />
     <ClInclude Include="application.h" />
     <ClInclude Include="octree.h" />
+    <ClInclude Include="octree_vertex.h" />
     <ClInclude Include="ransac_plane.h" />
     <ClInclude Include="VertexSet.h" />
     <ClInclude Include="T:\OGLPack\include\imgui\imconfig.h" />

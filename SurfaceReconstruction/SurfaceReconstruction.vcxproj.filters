@@ -99,6 +99,9 @@
     <ClInclude Include="ransac_plane.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="octree_vertex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

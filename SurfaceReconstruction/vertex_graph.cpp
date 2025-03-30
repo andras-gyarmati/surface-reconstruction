@@ -3,6 +3,12 @@
 #include <fstream>
 #include "octree.h"
 #include <glm/glm.hpp>
+#include <pcl/console/parse.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/segmentation/supervoxel_clustering.h>
 
 namespace supervoxel
 {
@@ -40,6 +46,22 @@ namespace supervoxel
 		float seed_resolution 
 	) 
 	{
+		typedef pcl::PointXYZRGBA PointT;
+		typedef pcl::PointCloud<PointT> PointCloudT;
+		typedef pcl::PointNormal PointNT;
+		typedef pcl::PointCloud<PointNT> PointNCloudT;
+		typedef pcl::PointXYZL PointLT;
+		typedef pcl::PointCloud<PointLT> PointLCloudT;
+	
+		PointCloudT::Ptr cloud(new PointCloudT);
+
+		
+		pcl::SupervoxelClustering<PointT> super();
+		super.setInputCloud(cloud);
+		super.setColorImportance(color_importance);
+		super.setSpatialImportance(spatial_importance);
+		super.setNormalImportance(normal_importance);
+
 		// Step 1: Create a voxel grid
 		std::unordered_map<int, Voxel> voxels;
 		for (auto& point : points) {
@@ -532,6 +554,7 @@ namespace graph_utils
 void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations, const std::vector<std::vector<int>>& groups)
 {
 	auto supervoxels = supervoxel::supervoxelSegmentation(points, 0.5, 1);
+
 	auto m_graph = vertex_graph(supervoxels, groups, points);
 	std::queue<vertex_graph> graph_queue;
 	graph_queue.push(m_graph);
@@ -581,7 +604,6 @@ void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations, 
 	//	{
 			vertex_graph act = graph_queue.front();
 			graph_queue.pop();
-			vertex_graph v1, v2;
 
 			//graph_utils::normalized_cut(act, v1, v2);
 #pragma region calc eigenvector
@@ -684,7 +706,7 @@ void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations, 
 						}
 					}
 				}
-
+				vertex_graph v1, v2;
 				v1 = vertex_graph(supervoxel::supervoxelSegmentation(out_1, 0.5, 1));
 				v2 = vertex_graph(supervoxel::supervoxelSegmentation(out_2, 0.5, 1));
 #pragma endregion
