@@ -42,8 +42,12 @@ struct edge
 class vertex_graph
 {
 public:
-	std::vector<std::vector<edge>> mat;
-	std::vector<supervoxel::Voxel> nodes;
+	// std::vector<std::vector<edge>> mat;
+	std::unordered_map<std::uint32_t, std::unordered_map<std::uint32_t, edge>> mat;
+	std::unordered_map<std::uint32_t, supervoxel::Voxel> nodes;
+	// std::vector<supervoxel::Voxel> nodes;
+	std:unordered_map<std::uint32_t, std::uint32_t> adjacency
+	
 
 	vertex_graph() = default;
 

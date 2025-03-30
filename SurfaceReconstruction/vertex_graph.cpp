@@ -43,26 +43,14 @@ namespace supervoxel
 	(
 		std::vector<file_loader::vertex>& points,
 		float voxel_resolution,
-		float seed_resolution 
+		float seed_resolution,
+		float color_importance,
+		float spatial_importance,
+		float normal_importance
 	) 
 	{
-		typedef pcl::PointXYZRGBA PointT;
-		typedef pcl::PointCloud<PointT> PointCloudT;
-		typedef pcl::PointNormal PointNT;
-		typedef pcl::PointCloud<PointNT> PointNCloudT;
-		typedef pcl::PointXYZL PointLT;
-		typedef pcl::PointCloud<PointLT> PointLCloudT;
-	
-		PointCloudT::Ptr cloud(new PointCloudT);
 
-		
-		pcl::SupervoxelClustering<PointT> super();
-		super.setInputCloud(cloud);
-		super.setColorImportance(color_importance);
-		super.setSpatialImportance(spatial_importance);
-		super.setNormalImportance(normal_importance);
-
-		// Step 1: Create a voxel grid
+	// Step 1: Create a voxel grid
 		std::unordered_map<int, Voxel> voxels;
 		for (auto& point : points) {
 			int grid_x = static_cast<int>(std::floor(point.position.x / voxel_resolution));
@@ -209,25 +197,112 @@ float edge::get_weight() const
 vertex_graph::vertex_graph(const std::vector<file_loader::vertex>& vertices)
 {
 	const size_t num = vertices.size();
-
 	mat = std::vector<std::vector<edge>>(num, std::vector<edge>(num, edge()));
 
-	for (size_t i = 0; i < num; i++)
+	typedef pcl::PointXYZRGBNormal PointT;
+	typedef pcl::PointCloud<PointT> PointCloudT;
+	typedef pcl::PointNormal PointNT;
+	typedef pcl::PointCloud<PointNT> PointNCloudT;
+	typedef pcl::PointXYZL PointLT;
+	typedef pcl::PointCloud<PointLT> PointLCloudT;
+
+	PointCloudT::Ptr cloud(new PointCloudT);
+	for(auto& p : points)
 	{
-		for (size_t j = 0; j <= i; j++)
+		PointT tmp(p.position.x, p.position.y, p.position.z,
+			0,0,0,
+			p.normal.x, p.normal.y, p.normal.z);
+
+		std::uint8_t r = p.color.x, g = p.color.y, b = p.color.z;
+		std::uint32_t rgb = ((std::uint32_t)r << 16 | (std::uint32_t)g << 8 | (std::uint32_t)b);
+		tmp.rgb = *reinterpret_cast<float*>(&rgb);
+
+		tmp.push_back(tmp);
+	}
+	
+	pcl::SupervoxelClustering<PointT> super(voxel_resolution, seed_resolution);
+	super.setInputCloud(cloud);
+	super.setColorImportance(color_importance);
+	super.setSpatialImportance(spatial_importance);
+	super.setNormalImportance(normal_importance);
+	std::map <std::uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxel_clusters;
+	for(auto& c : supervoxel_clusters)
+	{
+		if(nodes.find(c.first) == nodes.end())
 		{
-			edge e;
-			e.from = vertices[i];
-			e.to = vertices[j];
-			e.color_w = glm::distance(vertices[i].color, vertices[j].color) / 442.f;
-			e.ransac_w = 0;
-			e.distance_w = (glm::distance(vertices[i].position, vertices[j].position) <= 10.f) ? 1 : 0;
-
-			e.accumulated_w = graph_utils::calc_weigth(vertices[i], vertices[j]);
-
-			mat[j][i] = mat[i][j] = e;
+			nodes[c.first] = Supervoxel::voxel();
+			PointCloudT points_of_supervoxel = c.second.voxels_;
+			for (auto p : points_of_supervoxel)
+			{
+				glm::vec3 cluster_pos = glm::vec3(p.x, p.y, p.z);
+				for(auto& tmp : vertices)
+				{
+					if(cluster_pos == tmp.position)
+						nodes[c.first].points.push_back(tmp)
+				}
+			}
 		}
 	}
+
+	super.extract (supervoxel_clusters);
+
+	pcl::visualization::PCLVisualizer::Ptr viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
+	viewer->setBackgroundColor (0, 0, 0);
+	PointLCloudT::Ptr labeled_voxel_cloud = super.getLabeledVoxelCloud ();
+	viewer->addPointCloud (labeled_voxel_cloud, "labeled voxels");
+	viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_OPACITY,0.8, "labeled voxels");	  
+
+	std::multimap<std::uint32_t, std::uint32_t> supervoxel_adjacency;
+	super.getSupervoxelAdjacency (supervoxel_adjacency);
+	for (auto label_itr = supervoxel_adjacency.cbegin (); label_itr != supervoxel_adjacency.cend (); )
+	{
+		//First get the label
+		std::uint32_t supervoxel_label = label_itr->first;
+		//Now get the supervoxel corresponding to the label
+		pcl::Supervoxel<PointT>::Ptr supervoxel = supervoxel_clusters.at(supervoxel_label);
+
+		//Now we need to iterate through the adjacent supervoxels and make a point cloud of them
+		PointCloudT adjacent_supervoxel_centers;
+	
+		for (auto adjacent_itr = supervoxel_adjacency.equal_range (supervoxel_label).first; adjacent_itr!=supervoxel_adjacency.equal_range (supervoxel_label).second; ++adjacent_itr)
+		{
+			edge e;
+			e.accumulated_w = graph_utils::calc_weigth(nodes[supervoxel_label], nodes[adjacent_itr]);
+			mat[supervoxel_label][adjacent_itr] = mat[adjacent_itr][supervoxel_label] = e;
+			// pcl::Supervoxel<PointT>::Ptr neighbor_supervoxel = supervoxel_clusters.at (adjacent_itr->second);
+			// adjacent_supervoxel_centers.push_back (neighbor_supervoxel->centroid_);
+		}
+	
+		//Now we make a name for this polygon
+		std::stringstream ss;
+		ss << "supervoxel_" << supervoxel_label;
+		//This function is shown below, but is beyond the scope of this tutorial - basically it just generates a "star" polygon mesh from the points given
+		addSupervoxelConnectionsToViewer (supervoxel->centroid_, adjacent_supervoxel_centers, ss.str (), viewer);
+		//Move iterator forward to next label
+		label_itr = supervoxel_adjacency.upper_bound (supervoxel_label);
+	}
+
+	//TODO
+	// const size_t num = vertices.size();
+
+	// mat = std::vector<std::vector<edge>>(num, std::vector<edge>(num, edge()));
+
+	// for (size_t i = 0; i < num; i++)
+	// {
+	// 	for (size_t j = 0; j <= i; j++)
+	// 	{
+	// 		edge e;
+	// 		e.from = vertices[i];
+	// 		e.to = vertices[j];
+	// 		e.color_w = glm::distance(vertices[i].color, vertices[j].color) / 442.f;
+	// 		e.ransac_w = 0;
+	// 		e.distance_w = (glm::distance(vertices[i].position, vertices[j].position) <= 10.f) ? 1 : 0;
+
+	// 		e.accumulated_w = graph_utils::calc_weigth(vertices[i], vertices[j]);
+
+	// 		mat[j][i] = mat[i][j] = e;
+	// 	}
+	// }
 }
 
 vertex_graph::vertex_graph(const std::vector<file_loader::vertex>& vertices, const std::vector<std::vector<int>>& groups)
@@ -607,7 +682,7 @@ void spectral_cluster(std::vector<file_loader::vertex>& points, int iterations, 
 
 			//graph_utils::normalized_cut(act, v1, v2);
 #pragma region calc eigenvector
-			const size_t num = act.mat.size();
+			const size_t num = act.nodes.size();
 
 			Eigen::MatrixXf D(num, num);
 			Eigen::MatrixXf W(num, num);
