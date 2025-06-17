@@ -203,11 +203,11 @@ public:
     //RANSAC 
     void RunRANSAC(const int& objects);
 
-    void calculate_normals(std::vector<file_loader::vertex>& points);
+    //void calculate_normals(std::vector<file_loader::vertex>& points);
 
-    std::vector<file_loader::vertex> get_points_in_range(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target);
+    //std::vector<file_loader::vertex> get_points_in_range(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target);
 
-    std::vector<int> get_points_in_range_by_index(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target);
+    //std::vector<int> get_points_in_range_by_index(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target);
 
     void get_color_from_pictures(std::vector<file_loader::vertex>& points, file_loader::digital_camera_params camera_params, Texture2D* images);
 
@@ -276,8 +276,10 @@ protected:
 
     // numeric values
     int m_render_points_up_to_index;
-    int m_debug_sphere_n = 100; // 959;
-    int m_debug_sphere_m = 100; //959;
+    //int m_debug_sphere_n = 100;
+    int m_debug_sphere_n = 959;
+    //int m_debug_sphere_m = 100;
+    int m_debug_sphere_m = 959;
     float m_point_size;
     float m_uv_stretch_scalar;
     float m_normal_cut_scalar;
@@ -289,6 +291,11 @@ protected:
     int m_min_group_size = 25;
     int m_sec_per_frame;
     float m_max_cut_cost = 0.8f;
+    //float m_normal_range_threshold = 0.1f;
+    float m_normal_range_threshold = 1.f;
+    float m_normal_range_steps = 0.5f;
+    int m_normal_least_points = 8;
+    float m_time_since_last_refresh = 0.f;
         
     // other objects
     SDL_Window* m_window{};
@@ -307,6 +314,6 @@ protected:
 
     // ransac
     int m_ransac_object_count = 4;
-    float m_ransac_threshold = 0.05f;
+    float m_ransac_threshold = 0.2f;
     int m_ransac_iter = 50000;
 };

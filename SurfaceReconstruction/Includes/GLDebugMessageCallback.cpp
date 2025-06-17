@@ -155,6 +155,6 @@ void GLAPIENTRY GLDebugMessageCallback(GLenum source, GLenum type, GLuint id,
     //     (a nyíl a hibát jelző utasítást követő sorra mutat!).
     // 3. A program innen folytatható (zöld háromszög - Continue / F5)
     //     vagy megállítható (piros négyzet - Stop / Shift + F5).
-    __debugbreak();
+    //__debugbreak();
 #endif
 }

@@ -11,6 +11,7 @@
 #include "delaunay_3d.h"
 #include "ransac_plane.h"
 #include <chrono>
+#include "normals.h"
 
 application::application(void) {
     m_start_eye = glm::vec3(0, 0, 0);
@@ -73,10 +74,10 @@ bool application::init(SDL_Window* window) {
                             });
     m_wireframe_program.Init({{GL_VERTEX_SHADER, "shaders/wireframe.vert"}, {GL_FRAGMENT_SHADER, "shaders/wireframe.frag"}}, {{0, "vs_in_pos"}, {1, "vs_in_col"},});
 
-    load_inputs_from_folder("inputs\\garazs_kijarat");
-    //load_inputs_from_folder("inputs\\elte_logo");
+    //load_inputs_from_folder("inputs\\garazs_kijarat");
+    load_inputs_from_folder("inputs\\elte_logo");
     //load_inputs_from_folder("inputs\\parkolo_gomb");
-    init_debug_sphere();
+    //init_debug_sphere();
 
     init_sensor_rig_boundary_visualization();
 
@@ -102,9 +103,18 @@ void application::update() {
     m_virtual_camera.Update(delta_time);
     last_time = SDL_GetTicks();
     m_time_since_last_bfs_paint += delta_time;
+    m_time_since_last_refresh += delta_time;
 
     if (m_auto_increment_rendered_point_index && m_render_points_up_to_index < m_vertices.size()) {
         m_render_points_up_to_index += 1;
+    }
+
+    if (m_real_time && m_time_since_last_refresh >= (m_sec_per_frame))
+    {
+        //RunRANSAC(m_ransac_object_count);
+        get_color_from_pictures(m_vertices.get_points(), m_digital_camera_params, m_digital_camera_textures);
+        calculate_normals(m_vertices.get_points(), m_normal_range_threshold, m_normal_range_steps, m_normal_least_points, m_virtual_camera.GetEye());
+        m_time_since_last_refresh = 0;
     }
 }
 
@@ -167,6 +177,28 @@ void application::mouse_wheel(const SDL_MouseWheelEvent& wheel) {}
 void application::resize(int _w, int _h) {
     glViewport(0, 0, _w, _h);
     m_virtual_camera.Resize(_w, _h);
+}
+
+void time_it(std::vector<file_loader::vertex>& m_vertices, glm::vec3 cam)
+{
+    auto steps = { 0.1f, 0.2f, 0.3f, 0.4f, 0.5f };
+    auto init = { 0.1f, 0.2f, 0.5f, 1.f };
+    auto nums = { 3, 5, 8, 16 };
+
+    for (auto s : steps)
+    {
+        for (auto t : init)
+        {
+            for (auto n : nums)
+            {
+                auto start = std::chrono::system_clock::now();
+                calculate_normals(m_vertices, t, s, n, cam);
+                auto end = std::chrono::system_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+                std::cout << "Normal init: " << t << " step: " << s << " num: " << n << " took: " << elapsed.count() << '\n';
+            }
+        }
+    }
 }
 
 void application::load_inputs_from_folder(const std::string& folder_name) {
@@ -275,11 +307,46 @@ void application::load_inputs_from_folder(const std::string& folder_name) {
     init_point_visualization();
     init_mesh_visualization();
 
-    calculate_normals(m_vertices.get_points());
+    auto start = std::chrono::system_clock::now();
+    calculate_normals(m_vertices.get_points(), m_normal_range_threshold, m_normal_range_steps, m_normal_least_points, m_virtual_camera.GetEye());
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Normals took: " << elapsed.count() << '\n';
+
     //First init graph, this creates color weights
     //m_graph = vertex_graph(m_vertices.get_points());
-    spectral_cluster(m_vertices.get_points(), 0, m_max_cut_cost);
+    //spectral_cluster(m_vertices.get_points(), 0, m_max_cut_cost);
+
+    ///TIMEIT
+    //start = std::chrono::system_clock::now();
+    //calculate_normals(m_vertices.get_points(), 0.1f, 0.1f, 8, m_virtual_camera.GetEye());
+    //end = std::chrono::system_clock::now();
+    //elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //std::cout << "Normals 1 1 took: " << elapsed.count() << '\n';
+
+    //start = std::chrono::system_clock::now();
+    //calculate_normals(m_vertices.get_points(), 0.2f, 0.1f, 8, m_virtual_camera.GetEye());
+    //end = std::chrono::system_clock::now();
+    //elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //std::cout << "Normals 1 2 took: " << elapsed.count() << '\n';
+
+    //start = std::chrono::system_clock::now();
+    //calculate_normals(m_vertices.get_points(), 0.5f, 0.1f, 8, m_virtual_camera.GetEye());
+    //end = std::chrono::system_clock::now();
+    //elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //std::cout << "Normals 1 3 took: " << elapsed.count() << '\n';
+
+    //start = std::chrono::system_clock::now();
+    //calculate_normals(m_vertices.get_points(), 1.0f, 0.1f, 8, m_virtual_camera.GetEye());
+    //end = std::chrono::system_clock::now();
+    //elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //std::cout << "Normals 1 4 took: " << elapsed.count() << '\n';
+
+    //time_it(m_vertices.get_points(), m_virtual_camera.GetEye());
 }
+
+
+
 
 void application::init_point_visualization() {
     m_particle_buffer.BufferData(m_vertices.get_points_to_render());
@@ -300,7 +367,7 @@ void application::init_debug_sphere() {
             m_debug_sphere[i + j * (m_debug_sphere_n + 1)].position = get_sphere_pos(
                 (float)(i) / (float)(m_debug_sphere_n),
                 (float)(j) / (float)(m_debug_sphere_m));
-    calculate_normals(m_debug_sphere);
+    //calculate_normals(m_debug_sphere, m_normal_range_threshold);
     get_color_from_pictures(m_debug_sphere, m_digital_camera_params, m_digital_camera_textures);
     octree_vertex::boundary b = octree_vertex::calc_boundary(m_debug_sphere);
     octree_vertex sphere_octree(b.m_top_left_front, b.m_bottom_right_back);
@@ -313,10 +380,10 @@ void application::init_debug_sphere() {
     for (const auto& p : res)
     {
         p->color = glm::vec3(100, 0, 0);
-        std::cout << p->position.x << p->position.y << p->position.z << std::endl;
+        //std::cout << p->position.x << p->position.y << p->position.z << std::endl;
     }
 
-    spectral_cluster(m_debug_sphere, 0, m_max_cut_cost);
+    //spectral_cluster(m_debug_sphere, 0, m_max_cut_cost);
 
     m_debug_sphere_buffer.BufferData(m_debug_sphere);
     m_debug_sphere_vao.Init({
@@ -634,10 +701,8 @@ void application::render_imgui() {
         }
         if (ImGui::CollapsingHeader("app flow")) {
             ImGui::Checkbox("real time", &m_real_time);
-            if(m_real_time) {
-                ImGui::SameLine();
-                ImGui::SliderInt("sec/frame", &m_sec_per_frame, 1, 30);
-            }
+            ImGui::SameLine();
+            ImGui::SliderInt("sec/frame", &m_sec_per_frame, 1, 30);
         }
         if (ImGui::CollapsingHeader("points")) {
             ImGui::Checkbox("show points", &m_show_points);
@@ -668,6 +733,20 @@ void application::render_imgui() {
                     ++m_render_points_up_to_index;
                 }
             }
+        }
+        if (ImGui::CollapsingHeader("normals")) {
+            ImGui::Text("Smallest number of points needed: %d", m_normal_least_points);
+            ImGui::SameLine();
+            if (ImGui::Button("-1")) {
+                if (m_normal_least_points >= 4)
+                    m_normal_least_points--;
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("+1")) {
+                m_normal_least_points++;
+            }
+            ImGui::SliderFloat("initial range threshold", &m_normal_range_threshold, 0.001f, 2.0f);
+            ImGui::SliderFloat("range threshold step", &m_normal_range_steps, 0.01, 0.5f);
         }
         if (ImGui::CollapsingHeader("ransac")) {
             ImGui::Text("ransac planes: %d", m_ransac_object_count);
@@ -964,7 +1043,7 @@ void application::RunRANSAC(const int& objects) {
         std::cout << "Ransac took: " << elapsed.count() << '\n';
         //Color inlier points
 
-        std::cout << differences.inliersNum << std::endl;
+        //std::cout << differences.inliersNum << std::endl;
         std::vector<int> points_to_group;
         for (int idx = 0; idx < num; idx++) {
             if (differences.isInliers.at(idx)) {
@@ -985,98 +1064,100 @@ void application::RunRANSAC(const int& objects) {
     }
 }
 
-std::vector<file_loader::vertex> application::get_points_in_range(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target) {
-    std::vector<file_loader::vertex> in_range;
-    for (auto& p : points) {
-        if (glm::distance(p.position, target.position) < r) {
-            in_range.push_back(p);
-        }
-    }
+//std::vector<file_loader::vertex> application::get_points_in_range(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target) {
+//    std::vector<file_loader::vertex> in_range;
+//    for (auto& p : points) {
+//        if (glm::distance(p.position, target.position) < r) {
+//            in_range.push_back(p);
+//        }
+//    }
+//
+//    return in_range;
+//}
+//
+//std::vector<int> application::get_points_in_range_by_index(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target) {
+//    std::vector<int> in_range;
+//    int i = 0;
+//    for (auto& p : points) {
+//        if (glm::distance(p.position, target.position) < r) {
+//            in_range.push_back(i);
+//        }
+//        i++;
+//    }
+//
+//    return in_range;
+//}
 
-    return in_range;
-}
+//glm::vec3 get_centroid(std::vector<file_loader::vertex> points) {
+//    float x_sum, y_sum, z_sum;
+//    x_sum = z_sum = y_sum = 0.f;
+//    int n = points.size();
+//
+//    for (const auto& p : points) {
+//        x_sum += p.position.x;
+//        y_sum += p.position.y;
+//        z_sum += p.position.z;
+//    }
+//
+//    glm::vec3 centroid = { x_sum / n, y_sum / n, z_sum / n };;
+//
+//    return centroid;
+//}
 
-std::vector<int> application::get_points_in_range_by_index(float r, const std::vector<file_loader::vertex>& points, const file_loader::vertex& target) {
-    std::vector<int> in_range;
-    int i = 0;
-    for (auto& p : points) {
-        if (glm::distance(p.position, target.position) < r) {
-            in_range.push_back(i);
-        }
-        i++;
-    }
-
-    return in_range;
-}
-
-glm::vec3 get_centroid(std::vector<file_loader::vertex> points) {
-    float x_sum, y_sum, z_sum;
-    x_sum = z_sum = y_sum = 0.f;
-    int n = points.size();
-
-    for (const auto& p : points) {
-        x_sum += p.position.x;
-        y_sum += p.position.y;
-        z_sum += p.position.z;
-    }
-
-    glm::vec3 centroid = { x_sum / n, y_sum / n, z_sum / n };;
-
-    return centroid;
-}
-
-void application::calculate_normals(std::vector<file_loader::vertex>& points) {
-    const float max_range = 1.f;
-
-    for (auto& p : points) {
-        std::vector<file_loader::vertex> in_range = get_points_in_range(max_range, points, p);
-        std::vector<int> in_range_ind = get_points_in_range_by_index(max_range, points, p);
-
-        float* n_2_raw = new float[3];
-        n_2_raw = EstimatePlaneImplicit(points, in_range_ind);
-        glm::vec3 n_2 = glm::vec3(n_2_raw[0], n_2_raw[1], n_2_raw[2]);
-        delete[] n_2_raw;
-
-        glm::vec3 centroid = get_centroid(in_range);
-
-        Eigen::Matrix3f M;
-        M.setZero();
-        for (auto& p2 : in_range)
-        {
-            Eigen::Vector3f p_minus_centroid = Eigen::Vector3f(p2.position.x, p2.position.y, p2.position.z) - Eigen::Vector3f(centroid.x, centroid.y, centroid.z);
-            M += p_minus_centroid * p_minus_centroid.transpose();
-        }
-
-        M /= in_range.size();
-
-        Eigen::EigenSolver<Eigen::Matrix3f> es(M);
-        const int lowestEigenValueIndex = std::min({ 0,1,2 },
-            [&es](int v1, int v2) {
-                return es.eigenvalues()[v1].real() < es.eigenvalues()[v2].real();
-            });
-        float A = es.eigenvectors().col(lowestEigenValueIndex)(0).real();
-        float B = es.eigenvectors().col(lowestEigenValueIndex)(1).real();
-        float C = es.eigenvectors().col(lowestEigenValueIndex)(2).real();
-        glm::vec3 p_normal(A, B, C);
-
-        if (glm::dot(p_normal, (-p.position)) <= 0)
-        {
-            p_normal = -p_normal;
-        }
-
-        if (glm::dot(n_2, (-p.position)) <= 0)
-        {
-            n_2 = -n_2;
-        }
-
-        p.normal = p_normal;
-        p.uv_stretch = n_2;
-
-        //std::cout << p_normal.x << "," << p_normal.y << "," << p_normal.z << "  -  " << n_2.x << "," << n_2.y << "," << n_2.z << std::endl;
-    }  
-}
+//void application::calculate_normals(std::vector<file_loader::vertex>& points) {
+//    const float max_range = 1.f;
+//
+//    for (auto& p : points) {
+//        std::vector<file_loader::vertex> in_range = get_points_in_range(max_range, points, p);
+//        std::vector<int> in_range_ind = get_points_in_range_by_index(max_range, points, p);
+//
+//        float* n_2_raw = new float[3];
+//        n_2_raw = EstimatePlaneImplicit(points, in_range_ind);
+//        glm::vec3 n_2 = glm::vec3(n_2_raw[0], n_2_raw[1], n_2_raw[2]);
+//        delete[] n_2_raw;
+//
+//        glm::vec3 centroid = get_centroid(in_range);
+//
+//        Eigen::Matrix3f M;
+//        M.setZero();
+//        for (auto& p2 : in_range)
+//        {
+//            Eigen::Vector3f p_minus_centroid = Eigen::Vector3f(p2.position.x, p2.position.y, p2.position.z) - Eigen::Vector3f(centroid.x, centroid.y, centroid.z);
+//            M += p_minus_centroid * p_minus_centroid.transpose();
+//        }
+//
+//        M /= in_range.size();
+//
+//        Eigen::EigenSolver<Eigen::Matrix3f> es(M);
+//        const int lowestEigenValueIndex = std::min({ 0,1,2 },
+//            [&es](int v1, int v2) {
+//                return es.eigenvalues()[v1].real() < es.eigenvalues()[v2].real();
+//            });
+//        float A = es.eigenvectors().col(lowestEigenValueIndex)(0).real();
+//        float B = es.eigenvectors().col(lowestEigenValueIndex)(1).real();
+//        float C = es.eigenvectors().col(lowestEigenValueIndex)(2).real();
+//        glm::vec3 p_normal(A, B, C);
+//
+//        if (glm::dot(p_normal, (-p.position)) <= 0)
+//        {
+//            p_normal = -p_normal;
+//        }
+//
+//        if (glm::dot(n_2, (-p.position)) <= 0)
+//        {
+//            n_2 = -n_2;
+//        }
+//
+//        p.normal = p_normal;
+//        p.uv_stretch = n_2;
+//
+//        //std::cout << p_normal.x << "," << p_normal.y << "," << p_normal.z << "  -  " << n_2.x << "," << n_2.y << "," << n_2.z << std::endl;
+//    }  
+//}
 
 void application::get_color_from_pictures(std::vector<file_loader::vertex>& points, file_loader::digital_camera_params camera_params, Texture2D* images) {
+    auto start = std::chrono::system_clock::now();
+
     ProgramObject m_color_compute_program;
     m_color_compute_program.Init({ {GL_COMPUTE_SHADER, "shaders/color_compute.comp"} });
     std::vector<glm::vec4> in_buffer;
@@ -1098,11 +1179,11 @@ void application::get_color_from_pictures(std::vector<file_loader::vertex>& poin
 
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO1);
     glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec4), (GLvoid*)in_buffer.data(), GL_DYNAMIC_COPY);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, SSBO1);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO1);
 
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO2);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec4), (GLvoid*)out_buffer.data(), GL_DYNAMIC_COPY);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, SSBO2);
+    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO2);
+    //glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec4), (GLvoid*)out_buffer.data(), GL_DYNAMIC_COPY);
+    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, SSBO2);
 
     //m_color_compute_buffer.Bind();
     int x = 650;
@@ -1127,11 +1208,15 @@ void application::get_color_from_pictures(std::vector<file_loader::vertex>& poin
     glMemoryBarrier(GL_QUERY_BUFFER_BARRIER_BIT || GL_SHADER_STORAGE_BARRIER_BIT | GL_BUFFER_UPDATE_BARRIER_BIT);
     //glMemoryBarrier(GL_ALL_BARRIER_BITS);
  
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO2);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, SSBO1);
     glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, points.size() * sizeof(glm::vec4), (GLvoid*)out_buffer.data());
 
     for (int i = 0; i < points.size(); i++)
     {
         points[i].color = glm::vec3(out_buffer[i].x, out_buffer[i].y, out_buffer[i].z);
     }
+
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Coloring took: " << elapsed.count() << '\n';
 }

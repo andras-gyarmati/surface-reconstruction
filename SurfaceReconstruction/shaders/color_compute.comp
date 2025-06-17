@@ -2,12 +2,12 @@
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
-layout (std430, binding = 0) writeonly buffer out_layout
-{
-    vec4 colors[];
-};
+//layout (std430, binding = 1) writeonly buffer out_layout
+//{
+//    vec4 colors[];
+//};
 
-layout (std430, binding = 1) readonly buffer in_layout
+layout (std430, binding = 0) buffer in_layout
 {
     vec4 positions[];
 };
@@ -26,6 +26,7 @@ void main()
     vec3 pos = positions[idx].xyz;
     vec2[3] d_pixels;
     vec4[3] local_colors;
+    positions[idx] = vec4(0);
 
     for (int i = 0; i < 3; ++i)
     {
@@ -39,7 +40,7 @@ void main()
         {
             d_pixels[i] = p_c;
             local_colors[i] = texture(tex_image[i], vec2(p_c.x / 960.0f, p_c.y / 600.0f));
-            colors[idx] = texture(tex_image[i], vec2(p_c.x / 960.0f, p_c.y / 600.0f));
+            positions[idx] = texture(tex_image[i], vec2(p_c.x / 960.0f, p_c.y / 600.0f));
         }
         else
         {

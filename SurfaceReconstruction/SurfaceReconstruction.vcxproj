@@ -128,6 +128,9 @@
       <AdditionalDependencies>
       </AdditionalDependencies>
     </CudaLink>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -180,6 +183,7 @@
     <ClInclude Include="Includes\TextureObject.h" />
     <ClInclude Include="Includes\VertexArrayObject.h" />
     <ClInclude Include="application.h" />
+    <ClInclude Include="normals.h" />
     <ClInclude Include="octree.h" />
     <ClInclude Include="ransac_plane.h" />
     <ClInclude Include="VertexSet.h" />
@@ -210,7 +214,13 @@
     <None Include="Includes\ProgramObject.inl" />
     <None Include="Includes\TextureObject.inl" />
     <None Include="Includes\VertexArrayObject.inl" />
-    <CudaCompile Include="ransac_plane.cu">
+    <CudaCompile Include="normals.cu">
+	  <FileType>Document</FileType>
+	  <DeploymentContent>false</DeploymentContent>
+	  <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+	  </DeploymentContent>
+	</CudaCompile>
+	<CudaCompile Include="ransac_plane.cu">
       <FileType>Document</FileType>
       <DeploymentContent>false</DeploymentContent>
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

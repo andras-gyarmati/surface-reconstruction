@@ -109,7 +109,7 @@ cudaError_t runRansacGPU(const std::vector<float>& pts, std::vector<float>& plan
 	int* h_counts = (int*)malloc(sizeof(int) * iters);
 	float* h_plane_params = (float*)malloc(sizeof(float) * 4 * iters);
 
-	curandState* d_state;
+	curandState* d_state = 0;
 	cudaError_t cudaStatus;
 
 	cublasHandle_t cublasH = NULL;
@@ -336,7 +336,7 @@ float* EstimatePlaneRANSAC(const VertexSet& pts, const std::vector<int>& indices
     }
 
     RANSACDiffs bestResult = PlanePointRANSACDifferences(pts, indices, bestPlane, threshold);
-    std::cout << "Best plane params: " << bestPlane[0] << " " << bestPlane[1] << " " << bestPlane[2] << "\n";
+    //std::cout << "Best plane params: " << bestPlane[0] << " " << bestPlane[1] << " " << bestPlane[2] << "\n";
 
     std::vector<int> inlierPts;
 
@@ -407,9 +407,9 @@ RANSACDiffs runRANSACPlane(const VertexSet& pts, const std::vector<int> indices,
 
     size_t num = indices.size();
 
-    std::cout << "Plane params RANSAC:" << std::endl;
-    std::cout << "A:" << bestModel[0] << " B:" << bestModel[1]
-        << " C:" << bestModel[2] << " D:" << bestModel[3] << std::endl;
+    //std::cout << "Plane params RANSAC:" << std::endl;
+    //std::cout << "A:" << bestModel[0] << " B:" << bestModel[1]
+        //<< " C:" << bestModel[2] << " D:" << bestModel[3] << std::endl;
 
     RANSACDiffs differences = PlanePointRANSACDifferences(pts ,indices, bestModel, threshold);
 	differences.bestModel = bestModel;
