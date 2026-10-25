@@ -48,6 +48,12 @@ FetchContent_Declare(glm
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(glm)
 
+# header-only; SOURCE_SUBDIR points nowhere so Eigen's own tests and docs are not configured
+FetchContent_Declare(eigen
+    URL https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.gz
+    SOURCE_SUBDIR none)
+FetchContent_MakeAvailable(eigen)
+
 FetchContent_Declare(imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG v1.91.9b
@@ -70,7 +76,7 @@ find_package(OpenGL REQUIRED)
 set(APP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/SurfaceReconstruction)
 file(GLOB APP_SOURCES CONFIGURE_DEPENDS ${APP_DIR}/*.cpp ${APP_DIR}/Includes/*.cpp)
 add_executable(SurfaceReconstruction ${APP_SOURCES})
-target_include_directories(SurfaceReconstruction PRIVATE ${APP_DIR} ${APP_DIR}/Includes)
+target_include_directories(SurfaceReconstruction PRIVATE ${APP_DIR} ${APP_DIR}/Includes ${eigen_SOURCE_DIR})
 target_compile_definitions(SurfaceReconstruction PRIVATE GL_SILENCE_DEPRECATION GLM_ENABLE_EXPERIMENTAL $<$<CXX_COMPILER_ID:MSVC>:_USE_MATH_DEFINES>)
 target_link_libraries(SurfaceReconstruction PRIVATE
     $<$<TARGET_EXISTS:SDL2::SDL2main>:SDL2::SDL2main>
@@ -80,5 +86,3 @@ foreach(asset_dir shaders inputs)
     add_custom_command(TARGET SurfaceReconstruction POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${APP_DIR}/${asset_dir} $<TARGET_FILE_DIR:SurfaceReconstruction>/${asset_dir})
 endforeach()
-add_custom_command(TARGET SurfaceReconstruction POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${APP_DIR}/imgui.ini $<TARGET_FILE_DIR:SurfaceReconstruction>/imgui.ini)
