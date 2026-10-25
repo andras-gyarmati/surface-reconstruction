@@ -1,13 +1,12 @@
 #include <typeinfo>
 
-#include <GL\glew.h>
-#include <GL\GL.h>
+#include <GL/glew.h>
 
 #include <iostream>
 
 #include "GLconversions.hpp"
 
-#include "glm\glm.hpp"
+#include "glm/glm.hpp"
 
 template <typename U, typename T>
 void ProgramObject::SetUniform(U _uniform, const T& pArr) {

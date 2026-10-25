@@ -1,6 +1,5 @@
 #pragma once
-#include <GL\glew.h>
-#include <GL\GL.h>
+#include <GL/glew.h>
 #include "GLconversions.hpp"
 #include "BufferObject.h"
 #include <initializer_list>

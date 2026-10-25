@@ -1,21 +1,17 @@
 #include <GL/glew.h>
 #include <SDL.h>
 #include <SDL_opengl.h>
-#include <imgui/imgui.h>
-#include <imgui/imgui_impl_sdl_gl3.h>
+#include <imgui.h>
+#include <imgui_impl_sdl2.h>
+#include <imgui_impl_opengl3.h>
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 #include "Includes/GLDebugMessageCallback.h"
 #include "application.h"
 
 int main(int argc, char* args[]) {
-    // Set up the system to call exitProgram() before exiting
-    atexit([]() {
-        SDL_Quit();
-
-        std::cout << "Press any key to exit..." << std::endl;
-        std::cin.get();
-    });
+    atexit(SDL_Quit);
 
     // 1. Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) == -1) {
@@ -23,8 +19,20 @@ int main(int argc, char* args[]) {
         return 1;
     }
 
+    // shaders/ and inputs/ are copied next to the executable by the build
+    if (char* base_path = SDL_GetBasePath()) {
+        std::filesystem::current_path(base_path);
+        SDL_free(base_path);
+    }
+
     // 2. Set up OpenGL requirements, create the window, and start OpenGL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#ifdef __APPLE__
+    // macOS caps OpenGL at 4.1 core and only hands it out to forward-compatible contexts
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+#endif
 #ifdef _DEBUG
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
@@ -55,6 +63,7 @@ int main(int argc, char* args[]) {
     SDL_GL_SetSwapInterval(1);
 
     // Initialize GLEW
+    glewExperimental = GL_TRUE;
     const GLenum error = glewInit();
     if (error != GLEW_OK) {
         std::cout << "[GLEW] Error while init!" << std::endl;
@@ -91,7 +100,10 @@ int main(int argc, char* args[]) {
     }
 
     // Initialize ImGui
-    ImGui_ImplSdlGL3_Init(win);
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui_ImplSDL2_InitForOpenGL(win, context);
+    ImGui_ImplOpenGL3_Init();
 
     // 4. Start the main event processing loop
     {
@@ -111,7 +123,7 @@ int main(int argc, char* args[]) {
 
         while (!quit) {
             while (SDL_PollEvent(&ev)) {
-                ImGui_ImplSdlGL3_ProcessEvent(&ev);
+                ImGui_ImplSDL2_ProcessEvent(&ev);
                 const bool is_mouse_captured = ImGui::GetIO().WantCaptureMouse;
                 const bool is_keyboard_captured = ImGui::GetIO().WantCaptureKeyboard;
                 switch (ev.type) {
@@ -153,11 +165,14 @@ int main(int argc, char* args[]) {
                 default: break;
                 }
             }
-            ImGui_ImplSdlGL3_NewFrame(win);
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplSDL2_NewFrame();
+            ImGui::NewFrame();
 
             app.update();
             app.render();
             ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
             SDL_GL_SwapWindow(win);
         }
@@ -166,7 +181,9 @@ int main(int argc, char* args[]) {
     }
 
     // 5. Exit
-    ImGui_ImplSdlGL3_Shutdown();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(win);
 
